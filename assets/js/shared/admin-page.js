@@ -275,6 +275,71 @@
       });
     }
 
+    function bindMainExhibitionAutoCover(form) {
+      if (kind !== "movies") return;
+
+      const isMainSelect = form.querySelector('select[name="is_main"]');
+      const movieCodeInput = form.querySelector('input[name="movie_code"]');
+      if (!isMainSelect || !movieCodeInput) return;
+
+      function updateAutoCovers() {
+        const isMain = isMainSelect.value === "true";
+        if (isMain) {
+          let cleanCode = (movieCodeInput.value || "").trim();
+          if (!cleanCode) return;
+          cleanCode = cleanCode.replace(/-DECENSORED/i, "");
+          cleanCode = cleanCode.replace(/-REDUCING-MOSAIC/i, "");
+          cleanCode = cleanCode.replace(/-REDUCING/i, "");
+          cleanCode = cleanCode.toLowerCase();
+
+          const coverUrl = `https://images.projectjav.com/data/covers/${cleanCode}.jpg`;
+
+          ["capture", "snapshot"].forEach((field) => {
+            const slot = form.querySelector(`[data-image-field="${field}"]`);
+            if (slot) {
+              const preview = slot.querySelector(".image-preview");
+              const urlInput = slot.querySelector(`input[name="url_${field}"]`);
+              if (urlInput) urlInput.value = coverUrl;
+              if (preview) {
+                preview.classList.add("has-image");
+                preview.innerHTML = `<img src="${UI.escapeHtml(coverUrl)}" alt="${field === "capture" ? "캡쳐" : "스냅샷"} 미리보기">`;
+              }
+            }
+          });
+        } else {
+          ["capture", "snapshot"].forEach((field) => {
+            const slot = form.querySelector(`[data-image-field="${field}"]`);
+            if (slot) {
+              const preview = slot.querySelector(".image-preview");
+              const urlInput = slot.querySelector(`input[name="url_${field}"]`);
+              const originalUrl = editingItem ? (field === "capture" ? editingItem.capture_url : editingItem.snapshot_url) : "";
+              if (urlInput) urlInput.value = originalUrl || "";
+              if (preview) {
+                if (originalUrl) {
+                  preview.classList.add("has-image");
+                  preview.innerHTML = `<img src="${UI.escapeHtml(originalUrl)}" alt="${field === "capture" ? "캡쳐" : "스냅샷"} 미리보기">`;
+                } else {
+                  preview.classList.remove("has-image");
+                  preview.innerHTML = "<span>이미지 없음</span>";
+                }
+              }
+            }
+          });
+        }
+      }
+
+      isMainSelect.addEventListener("change", updateAutoCovers);
+      movieCodeInput.addEventListener("input", () => {
+        if (isMainSelect.value === "true") {
+          updateAutoCovers();
+        }
+      });
+      
+      if (isMainSelect.value === "true") {
+        updateAutoCovers();
+      }
+    }
+
     function renderForm() {
       removedAssets = [];
       const isEdit = Boolean(editingItem);
@@ -293,6 +358,7 @@
       const form = document.getElementById("entryForm");
       setSelectValues(form);
       bindImageFields();
+      bindMainExhibitionAutoCover(form);
 
       const cancel = document.getElementById("cancelEdit");
       if (cancel) cancel.addEventListener("click", () => {
@@ -323,14 +389,15 @@
           if (isEdit) {
             data = await Store.update(kind, editingItem[primaryKey], payload);
             await Store.updateMediaOwner(uploadedAssetIds, editingItem[primaryKey]);
+            editingItem = data[kind].find((item) => String(item[primaryKey]) === String(editingItem[primaryKey])) || null;
           } else {
             data = await Store.create(kind, payload);
             const created = data[kind][0];
             if (created && primaryKey) await Store.updateMediaOwner(uploadedAssetIds, created[primaryKey]);
+            editingItem = null;
           }
 
           for (const asset of removedAssets) await Store.deleteMedia(asset);
-          editingItem = null;
           renderForm();
           renderTable();
           UI.setDbStatus(Store.getStatus());
