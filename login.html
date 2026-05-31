@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html class="dark" lang="ko">
+<head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+  <title>CineTube | Private Cinema Archive Login</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+  <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #000000;
+      overflow: hidden;
+      font-family: 'Inter', sans-serif;
+    }
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    }
+    .glass-effect {
+      backdrop-filter: blur(20px);
+      background-color: rgba(19, 19, 19, 0.8);
+      border: 1px solid #333333;
+    }
+    .shimmer-button {
+      position: relative;
+      overflow: hidden;
+    }
+    .shimmer-button::after {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: linear-gradient(45deg, transparent, rgba(255,255,255,0.1), transparent);
+      transform: rotate(45deg);
+      transition: 0.5s;
+    }
+    .shimmer-button:hover::after {
+      left: 120%;
+    }
+  </style>
+  <script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "surface-container-lowest": "#0e0e0e",
+            "surface-container": "#201f1f",
+            "surface-tint": "#ffb4aa",
+            "inverse-surface": "#e5e2e1",
+            "surface-container-high": "#2a2a2a",
+            "surface-variant": "#353534",
+            "on-secondary-fixed": "#221b00",
+            "on-background": "#e5e2e1",
+            "surface-dim": "#131313",
+            "primary": "#ffb4aa",
+            "secondary-fixed-dim": "#e9c400",
+            "on-secondary-fixed-variant": "#544600",
+            "on-primary-fixed": "#410001",
+            "on-primary-fixed-variant": "#930007",
+            "background": "#131313",
+            "outline-variant": "#5e3f3b",
+            "tertiary-container": "#006ee5",
+            "tertiary-fixed": "#d8e2ff",
+            "error-container": "#93000a",
+            "on-tertiary-fixed-variant": "#004493",
+            "on-secondary-container": "#725f00",
+            "surface-bright": "#393939",
+            "primary-container": "#e50914",
+            "on-primary-container": "#fff7f6",
+            "tertiary": "#adc7ff",
+            "surface": "#131313",
+            "secondary": "#fff9ef",
+            "on-primary": "#690003",
+            "tertiary-fixed-dim": "#adc7ff",
+            "outline": "#af8782",
+            "on-surface": "#e5e2e1",
+            "inverse-primary": "#c0000c",
+            "on-tertiary-fixed": "#001a41",
+            "error": "#ffb4ab",
+            "inverse-on-surface": "#313030",
+            "surface-container-low": "#1c1b1b",
+            "primary-fixed-dim": "#ffb4aa",
+            "on-tertiary-container": "#f8f8ff",
+            "primary-fixed": "#ffdad5",
+            "on-error-container": "#ffdad6",
+            "on-error": "#690005",
+            "secondary-container": "#ffdb3c",
+            "surface-container-highest": "#353534",
+            "on-secondary": "#3a3000",
+            "on-surface-variant": "#e9bcb6",
+            "on-tertiary": "#002e68",
+            "secondary-fixed": "#ffe16d"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          "spacing": {
+            "margin-tablet": "32px",
+            "margin-mobile": "16px",
+            "unit": "8px",
+            "container-max-width": "1440px",
+            "gutter": "24px",
+            "margin-desktop": "48px"
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-black flex items-center justify-center min-h-screen relative overflow-hidden">
+  <!-- Background Hero Image -->
+  <div class="absolute inset-0 z-0">
+    <div class="absolute inset-0 bg-black/65 z-10 backdrop-contrast-125"></div>
+    <div class="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent z-10"></div>
+    <img alt="Cinematic background" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDNPgDRCWf69-uc0bdY8uOjVop22_ANvoAreDHgDH1TC9IGpzyaCT6UY39eecs2sRAgKxfGm1tDfekXHV_c3wcM3WxvtcZT9l5aBekWV7Z4n1lqF0u5a55aaHdX3n4IPHXQMb9FREDnerkt6yfksUKKugj4F7HhacS6foArtaNbqwuUQiAtC6f-ecrULl7nxG2PKZN-nQWatnJ1q5bNiLXfjqE6RcmNWHvxs-ZT_tCu2CfUUyFjwJCjoE6v18JaVjU_SCZlfWsUU3Dp"/>
+  </div>
+
+  <!-- Login Container -->
+  <main class="z-20 w-full max-w-md px-margin-mobile md:px-0">
+    <div class="glass-effect rounded-xl overflow-hidden p-10 flex flex-col items-center">
+      <!-- Logo Section -->
+      <header class="mb-10 text-center">
+        <h1 class="text-3xl font-black text-primary-container tracking-tighter mb-1">
+          CineTube
+        </h1>
+        <p class="text-xs uppercase tracking-widest text-on-surface-variant font-bold">
+          Private Cinema Archive
+        </p>
+      </header>
+
+      <!-- Form Section -->
+      <form class="w-full space-y-6" id="loginForm">
+        <!-- Administrator ID Field -->
+        <div class="space-y-2">
+          <label class="text-xs font-bold uppercase tracking-wider text-on-surface-variant" for="admin-id">
+            Administrator ID / Email
+          </label>
+          <div class="relative group">
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-on-surface-variant group-focus-within:text-primary-container transition-colors">
+              <span class="material-symbols-outlined" data-icon="badge">badge</span>
+            </div>
+            <input class="w-full bg-surface-container border-transparent focus:border-primary-container focus:ring-1 focus:ring-primary-container text-on-surface pl-10 py-3 rounded-lg transition-all" id="admin-id" name="admin-id" placeholder="Enter unique ID or Email" required type="text"/>
+          </div>
+        </div>
+
+        <!-- Password Field -->
+        <div class="space-y-2">
+          <label class="text-xs font-bold uppercase tracking-wider text-on-surface-variant" for="password">
+            Secure Password
+          </label>
+          <div class="relative group">
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-on-surface-variant group-focus-within:text-primary-container transition-colors">
+              <span class="material-symbols-outlined" data-icon="lock" style="font-variation-settings: 'FILL' 1;">lock</span>
+            </div>
+            <input class="w-full bg-surface-container border-transparent focus:border-primary-container focus:ring-1 focus:ring-primary-container text-on-surface pl-10 py-3 rounded-lg transition-all" id="password" name="password" placeholder="••••••••" required type="password"/>
+            <button class="absolute inset-y-0 right-0 pr-3 flex items-center text-on-surface-variant hover:text-on-surface transition-colors" type="button" id="togglePassword">
+              <span class="material-symbols-outlined" data-icon="visibility">visibility</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Submit Button -->
+        <button class="shimmer-button w-full bg-primary-container text-on-primary-container text-xs py-4 rounded-lg font-bold tracking-widest hover:brightness-110 active:scale-[0.98] transition-all flex items-center justify-center gap-2 uppercase" type="submit">
+          Authorize Access
+          <span class="material-symbols-outlined text-[18px]" data-icon="arrow_forward">arrow_forward</span>
+        </button>
+      </form>
+
+      <!-- Security Notice -->
+      <footer class="mt-8 text-center">
+        <div class="flex items-center justify-center gap-2 mb-2">
+          <span class="material-symbols-outlined text-on-surface-variant text-[16px]" data-icon="verified_user">verified_user</span>
+          <p class="font-mono text-xs text-on-surface-variant uppercase tracking-wider">
+            End-to-End Encrypted Tunnel
+          </p>
+        </div>
+        <p class="text-xs text-on-surface-variant/40 max-w-[280px] mx-auto leading-relaxed">
+          Access restricted to authorized personnel only. All connections are logged.
+        </p>
+      </footer>
+    </div>
+  </main>
+
+  <!-- Ambient Light Effects -->
+  <div class="absolute top-0 left-0 w-full h-full pointer-events-none">
+    <div class="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary-container/10 blur-[120px] rounded-full"></div>
+    <div class="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-primary-container/5 blur-[120px] rounded-full"></div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="assets/js/supabase-config.js"></script>
+  <script src="assets/js/shared/sample-data.js"></script>
+  <script src="assets/js/shared/store.js"></script>
+  <script>
+    // Simple micro-interaction for the password visibility toggle
+    document.getElementById('togglePassword').addEventListener('click', function() {
+      const input = document.getElementById('password');
+      const icon = this.querySelector('.material-symbols-outlined');
+      if (input.type === 'password') {
+        input.type = 'text';
+        icon.textContent = 'visibility_off';
+      } else {
+        input.type = 'password';
+        icon.textContent = 'visibility';
+      }
+    });
+
+    // Form submission effect and authentication integration
+    document.getElementById('loginForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const btn = this.querySelector('button[type="submit"]');
+      const email = document.getElementById('admin-id').value.trim();
+      const password = document.getElementById('password').value;
+      
+      btn.disabled = true;
+      btn.innerHTML = `<span class="material-symbols-outlined animate-spin" data-icon="progress_activity">progress_activity</span> AUTHORIZING...`;
+      
+      try {
+        await window.CineTubeStore.signIn(email, password);
+        btn.innerHTML = `<span class="material-symbols-outlined" data-icon="check_circle">check_circle</span> ACCESS GRANTED`;
+        btn.classList.remove('bg-primary-container');
+        btn.classList.add('bg-emerald-600');
+        
+        setTimeout(() => {
+           window.location.href = "index.html";
+        }, 800);
+      } catch (error) {
+        alert(`접속 권한 인증에 실패했습니다.\n\n사유: ${error.message}`);
+        btn.disabled = false;
+        btn.classList.remove('bg-emerald-600');
+        btn.classList.add('bg-primary-container');
+        btn.innerHTML = `Authorize Access <span class="material-symbols-outlined text-[18px]" data-icon="arrow_forward">arrow_forward</span>`;
+      }
+    });
+  </script>
+</body>
+</html>

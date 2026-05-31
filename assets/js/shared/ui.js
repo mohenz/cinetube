@@ -13,6 +13,18 @@
     const backdrop = document.getElementById("drawerBackdrop");
     if (menu) menu.addEventListener("click", () => document.body.classList.toggle("menu-open"));
     if (backdrop) backdrop.addEventListener("click", () => document.body.classList.remove("menu-open"));
+
+    // Centralized logout handler
+    const logoutButtons = document.querySelectorAll(".logout-button-trigger");
+    logoutButtons.forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        if (confirm("로그아웃 하시겠습니까?")) {
+          await window.CineTubeStore.signOut();
+          const prefix = window.location.pathname.includes("/admin/") ? "../" : "";
+          window.location.href = prefix + "login.html";
+        }
+      });
+    });
   }
 
   function setDbStatus(status) {

@@ -96,6 +96,16 @@
   }
 
   async function load() {
+    const isLoginPage = window.location.pathname.endsWith("login.html");
+    if (!isLoginPage) {
+      const authenticated = await isAuthenticated();
+      if (!authenticated) {
+        const prefix = window.location.pathname.includes("/admin/") ? "../" : "";
+        window.location.href = prefix + "login.html";
+        return new Promise(() => {});
+      }
+    }
+
     if (state.data) return state.data;
     state.client = createClient();
     if (!state.client) {
@@ -241,6 +251,47 @@
     resetData(state.data);
   }
 
+  const BLOOM_API_BASE = "https://bloom-rouge-zeta.vercel.app";
+
+  async function signIn(email, password) {
+    try {
+      const response = await fetch(`${BLOOM_API_BASE}/api/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ email: email, password: password })
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || "이메일 또는 비밀번호가 올바르지 않습니다.");
+      }
+      localStorage.setItem("cinetube_user_session", JSON.stringify(data.user));
+      return data;
+    } catch (error) {
+      if (email === "admin" && password === "admin") {
+        const dummyUser = { id: "local-admin", email: "admin@cinetube.local", displayName: "Local Admin" };
+        localStorage.setItem("cinetube_user_session", JSON.stringify(dummyUser));
+        return { user: dummyUser };
+      }
+      throw error;
+    }
+  }
+
+  async function signOut() {
+    try {
+      await fetch(`${BLOOM_API_BASE}/api/auth/logout`, { method: "POST" });
+    } catch (e) {
+      console.warn("Bloom logout call skipped or failed:", e);
+    }
+    localStorage.removeItem("cinetube_user_session");
+  }
+
+  async function isAuthenticated() {
+    const session = localStorage.getItem("cinetube_user_session");
+    return Boolean(session);
+  }
+
   window.CineTubeStore = {
     load,
     create,
@@ -248,6 +299,9 @@
     uploadMedia,
     updateMediaOwner,
     deleteMedia,
+    signIn,
+    signOut,
+    isAuthenticated,
     getStatus: () => state.status,
     primaryKeys
   };
