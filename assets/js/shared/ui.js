@@ -36,8 +36,9 @@
   function movieCard(movie) {
     const keywords = Array.isArray(movie.keywords) ? movie.keywords.join(", ") : movie.keywords || "";
     const posterUrl = movie.poster_url || movie.capture_url || "assets/img/favicon.svg";
+    const detailUrl = `movie.html?code=${encodeURIComponent(movie.movie_code || movie.id || "")}`;
     return `
-      <article class="poster-card" title="${escapeHtml(movie.title)}">
+      <article class="poster-card" title="${escapeHtml(movie.title)}" data-movie-href="${escapeHtml(detailUrl)}" tabindex="0" role="link" aria-label="${escapeHtml(movie.title)} 영화정보 보기">
         <div class="poster-frame">
           <img src="${escapeHtml(posterUrl)}" alt="${escapeHtml(movie.title)} 포스터" loading="lazy">
           <div class="poster-overlay">
@@ -49,6 +50,21 @@
         <h3 class="poster-title">${escapeHtml(movie.title)}</h3>
         <div class="poster-meta"><span>${escapeHtml(movie.movie_code)}</span><span>${escapeHtml(keywords)}</span></div>
       </article>`;
+  }
+
+  function setupMovieCards(root = document) {
+    root.querySelectorAll(".poster-card[data-movie-href]").forEach((card) => {
+      if (card.dataset.boundMovieLink === "true") return;
+      card.dataset.boundMovieLink = "true";
+      card.addEventListener("click", () => {
+        window.location.href = card.dataset.movieHref;
+      });
+      card.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        window.location.href = card.dataset.movieHref;
+      });
+    });
   }
 
   function movieSection(title, subtitle, movies) {
@@ -108,6 +124,7 @@
     setupChrome,
     setDbStatus,
     movieCard,
+    setupMovieCards,
     movieSection,
     ratingRank,
     matchesSearch,

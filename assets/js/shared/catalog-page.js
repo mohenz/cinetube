@@ -116,6 +116,7 @@
       const result = UI.paginate(movies, page, pageSize.value);
       page = result.page || 1;
       grid.innerHTML = result.items.length ? result.items.map(UI.movieCard).join("") : `<div class="empty">조건에 맞는 영화정보가 없습니다.</div>`;
+      UI.setupMovieCards(grid);
       UI.renderPagination(pagination, result.totalPages, page, (nextPage) => {
         page = nextPage;
         render();

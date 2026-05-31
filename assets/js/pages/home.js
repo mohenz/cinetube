@@ -55,6 +55,7 @@
       UI.movieSection("맞춤추천 8개", "추천 점수를 기준으로 정렬했습니다.", recommended),
       UI.movieSection("카테고리별 평가등급 상위 8개", "등급과 추천 점수를 함께 반영했습니다.", topRated)
     ].join("");
+    UI.setupMovieCards(sections);
   }
 
   if (searchInput) searchInput.addEventListener("input", render);
