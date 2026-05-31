@@ -7,14 +7,13 @@
         const isLoginPage = window.location.pathname.endsWith("login.html");
         if (!session && !isLoginPage) {
           document.documentElement.style.display = "none";
-          const prefix = window.location.pathname.includes("/admin/") ? "../" : "";
-          window.location.href = prefix + "login.html";
+          window.location.href = "login.html";
         }
       })();
     </script>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>CineTube | 주연배우</title>
+    <title>CineTube | 배우정보</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
@@ -22,7 +21,7 @@
     <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
     <link rel="stylesheet" href="assets/css/styles.css">
   </head>
-  <body data-page="actors" data-catalog-kind="actors">
+  <body data-page="actor">
     <aside class="sidebar" aria-label="주요 메뉴">
       <a class="brand" href="index.html"><span class="brand-mark">CT</span><span><strong>CineTube</strong><small>CineHub Database</small></span></a>
       <nav class="side-nav">
@@ -38,33 +37,26 @@
 
     <header class="topbar">
       <button class="mobile-menu" type="button" id="mobileMenu" aria-label="메뉴 열기"><span class="material-symbols-outlined">menu</span></button>
-      <div class="search-box"><span class="material-symbols-outlined">search</span><input id="searchInput" type="search" placeholder="배우명 검색"></div>
-      <a class="primary-button" href="admin/actors.html"><span class="material-symbols-outlined">manage_accounts</span>배우 관리</a>
+      <div class="search-box"><span class="material-symbols-outlined">person</span><input id="actorNameDisplay" type="text" value="" readonly aria-label="배우명"></div>
+      <a class="primary-button" href="actors.html"><span class="material-symbols-outlined">arrow_back</span>배우 목록</a>
     </header>
 
     <main class="app-shell">
       <section class="content-view">
+        <section id="actorProfile"></section>
         <div class="section-head">
-          <div><p class="eyebrow">Actor Index</p><h1>주연배우 목록</h1><p>등록된 배우를 선택해 배우정보와 출연 작품을 확인합니다.</p></div>
+          <div><p class="eyebrow">Filmography</p><h1>출연 작품</h1><p>선택한 배우로 등록된 영화정보입니다.</p></div>
         </div>
-        <div class="toolbar">
-          <div class="filter-pills" id="actorSummary"></div>
-          <label class="page-size-label">페이지당
-            <select class="select-control" id="pageSizeSelect">
-              <option value="20" selected>20개</option><option value="40">40개</option><option value="80">80개</option><option value="100">100개</option><option value="all">전체</option>
-            </select>
-          </label>
-        </div>
-        <section class="actor-grid" id="actorGrid"></section>
-        <nav class="pagination" id="pagination" aria-label="페이지"></nav>
+        <section class="poster-grid" id="catalogGrid"></section>
       </section>
     </main>
+
     <div class="drawer-backdrop" id="drawerBackdrop"></div>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="assets/js/supabase-config.js"></script>
     <script src="assets/js/shared/sample-data.js"></script>
     <script src="assets/js/shared/store.js"></script>
     <script src="assets/js/shared/ui.js"></script>
-    <script src="assets/js/pages/actors.js"></script>
+    <script src="assets/js/pages/actor-detail.js"></script>
   </body>
 </html>
