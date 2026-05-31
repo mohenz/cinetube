@@ -101,12 +101,14 @@
         <div class="image-field" data-image-field="${UI.escapeHtml(name)}" data-original-asset-id="${UI.escapeHtml(value.assetId)}" data-original-object-path="${UI.escapeHtml(value.objectPath)}" data-original-bucket-id="${UI.escapeHtml(value.bucketId)}">
           <div class="image-field-head">
             <strong>${UI.escapeHtml(config.label)}</strong>
-            <button class="link-button image-clear" type="button">삭제</button>
           </div>
           <div class="image-preview ${value.url ? "has-image" : ""}">
             ${value.url ? `<img src="${UI.escapeHtml(value.url)}" alt="${UI.escapeHtml(config.label)} 미리보기">` : `<span>이미지 없음</span>`}
           </div>
           <input class="image-input" type="file" name="file_${UI.escapeHtml(name)}" accept="image/*">
+          <div class="image-field-actions">
+            <button class="ghost-button image-clear" type="button"><span class="material-symbols-outlined">delete</span>이미지 삭제</button>
+          </div>
           <input type="hidden" name="url_${UI.escapeHtml(name)}" value="${UI.escapeHtml(value.url)}">
           <input type="hidden" name="asset_${UI.escapeHtml(name)}" value="${UI.escapeHtml(value.assetId)}">
         </div>`;
@@ -254,7 +256,6 @@
             <button class="primary-button" type="submit"><span class="material-symbols-outlined">save</span>${isEdit ? "수정 저장" : "저장"}</button>
             ${isEdit ? `<button class="ghost-button" type="button" id="cancelEdit"><span class="material-symbols-outlined">close</span>취소</button>` : ""}
           </div>
-          <p class="form-note">이미지는 Supabase Storage에 저장하고, 파일명/경로/공개 URL 등 메타정보는 DB에 저장합니다.</p>
         </form>`;
 
       const form = document.getElementById("entryForm");

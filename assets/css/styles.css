@@ -406,7 +406,7 @@ th { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spa
 .image-field-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 10px;
 }
 
@@ -433,6 +433,11 @@ th { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spa
   width: 100%;
   color: var(--muted);
   font-size: 13px;
+}
+
+.image-field-actions {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .table-thumb {
