@@ -124,11 +124,11 @@ drop policy if exists "authenticated write actors" on public.actors;
 drop policy if exists "authenticated write rating grades" on public.rating_grades;
 drop policy if exists "authenticated write movies" on public.movies;
 
-create policy "authenticated write media assets" on public.media_assets for all to authenticated using (true) with check (true);
-create policy "authenticated write categories" on public.categories for all to authenticated using (true) with check (true);
-create policy "authenticated write actors" on public.actors for all to authenticated using (true) with check (true);
-create policy "authenticated write rating grades" on public.rating_grades for all to authenticated using (true) with check (true);
-create policy "authenticated write movies" on public.movies for all to authenticated using (true) with check (true);
+create policy "write media assets" on public.media_assets for all using (true) with check (true);
+create policy "write categories" on public.categories for all using (true) with check (true);
+create policy "write actors" on public.actors for all using (true) with check (true);
+create policy "write rating grades" on public.rating_grades for all using (true) with check (true);
+create policy "write movies" on public.movies for all using (true) with check (true);
 
 -- storage objects policies
 drop policy if exists "public read cinetube images" on storage.objects;
@@ -139,11 +139,11 @@ drop policy if exists "authenticated delete cinetube images" on storage.objects;
 create policy "public read cinetube images" on storage.objects
 for select using (bucket_id = 'cinetube-images');
 
-create policy "authenticated upload cinetube images" on storage.objects
-for insert to authenticated with check (bucket_id = 'cinetube-images');
+create policy "upload cinetube images" on storage.objects
+for insert with check (bucket_id = 'cinetube-images');
 
-create policy "authenticated update cinetube images" on storage.objects
-for update to authenticated using (bucket_id = 'cinetube-images') with check (bucket_id = 'cinetube-images');
+create policy "update cinetube images" on storage.objects
+for update using (bucket_id = 'cinetube-images') with check (bucket_id = 'cinetube-images');
 
-create policy "authenticated delete cinetube images" on storage.objects
-for delete to authenticated using (bucket_id = 'cinetube-images');
+create policy "delete cinetube images" on storage.objects
+for delete using (bucket_id = 'cinetube-images');
