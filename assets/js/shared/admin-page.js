@@ -275,6 +275,66 @@
       });
     }
 
+    // projectjav.com에서 실제 커버 이미지 URL 조회 (codetabs 프록시 경유)
+    async function fetchProjectJavCoverUrl(cleanCode) {
+      try {
+        const searchUrl = `https://projectjav.com/?searchTerm=${cleanCode.toUpperCase()}`;
+        const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(searchUrl)}`;
+        const res = await fetch(proxyUrl);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const html = await res.text();
+
+        // 패턴 1: href="/movie/cleanCode-{ID}"
+        const linkMatch = html.match(new RegExp('/movie/' + cleanCode.replace(/[-]/g, '\\-') + '-(\\d+)', 'i'));
+        if (linkMatch) {
+          return `https://images.projectjav.com/data/covers/${linkMatch[1]}.jpg`;
+        }
+
+        // 패턴 2: data-link 속성에서 직접 추출 (alt="cleanCode")
+        const altMatch = html.match(new RegExp('data-link="(https://images\\.projectjav\\.com/data/covers/\\d+\\.jpg)"[^>]*alt="' + cleanCode.replace(/[-]/g, '\\-') + '"', 'i'));
+        if (altMatch) return altMatch[1];
+
+        return null;
+      } catch (e) {
+        console.warn('projectjav 커버 이미지 조회 실패:', e);
+        return null;
+      }
+    }
+
+    function setImageSlotCoverUrl(form, coverUrl) {
+      ["capture", "snapshot"].forEach((field) => {
+        const slot = form.querySelector(`[data-image-field="${field}"]`);
+        if (!slot) return;
+        const preview = slot.querySelector(".image-preview");
+        const urlInput = slot.querySelector(`input[name="url_${field}"]`);
+        if (urlInput) urlInput.value = coverUrl;
+        if (preview) {
+          preview.classList.add("has-image");
+          preview.innerHTML = `<img src="${UI.escapeHtml(coverUrl)}" alt="${field === "capture" ? "캡쳐" : "스냅샷"} 미리보기">`;
+        }
+      });
+    }
+
+    function restoreOriginalImageSlots(form) {
+      ["capture", "snapshot"].forEach((field) => {
+        const slot = form.querySelector(`[data-image-field="${field}"]`);
+        if (!slot) return;
+        const preview = slot.querySelector(".image-preview");
+        const urlInput = slot.querySelector(`input[name="url_${field}"]`);
+        const originalUrl = editingItem ? (field === "capture" ? editingItem.capture_url : editingItem.snapshot_url) : "";
+        if (urlInput) urlInput.value = originalUrl || "";
+        if (preview) {
+          if (originalUrl) {
+            preview.classList.add("has-image");
+            preview.innerHTML = `<img src="${UI.escapeHtml(originalUrl)}" alt="${field === "capture" ? "캡쳐" : "스냅샷"} 미리보기">`;
+          } else {
+            preview.classList.remove("has-image");
+            preview.innerHTML = "<span>이미지 없음</span>";
+          }
+        }
+      });
+    }
+
     function bindMainExhibitionAutoCover(form) {
       if (kind !== "movies") return;
 
@@ -282,61 +342,64 @@
       const movieCodeInput = form.querySelector('input[name="movie_code"]');
       if (!isMainSelect || !movieCodeInput) return;
 
-      function updateAutoCovers() {
+      let _fetchTimer = null;
+
+      async function updateAutoCovers() {
         const isMain = isMainSelect.value === "true";
-        if (isMain) {
-          let cleanCode = (movieCodeInput.value || "").trim();
-          if (!cleanCode) return;
-          cleanCode = cleanCode.replace(/-DECENSORED/i, "");
-          cleanCode = cleanCode.replace(/-REDUCING-MOSAIC/i, "");
-          cleanCode = cleanCode.replace(/-REDUCING/i, "");
-          cleanCode = cleanCode.toLowerCase();
+        if (!isMain) {
+          restoreOriginalImageSlots(form);
+          return;
+        }
 
-          const coverUrl = `https://images.projectjav.com/data/covers/${cleanCode}.jpg`;
+        let cleanCode = (movieCodeInput.value || "").trim();
+        if (!cleanCode) return;
+        cleanCode = cleanCode.replace(/-DECENSORED/i, "");
+        cleanCode = cleanCode.replace(/-REDUCING-MOSAIC/i, "");
+        cleanCode = cleanCode.replace(/-REDUCING/i, "");
+        cleanCode = cleanCode.toLowerCase();
 
-          ["capture", "snapshot"].forEach((field) => {
-            const slot = form.querySelector(`[data-image-field="${field}"]`);
-            if (slot) {
-              const preview = slot.querySelector(".image-preview");
-              const urlInput = slot.querySelector(`input[name="url_${field}"]`);
-              if (urlInput) urlInput.value = coverUrl;
-              if (preview) {
-                preview.classList.add("has-image");
-                preview.innerHTML = `<img src="${UI.escapeHtml(coverUrl)}" alt="${field === "capture" ? "캡쳐" : "스냅샷"} 미리보기">`;
-              }
-            }
-          });
+        // 로딩 상태 표시
+        ["capture", "snapshot"].forEach((field) => {
+          const slot = form.querySelector(`[data-image-field="${field}"]`);
+          if (!slot) return;
+          const preview = slot.querySelector(".image-preview");
+          if (preview) {
+            preview.classList.add("has-image");
+            preview.innerHTML = `<span style="color:var(--accent-soft);font-size:12px;">projectjav 커버 조회 중…</span>`;
+          }
+        });
+
+        const coverUrl = await fetchProjectJavCoverUrl(cleanCode);
+
+        if (coverUrl) {
+          setImageSlotCoverUrl(form, coverUrl);
         } else {
+          // 조회 실패 시 기존 이미지 복원 + 경고
+          restoreOriginalImageSlots(form);
           ["capture", "snapshot"].forEach((field) => {
             const slot = form.querySelector(`[data-image-field="${field}"]`);
-            if (slot) {
-              const preview = slot.querySelector(".image-preview");
-              const urlInput = slot.querySelector(`input[name="url_${field}"]`);
-              const originalUrl = editingItem ? (field === "capture" ? editingItem.capture_url : editingItem.snapshot_url) : "";
-              if (urlInput) urlInput.value = originalUrl || "";
-              if (preview) {
-                if (originalUrl) {
-                  preview.classList.add("has-image");
-                  preview.innerHTML = `<img src="${UI.escapeHtml(originalUrl)}" alt="${field === "capture" ? "캡쳐" : "스냅샷"} 미리보기">`;
-                } else {
-                  preview.classList.remove("has-image");
-                  preview.innerHTML = "<span>이미지 없음</span>";
-                }
-              }
+            if (!slot) return;
+            const preview = slot.querySelector(".image-preview");
+            if (preview && !preview.querySelector("img")) {
+              preview.classList.remove("has-image");
+              preview.innerHTML = `<span style="color:var(--danger,#e55);font-size:12px;">커버 조회 실패: poster_url 사용</span>`;
             }
           });
         }
       }
 
-      isMainSelect.addEventListener("change", updateAutoCovers);
-      movieCodeInput.addEventListener("input", () => {
-        if (isMainSelect.value === "true") {
-          updateAutoCovers();
-        }
+      isMainSelect.addEventListener("change", () => {
+        clearTimeout(_fetchTimer);
+        _fetchTimer = setTimeout(updateAutoCovers, 100);
       });
-      
+      movieCodeInput.addEventListener("input", () => {
+        if (isMainSelect.value !== "true") return;
+        clearTimeout(_fetchTimer);
+        _fetchTimer = setTimeout(updateAutoCovers, 600);
+      });
+
       if (isMainSelect.value === "true") {
-        updateAutoCovers();
+        _fetchTimer = setTimeout(updateAutoCovers, 100);
       }
     }
 
@@ -373,17 +436,30 @@
           const uploadedAssetIds = await applyImagePayload(payload, form);
           compactActorImages(payload);
 
-          // Dynamically override cover images for movies displayed on main page
+          // 메인전시 시 projectjav 커버 URL 강제 적용
           if (kind === "movies" && payload.is_main) {
             let cleanCode = (payload.movie_code || "").trim();
             cleanCode = cleanCode.replace(/-DECENSORED/i, "");
             cleanCode = cleanCode.replace(/-REDUCING-MOSAIC/i, "");
             cleanCode = cleanCode.replace(/-REDUCING/i, "");
             cleanCode = cleanCode.toLowerCase();
-            
-            const coverUrl = `https://images.projectjav.com/data/covers/${cleanCode}.jpg`;
-            payload.capture_url = coverUrl;
-            payload.snapshot_url = coverUrl;
+
+            // 이미지 슬롯에 이미 올바른 URL이 들어 있는 경우 그대로 사용,
+            // 슬롯 값이 없거나 잘못된 경우 다시 조회
+            const captureSlot = form.querySelector('[data-image-field="capture"]');
+            const existingCover = captureSlot ? (captureSlot.querySelector('input[name="url_capture"]') || {}).value : "";
+            const isValidCover = existingCover && existingCover.includes("images.projectjav.com/data/covers/") && /\/\d+\.jpg/.test(existingCover);
+
+            if (!isValidCover) {
+              const fetchedCover = await fetchProjectJavCoverUrl(cleanCode);
+              if (fetchedCover) {
+                payload.capture_url = fetchedCover;
+                payload.snapshot_url = fetchedCover;
+              }
+            } else {
+              payload.capture_url = existingCover;
+              payload.snapshot_url = existingCover;
+            }
           }
 
           if (isEdit) {
