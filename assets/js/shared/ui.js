@@ -38,7 +38,7 @@
     const posterUrl = movie.poster_url || movie.capture_url || "assets/img/favicon.svg";
     const detailUrl = `movie.html?code=${encodeURIComponent(movie.movie_code || movie.id || "")}`;
     return `
-      <article class="poster-card" title="${escapeHtml(movie.title)}" data-movie-href="${escapeHtml(detailUrl)}" tabindex="0" role="link" aria-label="${escapeHtml(movie.title)} 영화정보 보기">
+      <article class="poster-card" title="${escapeHtml(movie.title)}" data-movie-code="${escapeHtml(movie.movie_code || movie.id || "")}" data-movie-href="${escapeHtml(detailUrl)}" tabindex="0" role="link" aria-label="${escapeHtml(movie.title)} 영화정보 보기">
         <div class="poster-frame">
           <img src="${escapeHtml(posterUrl)}" alt="${escapeHtml(movie.title)} 포스터" loading="lazy">
           <div class="poster-overlay">
@@ -53,16 +53,27 @@
   }
 
   function setupMovieCards(root = document) {
+    async function openMovie(card) {
+      const href = card.dataset.movieHref;
+      const movieCode = card.dataset.movieCode;
+      try {
+        if (window.CineTubeStore?.recordMovieClick) await window.CineTubeStore.recordMovieClick(movieCode);
+      } catch (error) {
+        console.warn("클릭수 기록을 건너뜁니다.", error);
+      }
+      window.location.href = href;
+    }
+
     root.querySelectorAll(".poster-card[data-movie-href]").forEach((card) => {
       if (card.dataset.boundMovieLink === "true") return;
       card.dataset.boundMovieLink = "true";
       card.addEventListener("click", () => {
-        window.location.href = card.dataset.movieHref;
+        openMovie(card);
       });
       card.addEventListener("keydown", (event) => {
         if (event.key !== "Enter" && event.key !== " ") return;
         event.preventDefault();
-        window.location.href = card.dataset.movieHref;
+        openMovie(card);
       });
     });
   }

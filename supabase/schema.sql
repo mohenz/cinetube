@@ -75,6 +75,8 @@ create table public.movies (
   release_month text,
   production_company text,
   recommendation_score integer not null default 0,
+  ranking_score integer not null default 0,
+  click_count integer not null default 0,
   created_at timestamptz not null default now()
 );
 
@@ -84,6 +86,8 @@ create index idx_movies_actor_id on public.movies(actor_id);
 create index idx_movies_rating_grade on public.movies(rating_grade);
 create index idx_movies_created_at on public.movies(created_at desc);
 create index idx_movies_recommendation_score on public.movies(recommendation_score desc);
+create index idx_movies_ranking_score on public.movies(ranking_score desc);
+create index idx_movies_click_count on public.movies(click_count desc);
 create index idx_media_assets_owner on public.media_assets(owner_table, owner_id, owner_field);
 
 -- 8. Seed storage bucket and default rating grades

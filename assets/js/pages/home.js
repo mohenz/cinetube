@@ -10,13 +10,28 @@
   const sections = document.getElementById("homeSections");
   const searchInput = document.getElementById("searchInput");
 
+  function newestFirst(a, b) {
+    return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+  }
+
+  function byClickCount(a, b) {
+    return Store.effectiveClickCount(b) - Store.effectiveClickCount(a) || newestFirst(a, b);
+  }
+
+  function byRanking(a, b) {
+    return Number(b.ranking_score || 0) - Number(a.ranking_score || 0)
+      || UI.ratingRank(a) - UI.ratingRank(b)
+      || Number(b.recommendation_score || 0) - Number(a.recommendation_score || 0)
+      || newestFirst(a, b);
+  }
+
   function render() {
     const term = searchInput ? searchInput.value.trim() : "";
     const movies = data.movies.filter((movie) => UI.matchesSearch(movie, term));
     const featured = movies.slice().sort((a, b) => UI.ratingRank(a) - UI.ratingRank(b))[0] || data.movies[0];
-    const latest = movies.slice().sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)).slice(0, 8);
-    const recommended = movies.slice().sort((a, b) => (b.recommendation_score || 0) - (a.recommendation_score || 0)).slice(0, 8);
-    const topRated = movies.slice().sort((a, b) => UI.ratingRank(a) - UI.ratingRank(b) || (b.recommendation_score || 0) - (a.recommendation_score || 0)).slice(0, 8);
+    const latest = movies.slice().sort(newestFirst).slice(0, 8);
+    const recommended = movies.slice().sort(byClickCount).slice(0, 8);
+    const topRated = movies.slice().sort(byRanking).slice(0, 8);
 
     if (!featured) {
       document.documentElement.style.setProperty("--hero-image", "linear-gradient(135deg, #1c1b1b, #000)");
@@ -32,8 +47,8 @@
         </div>`;
       sections.innerHTML = [
         UI.movieSection("최신등록 8개", "최근 등록된 영화정보입니다.", []),
-        UI.movieSection("맞춤추천 8개", "추천 점수를 기준으로 정렬했습니다.", []),
-        UI.movieSection("카테고리별 평가등급 상위 8개", "등급과 추천 점수를 함께 반영했습니다.", [])
+        UI.movieSection("맞춤추천 8개", "클릭수가 높은 영화정보입니다.", []),
+        UI.movieSection("카테고리별 평가등급 상위 8개", "랭킹 점수와 등급을 함께 반영했습니다.", [])
       ].join("");
       return;
     }
@@ -52,8 +67,8 @@
 
     sections.innerHTML = [
       UI.movieSection("최신등록 8개", "최근 등록된 영화정보입니다.", latest),
-      UI.movieSection("맞춤추천 8개", "추천 점수를 기준으로 정렬했습니다.", recommended),
-      UI.movieSection("카테고리별 평가등급 상위 8개", "등급과 추천 점수를 함께 반영했습니다.", topRated)
+      UI.movieSection("맞춤추천 8개", "클릭수가 높은 영화정보입니다.", recommended),
+      UI.movieSection("카테고리별 평가등급 상위 8개", "랭킹 점수와 등급을 함께 반영했습니다.", topRated)
     ].join("");
     UI.setupMovieCards(sections);
   }

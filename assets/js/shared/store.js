@@ -43,6 +43,7 @@
   }
 
   function enrich(data) {
+    const localClicks = getLocalClickCounts();
     const categoriesByCode = new Map(data.categories.map((item) => [item.category_code, item]));
     const actorsById = new Map(data.actors.map((item) => [String(item.id), item]));
     const mediaById = new Map((data.mediaAssets || []).map((item) => [String(item.id), item]));
@@ -52,6 +53,10 @@
       const actor = actorsById.get(String(movie.actor_id)) || {};
       return {
         ...movie,
+        click_count: Number(movie.click_count || 0),
+        local_click_count: Number(localClicks[movie.movie_code] || 0),
+        ranking_score: Number(movie.ranking_score ?? movie.recommendation_score ?? 0),
+        recommendation_score: Number(movie.recommendation_score || 0),
         poster_asset: mediaById.get(String(movie.poster_asset_id)) || null,
         capture_asset: mediaById.get(String(movie.capture_asset_id)) || null,
         snapshot_asset: mediaById.get(String(movie.snapshot_asset_id)) || null,
@@ -139,6 +144,26 @@
     return state.data;
   }
 
+  function getLocalClickCounts() {
+    try {
+      return JSON.parse(localStorage.getItem("cinetube_movie_clicks") || "{}");
+    } catch (error) {
+      console.warn("클릭수 로컬 캐시를 읽지 못했습니다.", error);
+      return {};
+    }
+  }
+
+  function setLocalClickCount(movieCode, value) {
+    if (!movieCode) return;
+    const counts = getLocalClickCounts();
+    counts[movieCode] = Math.max(0, Number(value || 0));
+    localStorage.setItem("cinetube_movie_clicks", JSON.stringify(counts));
+  }
+
+  function effectiveClickCount(movie) {
+    return Number(movie?.click_count || 0) + Number(movie?.local_click_count || 0);
+  }
+
   async function create(kind, payload) {
     await load();
     if (state.client) {
@@ -179,6 +204,38 @@
     }
     state.data[kind] = state.data[kind].filter((item) => String(item[primaryKey]) !== String(keyValue));
     return resetData(state.data);
+  }
+
+  async function recordMovieClick(movieCode) {
+    await load();
+    const movie = state.data.movies.find((item) => String(item.movie_code) === String(movieCode) || String(item.id) === String(movieCode));
+    if (!movie) return;
+
+    const localClicks = Number(movie.local_click_count || 0) + 1;
+    setLocalClickCount(movie.movie_code, localClicks);
+    movie.local_click_count = localClicks;
+
+    if (!state.client || movie.click_count === undefined) {
+      resetData(state.data);
+      return;
+    }
+
+    const nextClickCount = Number(movie.click_count || 0) + 1;
+    const { error } = await state.client
+      .from(tableNames.movies)
+      .update({ click_count: nextClickCount })
+      .eq(primaryKeys.movies, movie.id);
+
+    if (error) {
+      console.warn("영화 클릭수 저장을 건너뜁니다.", error);
+      resetData(state.data);
+      return;
+    }
+
+    setLocalClickCount(movie.movie_code, 0);
+    movie.click_count = nextClickCount;
+    movie.local_click_count = 0;
+    resetData(state.data);
   }
 
   async function uploadMedia({ file, ownerTable, ownerField, ownerId = null, sortOrder = 0 }) {
@@ -309,6 +366,8 @@
     create,
     update,
     remove,
+    recordMovieClick,
+    effectiveClickCount,
     uploadMedia,
     updateMediaOwner,
     deleteMedia,
