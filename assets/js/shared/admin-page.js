@@ -329,6 +329,21 @@
         </div>`;
     }
 
+    function deleteMessage(item) {
+      const label = item.title || item.name || item.category_code || item.grade || item[primaryKey];
+      if (kind === "actors") {
+        const linkedMovies = data.movies.filter((movie) => String(movie.actor_id) === String(item.id)).length;
+        return [
+          "주연배우 정보를 삭제하시겠습니까?",
+          "",
+          label,
+          `연결된 영화정보: ${linkedMovies}개`,
+          "삭제 후 연결된 영화의 주연배우 표시는 비어 있을 수 있습니다."
+        ].join("\n");
+      }
+      return `삭제하시겠습니까?\n\n${label}`;
+    }
+
     function tableRows(items) {
       if (kind === "movies") {
         return items.map((item) => `<tr><td>${thumb(item.poster_url, item.title)}</td><td>${UI.escapeHtml(item.movie_code)}</td><td>${UI.escapeHtml(item.title)}</td><td>${UI.escapeHtml(item.category_name)}</td><td>${UI.escapeHtml(item.actor_name)}</td><td><span class="rating">${UI.escapeHtml(item.rating_grade)}</span></td><td>${UI.escapeHtml(Store.effectiveClickCount(item))}</td><td>${UI.escapeHtml(item.ranking_score || 0)}</td><td>${rowActions(item)}</td></tr>`).join("");
@@ -370,8 +385,7 @@
         button.addEventListener("click", async () => {
           const item = items.find((entry) => String(entry[primaryKey]) === String(button.dataset.key));
           if (!item) return;
-          const label = item.title || item.name || item.category_code || item.grade || item[primaryKey];
-          if (!confirm(`삭제하시겠습니까?\n\n${label}`)) return;
+          if (!confirm(deleteMessage(item))) return;
 
           try {
             const assets = collectItemAssets(item);
