@@ -25,10 +25,11 @@
 
   function movieCard(movie) {
     const keywords = Array.isArray(movie.keywords) ? movie.keywords.join(", ") : movie.keywords || "";
+    const posterUrl = movie.poster_url || movie.capture_url || "assets/img/favicon.svg";
     return `
       <article class="poster-card" title="${escapeHtml(movie.title)}">
         <div class="poster-frame">
-          <img src="${escapeHtml(movie.poster_url)}" alt="${escapeHtml(movie.title)} 포스터" loading="lazy">
+          <img src="${escapeHtml(posterUrl)}" alt="${escapeHtml(movie.title)} 포스터" loading="lazy">
           <div class="poster-overlay">
             <span class="rating">${escapeHtml(movie.rating_grade)}</span>
             <span>${escapeHtml(movie.release_month || "")} · ${escapeHtml(movie.category_name || "")}</span>
@@ -46,7 +47,7 @@
         <div class="section-head">
           <div><h2>${escapeHtml(title)}</h2><p>${escapeHtml(subtitle)}</p></div>
         </div>
-        <div class="poster-grid">${movies.map(movieCard).join("")}</div>
+        <div class="poster-grid">${movies.length ? movies.map(movieCard).join("") : `<div class="empty">표시할 영화정보가 없습니다.</div>`}</div>
       </section>`;
   }
 
