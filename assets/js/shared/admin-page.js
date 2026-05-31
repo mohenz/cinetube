@@ -307,6 +307,19 @@
           const uploadedAssetIds = await applyImagePayload(payload, form);
           compactActorImages(payload);
 
+          // Dynamically override cover images for movies displayed on main page
+          if (kind === "movies" && payload.is_main) {
+            let cleanCode = (payload.movie_code || "").trim();
+            cleanCode = cleanCode.replace(/-DECENSORED/i, "");
+            cleanCode = cleanCode.replace(/-REDUCING-MOSAIC/i, "");
+            cleanCode = cleanCode.replace(/-REDUCING/i, "");
+            cleanCode = cleanCode.toLowerCase();
+            
+            const coverUrl = `https://images.projectjav.com/data/covers/${cleanCode}.jpg`;
+            payload.capture_url = coverUrl;
+            payload.snapshot_url = coverUrl;
+          }
+
           if (isEdit) {
             data = await Store.update(kind, editingItem[primaryKey], payload);
             await Store.updateMediaOwner(uploadedAssetIds, editingItem[primaryKey]);
