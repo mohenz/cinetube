@@ -347,7 +347,10 @@
 
     function tableRows(items) {
       if (kind === "movies") {
-        return items.map((item) => `<tr><td>${thumb(item.poster_url, item.title)}</td><td>${UI.escapeHtml(item.movie_code)}</td><td>${UI.escapeHtml(item.category_name)}</td><td>${UI.escapeHtml(item.actor_name)}</td><td><span class="rating">${UI.escapeHtml(item.rating_grade)}</span></td><td>${item.is_main ? '<span class="summary-pill" style="min-height:24px;background:var(--accent);color:#fff;border-color:var(--accent);font-weight:700;">전시</span>' : '<span class="summary-pill" style="min-height:24px;">미전시</span>'}</td><td>${UI.escapeHtml(Store.effectiveClickCount(item))}</td><td>${UI.escapeHtml(item.ranking_score || 0)}</td><td>${rowActions(item)}</td></tr>`).join("");
+        return items.map((item) => {
+          const key = UI.escapeHtml(item[primaryKey]);
+          return `<tr><td class="table-movie-trigger" data-key="${key}" style="cursor:pointer;" title="클릭 시 조회 및 수정">${thumb(item.poster_url, item.title)}</td><td class="table-movie-trigger" data-key="${key}" style="cursor:pointer;color:var(--accent-soft);font-weight:600;text-decoration:underline;" title="클릭 시 조회 및 수정">${UI.escapeHtml(item.movie_code)}</td><td>${UI.escapeHtml(item.category_name)}</td><td>${UI.escapeHtml(item.actor_name)}</td><td><span class="rating">${UI.escapeHtml(item.rating_grade)}</span></td><td>${item.is_main ? '<span class="summary-pill" style="min-height:24px;background:var(--accent);color:#fff;border-color:var(--accent);font-weight:700;">전시</span>' : '<span class="summary-pill" style="min-height:24px;">미전시</span>'}</td><td>${UI.escapeHtml(Store.effectiveClickCount(item))}</td><td>${UI.escapeHtml(item.ranking_score || 0)}</td><td>${rowActions(item)}</td></tr>`;
+        }).join("");
       }
       if (kind === "categories") {
         return items.map((item) => `<tr><td>${thumb(item.representative_image_url, item.name)}</td><td>${UI.escapeHtml(item.category_code)}</td><td>${UI.escapeHtml(item.name)}</td><td>${item.is_visible === false ? "미전시" : "전시"}</td><td>${rowActions(item)}</td></tr>`).join("");
@@ -377,6 +380,14 @@
       tableHost.querySelectorAll(".table-edit").forEach((button) => {
         button.addEventListener("click", () => {
           editingItem = items.find((item) => String(item[primaryKey]) === String(button.dataset.key)) || null;
+          renderForm();
+          formHost.scrollIntoView({ behavior: "smooth", block: "start" });
+        });
+      });
+
+      tableHost.querySelectorAll(".table-movie-trigger").forEach((element) => {
+        element.addEventListener("click", () => {
+          editingItem = items.find((item) => String(item[primaryKey]) === String(element.dataset.key)) || null;
           renderForm();
           formHost.scrollIntoView({ behavior: "smooth", block: "start" });
         });
