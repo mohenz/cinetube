@@ -34,9 +34,4 @@ python -m http.server 8080
 
 브라우저에서 `http://localhost:8080`으로 접속합니다.
 
-## Supabase 설정
-1. `supabase/schema.sql`을 Supabase SQL Editor에서 적용합니다.
-2. `assets/js/supabase-config.js`에 프로젝트 URL과 anon key를 입력합니다.
-3. 관리자 저장 기능은 기본 정책상 Supabase Auth의 authenticated 사용자에게만 허용됩니다.
-
 설정이 비어 있으면 샘플 데이터로 화면이 동작합니다.
