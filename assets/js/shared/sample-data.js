@@ -73,7 +73,8 @@
       release_month: `202${n % 6}-${String((n % 12) + 1).padStart(2, "0")}`,
       production_company: ["Studio Red", "CineWorks", "Frame Lab", "Nova Pictures"][n % 4],
       created_at: new Date(Date.UTC(2026, 4, 31 - index)).toISOString(),
-      recommendation_score: 100 - index
+      recommendation_score: 100 - index,
+      is_main: index === 0
     };
   });
 

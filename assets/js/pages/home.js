@@ -28,7 +28,8 @@
   function render() {
     const term = searchInput ? searchInput.value.trim() : "";
     const movies = data.movies.filter((movie) => UI.matchesSearch(movie, term));
-    const featured = movies.slice().sort((a, b) => UI.ratingRank(a) - UI.ratingRank(b))[0] || data.movies[0];
+    const mainFeatured = movies.filter((movie) => movie.is_main === true);
+    const featured = mainFeatured[0] || movies.slice().sort((a, b) => UI.ratingRank(a) - UI.ratingRank(b))[0] || data.movies[0];
     const latest = movies.slice().sort(newestFirst).slice(0, 8);
     const recommended = movies.slice().sort(byClickCount).slice(0, 8);
     const topRated = movies.slice().sort(byRanking).slice(0, 8);
@@ -66,10 +67,11 @@
       </div>`;
 
     sections.innerHTML = [
+      mainFeatured.length ? UI.movieSection("메인 전시작", "관리자가 선택한 메인 전시 작품입니다.", mainFeatured) : "",
       UI.movieSection("최신등록 8개", "최근 등록된 영화정보입니다.", latest),
       UI.movieSection("맞춤추천 8개", "클릭수가 높은 영화정보입니다.", recommended),
       UI.movieSection("카테고리별 평가등급 상위 8개", "랭킹 점수와 등급을 함께 반영했습니다.", topRated)
-    ].join("");
+    ].filter(Boolean).join("");
     UI.setupMovieCards(sections);
   }
 

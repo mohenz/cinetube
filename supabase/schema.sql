@@ -77,6 +77,7 @@ create table public.movies (
   recommendation_score integer not null default 0,
   ranking_score integer not null default 0,
   click_count integer not null default 0,
+  is_main boolean not null default false,
   created_at timestamptz not null default now()
 );
 
