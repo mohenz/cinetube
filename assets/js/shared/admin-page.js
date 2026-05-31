@@ -49,6 +49,17 @@
     let editingItem = null;
     let removedAssets = [];
 
+    let currentPage = 1;
+    let pageSize = "20";
+
+    const searchInput = document.getElementById("searchInput");
+    if (searchInput && kind === "movies") {
+      searchInput.addEventListener("input", () => {
+        currentPage = 1;
+        renderTable();
+      });
+    }
+
     function optionList(type) {
       if (type === "category") return data.categories.map((item) => `<option value="${UI.escapeHtml(item.category_code)}">${UI.escapeHtml(item.name)}</option>`).join("");
       if (type === "actor") return data.actors.map((item) => `<option value="${UI.escapeHtml(item.id)}">${UI.escapeHtml(item.name)}</option>`).join("");
@@ -369,17 +380,77 @@
     }
 
     function renderTable() {
-      const items = data[kind] || [];
+      const allItems = data[kind] || [];
+      let filteredItems = allItems;
+      
+      if (kind === "movies" && searchInput && searchInput.value.trim()) {
+        const term = searchInput.value.trim();
+        filteredItems = allItems.filter(movie => UI.matchesSearch(movie, term));
+      }
+
+      let paginatedItems = filteredItems;
+      let totalPages = 1;
+      
+      if (kind === "movies") {
+        const paginated = UI.paginate(filteredItems, currentPage, pageSize);
+        paginatedItems = paginated.items;
+        totalPages = paginated.totalPages;
+        currentPage = paginated.page || 1;
+      }
+
       tableHost.innerHTML = `
         <h2>등록 목록</h2>
         <table>
           <thead>${headerRow()}</thead>
-          <tbody>${tableRows(items)}</tbody>
+          <tbody>${tableRows(paginatedItems)}</tbody>
         </table>`;
+
+      if (kind === "movies") {
+        const controlsDiv = document.createElement("div");
+        controlsDiv.className = "toolbar";
+        controlsDiv.style.marginTop = "16px";
+        controlsDiv.style.padding = "10px 14px";
+        controlsDiv.style.display = "flex";
+        controlsDiv.style.alignItems = "center";
+        controlsDiv.style.justifyContent = "space-between";
+        controlsDiv.style.flexWrap = "wrap";
+        controlsDiv.style.gap = "12px";
+        
+        controlsDiv.innerHTML = `
+          <label class="page-size-label">
+            페이지당 개수
+            <select class="select-control" id="pageSizeSelect" style="min-height:32px;padding:4px 8px;font-size:13px;">
+              <option value="20" ${pageSize === "20" ? "selected" : ""}>20개</option>
+              <option value="40" ${pageSize === "40" ? "selected" : ""}>40개</option>
+              <option value="80" ${pageSize === "80" ? "selected" : ""}>80개</option>
+              <option value="100" ${pageSize === "100" ? "selected" : ""}>100개</option>
+              <option value="all" ${pageSize === "all" ? "selected" : ""}>전체</option>
+            </select>
+          </label>
+          <div class="pagination" id="tablePagination" style="margin-top:0;"></div>
+        `;
+        
+        tableHost.appendChild(controlsDiv);
+        
+        const sizeSelect = document.getElementById("pageSizeSelect");
+        if (sizeSelect) {
+          sizeSelect.addEventListener("change", (e) => {
+            pageSize = e.target.value;
+            currentPage = 1;
+            renderTable();
+          });
+        }
+        
+        const paginationContainer = document.getElementById("tablePagination");
+        UI.renderPagination(paginationContainer, totalPages, currentPage, (nextPage) => {
+          currentPage = nextPage;
+          renderTable();
+        });
+      }
 
       tableHost.querySelectorAll(".table-edit").forEach((button) => {
         button.addEventListener("click", () => {
-          editingItem = items.find((item) => String(item[primaryKey]) === String(button.dataset.key)) || null;
+          editingItem = allItems.find((item) => String(item[primaryKey]) === String(button.dataset.key)) || null;
           renderForm();
           formHost.scrollIntoView({ behavior: "smooth", block: "start" });
         });
@@ -387,7 +458,7 @@
 
       tableHost.querySelectorAll(".table-movie-trigger").forEach((element) => {
         element.addEventListener("click", () => {
-          editingItem = items.find((item) => String(item[primaryKey]) === String(element.dataset.key)) || null;
+          editingItem = allItems.find((item) => String(item[primaryKey]) === String(element.dataset.key)) || null;
           renderForm();
           formHost.scrollIntoView({ behavior: "smooth", block: "start" });
         });
@@ -395,7 +466,7 @@
 
       tableHost.querySelectorAll(".table-delete").forEach((button) => {
         button.addEventListener("click", async () => {
-          const item = items.find((entry) => String(entry[primaryKey]) === String(button.dataset.key));
+          const item = allItems.find((entry) => String(entry[primaryKey]) === String(button.dataset.key));
           if (!item) return;
           if (!confirm(deleteMessage(item))) return;
 
