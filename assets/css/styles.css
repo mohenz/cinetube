@@ -157,7 +157,8 @@ button { cursor: pointer; }
   border-radius: 6px;
 }
 
-.primary-button { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+.primary-button { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; transition: all 0.2s ease; }
+.primary-button:hover { background: #ff1e27; border-color: #ff1e27; box-shadow: 0 4px 15px rgba(229, 9, 20, 0.4); }
 .ghost-button:hover, .icon-button:hover { background: var(--surface-3); }
 
 .app-shell {
