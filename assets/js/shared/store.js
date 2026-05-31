@@ -194,6 +194,30 @@
     return resetData(state.data);
   }
 
+  // 메인전시 단독 보장: 지정 영화 ID를 제외한 모든 is_main=true 영화를 is_main=false로 해제
+  async function clearMainMovies(exceptMovieId) {
+    await load();
+    const primaryKey = primaryKeys.movies;
+    const othersMain = state.data.movies.filter(
+      (m) => m.is_main === true && String(m.id) !== String(exceptMovieId)
+    );
+    if (!othersMain.length) return;
+
+    if (state.client) {
+      const ids = othersMain.map((m) => m.id);
+      const { error } = await state.client
+        .from(tableNames.movies)
+        .update({ is_main: false })
+        .in(primaryKey, ids);
+      if (error) throw error;
+    }
+
+    state.data.movies = state.data.movies.map((m) =>
+      othersMain.some((o) => String(o.id) === String(m.id)) ? { ...m, is_main: false } : m
+    );
+    resetData(state.data);
+  }
+
   async function remove(kind, keyValue) {
     await load();
     const primaryKey = primaryKeys[kind];
@@ -371,6 +395,7 @@
     uploadMedia,
     updateMediaOwner,
     deleteMedia,
+    clearMainMovies,
     signIn,
     signOut,
     isAuthenticated,

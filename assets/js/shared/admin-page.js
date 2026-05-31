@@ -463,6 +463,10 @@
           }
 
           if (isEdit) {
+            // 메인전시로 설정하는 경우, 기존 메인전시 영화(본인 제외)를 미전시로 일괄 해제
+            if (kind === "movies" && payload.is_main) {
+              await Store.clearMainMovies(editingItem[primaryKey]);
+            }
             data = await Store.update(kind, editingItem[primaryKey], payload);
             await Store.updateMediaOwner(uploadedAssetIds, editingItem[primaryKey]);
             editingItem = data[kind].find((item) => String(item[primaryKey]) === String(editingItem[primaryKey])) || null;
@@ -470,6 +474,10 @@
             data = await Store.create(kind, payload);
             const created = data[kind][0];
             if (created && primaryKey) await Store.updateMediaOwner(uploadedAssetIds, created[primaryKey]);
+            // 신규 등록 시에도 메인전시라면 기존 것 해제
+            if (kind === "movies" && payload.is_main && created) {
+              await Store.clearMainMovies(created[primaryKey]);
+            }
             editingItem = null;
           }
 
