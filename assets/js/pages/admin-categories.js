@@ -1,0 +1,1 @@
+window.CineTubeAdminPage.init("categories");

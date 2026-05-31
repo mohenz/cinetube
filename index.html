@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>CineTube | Home</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@200..700,0..1&display=swap" rel="stylesheet">
+    <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="assets/css/styles.css">
+  </head>
+  <body data-page="home">
+    <aside class="sidebar" aria-label="주요 메뉴">
+      <a class="brand" href="index.html" aria-label="CineTube 홈">
+        <span class="brand-mark">CT</span>
+        <span><strong>CineTube</strong><small>CineHub Database</small></span>
+      </a>
+      <nav class="side-nav">
+        <a class="nav-item active" href="index.html"><span class="material-symbols-outlined">home</span>Home</a>
+        <a class="nav-item" href="actors.html"><span class="material-symbols-outlined">movie_filter</span>주연배우</a>
+        <a class="nav-item" href="categories.html"><span class="material-symbols-outlined">category</span>카테고리</a>
+        <a class="nav-item" href="ratings.html"><span class="material-symbols-outlined">grade</span>평가등급</a>
+        <a class="nav-item" href="admin/index.html"><span class="material-symbols-outlined">admin_panel_settings</span>관리</a>
+      </nav>
+      <div class="db-status" id="dbStatus">Supabase 확인 중</div>
+    </aside>
+
+    <header class="topbar">
+      <button class="mobile-menu" type="button" id="mobileMenu" aria-label="메뉴 열기"><span class="material-symbols-outlined">menu</span></button>
+      <div class="search-box">
+        <span class="material-symbols-outlined">search</span>
+        <input id="searchInput" type="search" placeholder="영화제목, 영화코드, 배우, 태그 검색">
+      </div>
+      <a class="ghost-button" href="admin/movies.html"><span class="material-symbols-outlined">add</span>신규 등록</a>
+    </header>
+
+    <main class="app-shell">
+      <section class="hero" id="hero"></section>
+      <section class="content-view section-stack" id="homeSections"></section>
+    </main>
+
+    <div class="drawer-backdrop" id="drawerBackdrop"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="assets/js/supabase-config.js"></script>
+    <script src="assets/js/shared/sample-data.js"></script>
+    <script src="assets/js/shared/store.js"></script>
+    <script src="assets/js/shared/ui.js"></script>
+    <script src="assets/js/pages/home.js"></script>
+  </body>
+</html>

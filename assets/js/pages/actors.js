@@ -1,0 +1,1 @@
+window.CineTubeCatalogPage.init("actors");

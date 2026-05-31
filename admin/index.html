@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>CineTube Admin | Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@200..700,0..1&display=swap" rel="stylesheet">
+    <link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="../assets/css/styles.css">
+  </head>
+  <body data-page="admin" data-admin-kind="dashboard">
+    <aside class="sidebar" aria-label="관리 메뉴">
+      <a class="brand" href="../index.html"><span class="brand-mark">CT</span><span><strong>CineAdmin</strong><small>System Control</small></span></a>
+      <nav class="side-nav">
+        <a class="nav-item" href="../index.html"><span class="material-symbols-outlined">home</span>사이트 홈</a>
+        <a class="nav-item active" href="index.html"><span class="material-symbols-outlined">dashboard</span>대시보드</a>
+        <a class="nav-item" href="movies.html"><span class="material-symbols-outlined">movie</span>영화정보</a>
+        <a class="nav-item" href="categories.html"><span class="material-symbols-outlined">category</span>카테고리</a>
+        <a class="nav-item" href="actors.html"><span class="material-symbols-outlined">person</span>주연배우</a>
+        <a class="nav-item" href="ratings.html"><span class="material-symbols-outlined">grade</span>평가등급</a>
+      </nav>
+      <div class="db-status" id="dbStatus">Supabase 확인 중</div>
+    </aside>
+
+    <header class="topbar">
+      <button class="mobile-menu" type="button" id="mobileMenu" aria-label="메뉴 열기"><span class="material-symbols-outlined">menu</span></button>
+      <div class="search-box"><span class="material-symbols-outlined">search</span><input id="searchInput" type="search" placeholder="관리 항목 검색"></div>
+      <a class="ghost-button" href="movies.html"><span class="material-symbols-outlined">add</span>영화 등록</a>
+    </header>
+
+    <main class="app-shell">
+      <section class="content-view">
+        <div class="section-head">
+          <div><p class="eyebrow">CineHub Admin</p><h1>운영 대시보드</h1><p>영화, 카테고리, 배우, 등급 데이터를 화면별로 분리 관리합니다.</p></div>
+        </div>
+        <section class="stats-grid" id="adminStats"></section>
+        <section class="quick-links">
+          <a href="movies.html"><span class="material-symbols-outlined">movie</span><strong>영화정보 관리</strong><small>영화제목, 코드, 링크, 포스터, 캡쳐, 스냅샷 등록</small></a>
+          <a href="categories.html"><span class="material-symbols-outlined">category</span><strong>카테고리 관리</strong><small>카테고리코드, 명칭, 대표이미지, 전시여부 관리</small></a>
+          <a href="actors.html"><span class="material-symbols-outlined">person</span><strong>주연배우 관리</strong><small>배우 기본정보와 대표/일반 이미지 관리</small></a>
+          <a href="ratings.html"><span class="material-symbols-outlined">grade</span><strong>평가등급 관리</strong><small>A+, A, B+, B, C 기본 등급 관리</small></a>
+        </section>
+      </section>
+    </main>
+    <div class="drawer-backdrop" id="drawerBackdrop"></div>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../assets/js/supabase-config.js"></script>
+    <script src="../assets/js/shared/sample-data.js"></script>
+    <script src="../assets/js/shared/store.js"></script>
+    <script src="../assets/js/shared/ui.js"></script>
+    <script src="../assets/js/pages/admin-dashboard.js"></script>
+  </body>
+</html>
