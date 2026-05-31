@@ -1,17 +1,6 @@
 <!doctype html>
 <html lang="ko">
   <head>
-    <script>
-      (function() {
-        const session = localStorage.getItem("cinetube_user_session");
-        const isLoginPage = window.location.pathname.endsWith("login.html");
-        if (!session && !isLoginPage) {
-          document.documentElement.style.display = "none";
-          const prefix = window.location.pathname.includes("/admin/") ? "../" : "";
-          window.location.href = prefix + "login.html";
-        }
-      })();
-    </script>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>CineTube Admin | Dashboard</title>
@@ -32,7 +21,6 @@
         <a class="nav-item" href="categories.html"><span class="material-symbols-outlined">category</span>카테고리</a>
         <a class="nav-item" href="actors.html"><span class="material-symbols-outlined">person</span>주연배우</a>
         <a class="nav-item" href="ratings.html"><span class="material-symbols-outlined">grade</span>평가등급</a>
-        <button class="nav-item logout-button-trigger" type="button"><span class="material-symbols-outlined">logout</span>로그아웃</button>
       </nav>
       <div class="db-status" id="dbStatus">Bloom Universe</div>
     </aside>
@@ -60,6 +48,7 @@
     <div class="drawer-backdrop" id="drawerBackdrop"></div>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="../assets/js/supabase-config.js"></script>
+    <script src="../assets/js/local-db-config.js"></script>
     <script src="../assets/js/shared/sample-data.js"></script>
     <script src="../assets/js/shared/store.js"></script>
     <script src="../assets/js/shared/ui.js"></script>

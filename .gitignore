@@ -1,1 +1,6 @@
 stitch_cinetube_movie_hub/
+local/postgres-data/
+local/backups/
+local/*.log
+local/.schema_applied
+scripts/__pycache__/

@@ -28,16 +28,59 @@ PC 웹 우선, 모바일 반응형 영화정보 관리 사이트입니다. 화�
 
 ## 이미지 관리
 - 관리 화면의 포스터, 캡쳐, 스냅샷, 대표이미지, 일반이미지는 URL 입력이 아니라 파일 선택 방식입니다.
-- 이미지 파일은 Supabase Storage `cinetube-images` 버킷에 저장합니다.
-- 파일명, MIME 타입, 크기, 버킷, 객체 경로, 공개 URL 등 메타정보는 `media_assets` 테이블에 저장합니다.
-- 기존 DB에는 `supabase/media_assets_migration.sql`을 적용합니다.
+- 로컬 운영에서는 이미지 파일을 data URL로 변환해 로컬 PostgreSQL의 `media_assets` 테이블에 저장합니다.
+- 파일명, MIME 타입, 크기, 객체 경로, 표시 URL 등 메타정보도 `media_assets` 테이블에서 관리합니다.
+- 로그인 없이 접속하는 로컬 전용 서비스입니다.
 
-## 실행
+## 로컬 DB 실행
+
+로컬 PC 기준 데이터베이스는 프로젝트 전용 PostgreSQL 데이터 디렉터리와 경량 로컬 API로 실행합니다.
+
+더블클릭 실행:
+
+- `start-cinetube.cmd`: DB/API/웹서버를 켜고 홈 화면을 브라우저로 엽니다.
+- `stop-cinetube.cmd`: 로컬 웹서버/API/DB를 중지합니다.
+
+짧은 프롬프트 실행:
+
+```powershell
+cd D:\workspace\cinetube
+.\ct
+```
+
+수동 실행:
+
+```powershell
+cd D:\workspace\cinetube
+.\scripts\start_local_db.ps1
+python -m http.server 8080
+```
+
+브라우저에서 `http://localhost:8080`으로 접속합니다. 기본 설정은 `assets/js/local-db-config.js`의 `http://localhost:3001` 로컬 API를 우선 사용합니다. 로그인은 필요하지 않습니다.
+
+## 클라우드 DB 데이터 마이그레이션
+
+로컬 DB를 먼저 실행한 뒤 아래 스크립트로 현재 Supabase 데이터를 로컬 PostgreSQL로 복사합니다.
+
+```powershell
+cd D:\workspace\cinetube
+.\scripts\migrate_supabase_to_local.ps1
+```
+
+스크립트는 Supabase REST에서 `media_assets`, `categories`, `actors`, `rating_grades`, `movies`를 읽고 `local/backups/`에 JSON/SQL 백업을 만든 뒤 로컬 DB에 적재합니다.
+
+로컬 DB/API 중지는 아래 명령을 사용합니다.
+
+```powershell
+.\scripts\stop_local_db.ps1
+```
+
+로컬 데이터 검증이 끝난 뒤 클라우드 DB 초기화는 Supabase SQL Editor에서 `supabase/reset_cloud_after_local_migration.sql`을 실행합니다.
+
+## 정적 실행
 ```powershell
 cd D:\workspace\cinetube
 python -m http.server 8080
 ```
-
-브라우저에서 `http://localhost:8080`으로 접속합니다.
 
 설정이 비어 있으면 샘플 데이터로 화면이 동작합니다.

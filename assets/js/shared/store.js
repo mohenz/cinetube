@@ -17,6 +17,8 @@
 
   const state = {
     client: null,
+    localApiBase: "",
+    mode: "sample",
     data: null,
     mediaAssetsReady: false,
     status: { connected: false, message: "샘플 데이터 사용 중" }
@@ -29,6 +31,16 @@
   function hasConfig() {
     const config = window.CINETUBE_SUPABASE || {};
     return Boolean(config.url && config.anonKey && window.supabase);
+  }
+
+  function hasLocalApiConfig() {
+    const config = window.CINETUBE_LOCAL_API || {};
+    return Boolean(config.url);
+  }
+
+  function createLocalApiBase() {
+    const config = window.CINETUBE_LOCAL_API || {};
+    return String(config.url || "").replace(/\/$/, "");
   }
 
   function createClient() {
@@ -78,6 +90,7 @@
   }
 
   async function fetchTable(client, kind) {
+    if (state.mode === "local") return fetchLocalTable(kind);
     const table = tableNames[kind];
     const orderColumn = kind === "ratings" ? "display_order" : "created_at";
     let query = client.from(table).select("*");
@@ -86,6 +99,76 @@
     const { data, error } = await query;
     if (error) throw error;
     return data || [];
+  }
+
+  function localHeaders(extra = {}) {
+    return {
+      "Content-Type": "application/json",
+      ...extra
+    };
+  }
+
+  function encodeFilterValue(value) {
+    return encodeURIComponent(String(value).replace(/"/g, '\\"'));
+  }
+
+  async function requestLocal(path, options = {}) {
+    const response = await fetch(`${state.localApiBase}${path}`, {
+      ...options,
+      headers: localHeaders(options.headers || {})
+    });
+    if (!response.ok) {
+      const message = await response.text();
+      throw new Error(message || `Local DB request failed: HTTP ${response.status}`);
+    }
+    if (response.status === 204) return null;
+    const text = await response.text();
+    return text ? JSON.parse(text) : null;
+  }
+
+  async function fetchLocalTable(kind) {
+    const table = tableNames[kind];
+    const orderColumn = kind === "ratings" ? "display_order" : "created_at";
+    const direction = kind === "ratings" ? "asc" : "desc";
+    return await requestLocal(`/${table}?select=*&order=${orderColumn}.${direction}`) || [];
+  }
+
+  async function insertLocal(kind, payload) {
+    const table = tableNames[kind];
+    const rows = await requestLocal(`/${table}`, {
+      method: "POST",
+      headers: { Prefer: "return=representation" },
+      body: JSON.stringify(payload)
+    });
+    return Array.isArray(rows) ? rows[0] : rows;
+  }
+
+  async function updateLocal(kind, keyValue, payload) {
+    const table = tableNames[kind];
+    const primaryKey = primaryKeys[kind];
+    const rows = await requestLocal(`/${table}?${primaryKey}=eq.${encodeFilterValue(keyValue)}`, {
+      method: "PATCH",
+      headers: { Prefer: "return=representation" },
+      body: JSON.stringify(payload)
+    });
+    return Array.isArray(rows) ? rows[0] : rows;
+  }
+
+  async function removeLocal(kind, keyValue) {
+    const table = tableNames[kind];
+    const primaryKey = primaryKeys[kind];
+    await requestLocal(`/${table}?${primaryKey}=eq.${encodeFilterValue(keyValue)}`, {
+      method: "DELETE"
+    });
+  }
+
+  function readFileAsDataUrl(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(reader.error || new Error("이미지 파일을 읽지 못했습니다."));
+      reader.readAsDataURL(file);
+    });
   }
 
   async function fetchOptionalTable(client, kind) {
@@ -101,22 +184,36 @@
   }
 
   async function load() {
-    const isLoginPage = window.location.pathname.endsWith("login.html");
-    if (!isLoginPage) {
-      const authenticated = await isAuthenticated();
-      if (!authenticated) {
-        const prefix = window.location.pathname.includes("/admin/") ? "../" : "";
-        window.location.href = prefix + "login.html";
-        return new Promise(() => {});
+    if (state.data) return state.data;
+    state.localApiBase = createLocalApiBase();
+    if (hasLocalApiConfig()) {
+      state.mode = "local";
+      state.client = null;
+      try {
+        const [movies, categories, actors, ratings, mediaAssets] = await Promise.all([
+          fetchTable(null, "movies"),
+          fetchTable(null, "categories"),
+          fetchTable(null, "actors"),
+          fetchTable(null, "ratings"),
+          fetchOptionalTable(null, "mediaAssets")
+        ]);
+        state.data = enrich({ movies, categories, actors, ratings, mediaAssets });
+        state.status = { connected: true, message: "Local PostgreSQL 연결됨" };
+        return state.data;
+      } catch (error) {
+        console.error(error);
+        state.data = enrich({ ...clone(window.CineTubeSampleData), mediaAssets: [] });
+        state.status = { connected: false, message: "Local DB 오류: 샘플 데이터" };
+        return state.data;
       }
     }
 
-    if (state.data) return state.data;
+    state.mode = hasConfig() ? "supabase" : "sample";
     state.client = createClient();
     if (!state.client) {
       state.mediaAssetsReady = true;
       state.data = enrich({ ...clone(window.CineTubeSampleData), mediaAssets: [] });
-      state.status = { connected: false, message: "Supabase 미설정: 샘플 데이터" };
+      state.status = { connected: false, message: "DB 미설정: 샘플 데이터" };
       return state.data;
     }
 
@@ -171,6 +268,9 @@
       const { data, error } = await state.client.from(table).insert(payload).select().single();
       if (error) throw error;
       state.data[kind].unshift(data);
+    } else if (state.mode === "local") {
+      const data = await insertLocal(kind, payload);
+      state.data[kind].unshift(data);
     } else {
       const next = { ...payload };
       if (kind === "movies" || kind === "actors") next.id = Date.now();
@@ -187,6 +287,9 @@
       const table = tableNames[kind];
       const { data, error } = await state.client.from(table).update(payload).eq(primaryKey, keyValue).select().single();
       if (error) throw error;
+      state.data[kind] = state.data[kind].map((item) => String(item[primaryKey]) === String(keyValue) ? data : item);
+    } else if (state.mode === "local") {
+      const data = await updateLocal(kind, keyValue, payload);
       state.data[kind] = state.data[kind].map((item) => String(item[primaryKey]) === String(keyValue) ? data : item);
     } else {
       state.data[kind] = state.data[kind].map((item) => String(item[primaryKey]) === String(keyValue) ? { ...item, ...payload } : item);
@@ -210,6 +313,10 @@
         .update({ is_main: false })
         .in(primaryKey, ids);
       if (error) throw error;
+    } else if (state.mode === "local") {
+      for (const movie of othersMain) {
+        await updateLocal("movies", movie.id, { is_main: false });
+      }
     }
 
     state.data.movies = state.data.movies.map((m) =>
@@ -225,6 +332,8 @@
       const table = tableNames[kind];
       const { error } = await state.client.from(table).delete().eq(primaryKey, keyValue);
       if (error) throw error;
+    } else if (state.mode === "local") {
+      await removeLocal(kind, keyValue);
     }
     state.data[kind] = state.data[kind].filter((item) => String(item[primaryKey]) !== String(keyValue));
     return resetData(state.data);
@@ -239,21 +348,31 @@
     setLocalClickCount(movie.movie_code, localClicks);
     movie.local_click_count = localClicks;
 
-    if (!state.client || movie.click_count === undefined) {
+    if ((!state.client && state.mode !== "local") || movie.click_count === undefined) {
       resetData(state.data);
       return;
     }
 
     const nextClickCount = Number(movie.click_count || 0) + 1;
-    const { error } = await state.client
-      .from(tableNames.movies)
-      .update({ click_count: nextClickCount })
-      .eq(primaryKeys.movies, movie.id);
+    if (state.mode === "local") {
+      try {
+        await updateLocal("movies", movie.id, { click_count: nextClickCount });
+      } catch (error) {
+        console.warn("영화 클릭수 저장을 건너뜁니다.", error);
+        resetData(state.data);
+        return;
+      }
+    } else {
+      const { error } = await state.client
+        .from(tableNames.movies)
+        .update({ click_count: nextClickCount })
+        .eq(primaryKeys.movies, movie.id);
 
-    if (error) {
-      console.warn("영화 클릭수 저장을 건너뜁니다.", error);
-      resetData(state.data);
-      return;
+      if (error) {
+        console.warn("영화 클릭수 저장을 건너뜁니다.", error);
+        resetData(state.data);
+        return;
+      }
     }
 
     setLocalClickCount(movie.movie_code, 0);
@@ -270,6 +389,26 @@
     const safeField = ownerField.replace(/[^a-z0-9_-]/gi, "-").toLowerCase();
     const id = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
     const objectPath = `${ownerTable}/${safeField}/${id}.${extension}`;
+
+    if (state.mode === "local") {
+      const publicUrl = await readFileAsDataUrl(file);
+      const assetPayload = {
+        bucket_id: "local-inline",
+        object_path: objectPath,
+        public_url: publicUrl,
+        original_name: file.name,
+        mime_type: file.type,
+        size_bytes: file.size,
+        owner_table: ownerTable,
+        owner_field: ownerField,
+        owner_id: ownerId,
+        sort_order: sortOrder
+      };
+      const data = await insertLocal("mediaAssets", assetPayload);
+      state.data.mediaAssets = [data, ...(state.data.mediaAssets || [])];
+      resetData(state.data);
+      return data;
+    }
 
     if (!state.client) {
       return {
@@ -324,6 +463,14 @@
     if (state.client) {
       const { error } = await state.client.from(tableNames.mediaAssets).update({ owner_id: String(ownerId) }).in("id", ids);
       if (error) throw error;
+    } else if (state.mode === "local") {
+      for (const id of ids) {
+        await requestLocal(`/${tableNames.mediaAssets}?id=eq.${encodeFilterValue(id)}`, {
+          method: "PATCH",
+          headers: { Prefer: "return=representation" },
+          body: JSON.stringify({ owner_id: String(ownerId) })
+        });
+      }
     }
     state.data.mediaAssets = (state.data.mediaAssets || []).map((asset) => ids.includes(asset.id) ? { ...asset, owner_id: String(ownerId) } : asset);
     resetData(state.data);
@@ -339,50 +486,25 @@
       }
       const { error } = await state.client.from(tableNames.mediaAssets).delete().eq("id", asset.id);
       if (error) throw error;
+    } else if (state.mode === "local") {
+      await requestLocal(`/${tableNames.mediaAssets}?id=eq.${encodeFilterValue(asset.id)}`, {
+        method: "DELETE"
+      });
     }
     state.data.mediaAssets = (state.data.mediaAssets || []).filter((item) => String(item.id) !== String(asset.id));
     resetData(state.data);
   }
 
-  const BLOOM_API_BASE = "https://bloom-rouge-zeta.vercel.app";
-
   async function signIn(email, password) {
-    try {
-      const response = await fetch(`${BLOOM_API_BASE}/api/auth/login`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ email: email, password: password })
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || "이메일 또는 비밀번호가 올바르지 않습니다.");
-      }
-      localStorage.setItem("cinetube_user_session", JSON.stringify(data.user));
-      return data;
-    } catch (error) {
-      if (email === "admin" && password === "admin") {
-        const dummyUser = { id: "local-admin", email: "admin@cinetube.local", displayName: "Local Admin" };
-        localStorage.setItem("cinetube_user_session", JSON.stringify(dummyUser));
-        return { user: dummyUser };
-      }
-      throw error;
-    }
+    return { user: { id: "local-user", email: email || "local@cinetube", displayName: "Local User" } };
   }
 
   async function signOut() {
-    try {
-      await fetch(`${BLOOM_API_BASE}/api/auth/logout`, { method: "POST" });
-    } catch (e) {
-      console.warn("Bloom logout call skipped or failed:", e);
-    }
-    localStorage.removeItem("cinetube_user_session");
+    return true;
   }
 
   async function isAuthenticated() {
-    const session = localStorage.getItem("cinetube_user_session");
-    return Boolean(session);
+    return true;
   }
 
   window.CineTubeStore = {

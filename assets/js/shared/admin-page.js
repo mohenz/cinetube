@@ -531,7 +531,10 @@
         return items.map((item) => `<tr><td>${thumb(item.representative_image_url, item.name)}</td><td>${UI.escapeHtml(item.category_code)}</td><td>${UI.escapeHtml(item.name)}</td><td>${item.is_visible === false ? "미전시" : "전시"}</td><td>${rowActions(item)}</td></tr>`).join("");
       }
       if (kind === "actors") {
-        return items.map((item) => `<tr><td>${thumb(item.representative_image_url, item.name)}</td><td>${UI.escapeHtml(item.name)}</td><td>${UI.escapeHtml(item.age)}</td><td>${UI.escapeHtml(item.height_cm)}cm</td><td>${UI.escapeHtml(item.body_size)}</td><td>${UI.escapeHtml(item.debut_year)}</td><td>${rowActions(item)}</td></tr>`).join("");
+        return items.map((item) => {
+          const key = UI.escapeHtml(item[primaryKey]);
+          return `<tr><td class="table-record-trigger" data-key="${key}" style="cursor:pointer;" title="클릭 시 조회 및 수정">${thumb(item.representative_image_url, item.name)}</td><td class="table-record-trigger" data-key="${key}" style="cursor:pointer;color:var(--accent-soft);font-weight:600;text-decoration:underline;" title="클릭 시 조회 및 수정">${UI.escapeHtml(item.name)}</td><td>${UI.escapeHtml(item.age)}</td><td>${UI.escapeHtml(item.height_cm)}cm</td><td>${UI.escapeHtml(item.body_size)}</td><td>${UI.escapeHtml(item.debut_year)}</td><td>${rowActions(item)}</td></tr>`;
+        }).join("");
       }
       return items.map((item) => `<tr><td><span class="rating">${UI.escapeHtml(item.grade)}</span></td><td>${UI.escapeHtml(item.display_order)}</td><td>${rowActions(item)}</td></tr>`).join("");
     }
@@ -612,20 +615,22 @@
         });
       }
 
+      function loadItemIntoForm(key) {
+        editingItem = allItems.find((item) => String(item[primaryKey]) === String(key)) || null;
+        renderForm();
+        formHost.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+
       tableHost.querySelectorAll(".table-edit").forEach((button) => {
-        button.addEventListener("click", () => {
-          editingItem = allItems.find((item) => String(item[primaryKey]) === String(button.dataset.key)) || null;
-          renderForm();
-          formHost.scrollIntoView({ behavior: "smooth", block: "start" });
-        });
+        button.addEventListener("click", () => loadItemIntoForm(button.dataset.key));
       });
 
       tableHost.querySelectorAll(".table-movie-trigger").forEach((element) => {
-        element.addEventListener("click", () => {
-          editingItem = allItems.find((item) => String(item[primaryKey]) === String(element.dataset.key)) || null;
-          renderForm();
-          formHost.scrollIntoView({ behavior: "smooth", block: "start" });
-        });
+        element.addEventListener("click", () => loadItemIntoForm(element.dataset.key));
+      });
+
+      tableHost.querySelectorAll(".table-record-trigger").forEach((element) => {
+        element.addEventListener("click", () => loadItemIntoForm(element.dataset.key));
       });
 
       tableHost.querySelectorAll(".table-delete").forEach((button) => {
