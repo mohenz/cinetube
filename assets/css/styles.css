@@ -387,24 +387,24 @@ button { cursor: pointer; }
   display: flex;
   justify-content: center;
   align-items: center;
-  height: 140px;
   overflow: hidden;
   background: var(--surface-2);
-  padding-top: 12px;
+  padding: 16px 16px 8px 16px;
 }
 
 .actor-card-image img {
-  width: 80px;
-  height: 80px;
-  border-radius: 50%;
+  width: 80%;
+  aspect-ratio: 3 / 4;
+  border-radius: 6px;
   object-fit: cover;
-  border: 2px solid var(--line-soft);
-  transition: transform .2s ease, border-color .2s ease;
+  border: 1px solid var(--line-soft);
+  transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease;
 }
 
 .actor-card:hover .actor-card-image img {
-  transform: scale(1.05);
+  transform: scale(1.03);
   border-color: var(--accent-soft);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
 .actor-card-body {
