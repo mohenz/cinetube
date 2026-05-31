@@ -318,7 +318,12 @@
     }
 
     function rowActions(item) {
-      return `<button class="link-button table-edit" type="button" data-key="${UI.escapeHtml(item[primaryKey])}">수정</button>`;
+      const key = UI.escapeHtml(item[primaryKey]);
+      return `
+        <div class="table-actions">
+          <button class="link-button table-edit" type="button" data-key="${key}">수정</button>
+          <button class="link-button danger-link table-delete" type="button" data-key="${key}">삭제</button>
+        </div>`;
     }
 
     function tableRows(items) {
@@ -357,6 +362,47 @@
           formHost.scrollIntoView({ behavior: "smooth", block: "start" });
         });
       });
+
+      tableHost.querySelectorAll(".table-delete").forEach((button) => {
+        button.addEventListener("click", async () => {
+          const item = items.find((entry) => String(entry[primaryKey]) === String(button.dataset.key));
+          if (!item) return;
+          const label = item.title || item.name || item.category_code || item.grade || item[primaryKey];
+          if (!confirm(`삭제하시겠습니까?\n\n${label}`)) return;
+
+          try {
+            const assets = collectItemAssets(item);
+            await Store.remove(kind, item[primaryKey]);
+            for (const asset of assets) await Store.deleteMedia(asset);
+            if (editingItem && String(editingItem[primaryKey]) === String(item[primaryKey])) {
+              editingItem = null;
+              renderForm();
+            }
+            data = await Store.load();
+            renderTable();
+            UI.setDbStatus(Store.getStatus());
+          } catch (error) {
+            alert(`삭제 실패: ${error.message}`);
+          }
+        });
+      });
+    }
+
+    function collectItemAssets(item) {
+      const fields = imageFields[kind] || [];
+      const assets = [];
+      fields.forEach((config) => {
+        if (config.arrayAssetKey) {
+          (item[config.arrayAssetKey] || []).forEach((assetId) => {
+            const asset = getAsset(assetId);
+            if (asset) assets.push(asset);
+          });
+          return;
+        }
+        const asset = getAsset(item[config.assetKey]);
+        if (asset) assets.push(asset);
+      });
+      return assets;
     }
 
     renderForm();

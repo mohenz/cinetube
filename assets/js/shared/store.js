@@ -169,6 +169,18 @@
     return resetData(state.data);
   }
 
+  async function remove(kind, keyValue) {
+    await load();
+    const primaryKey = primaryKeys[kind];
+    if (state.client) {
+      const table = tableNames[kind];
+      const { error } = await state.client.from(table).delete().eq(primaryKey, keyValue);
+      if (error) throw error;
+    }
+    state.data[kind] = state.data[kind].filter((item) => String(item[primaryKey]) !== String(keyValue));
+    return resetData(state.data);
+  }
+
   async function uploadMedia({ file, ownerTable, ownerField, ownerId = null, sortOrder = 0 }) {
     await load();
     if (!file) return null;
@@ -296,6 +308,7 @@
     load,
     create,
     update,
+    remove,
     uploadMedia,
     updateMediaOwner,
     deleteMedia,

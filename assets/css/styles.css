@@ -472,6 +472,9 @@ td:has(.table-thumb) { width: 116px; }
   border-radius: 6px;
 }
 .link-button:hover { background: var(--surface-3); }
+.table-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.danger-link { color: var(--danger); border-color: rgba(255, 139, 131, 0.45); }
+.danger-link:hover { background: rgba(255, 139, 131, 0.12); border-color: var(--danger); }
 
 .image-fieldset {
   padding: 14px;
