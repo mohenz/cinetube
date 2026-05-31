@@ -587,6 +587,25 @@
 
     renderForm();
     renderTable();
+
+    // URL 파라미터로 영화코드가 전달된 경우, 해당 영화를 자동 조회하여 수정 폼에 로드
+    if (kind === "movies") {
+      const urlParams = new URLSearchParams(window.location.search);
+      const preloadCode = urlParams.get("code");
+      if (preloadCode) {
+        const matched = data.movies.find(
+          (item) => String(item.movie_code).toLowerCase() === String(preloadCode).toLowerCase()
+        );
+        if (matched) {
+          editingItem = matched;
+          renderForm();
+          renderTable();
+          setTimeout(() => {
+            if (formHost) formHost.scrollIntoView({ behavior: "smooth", block: "start" });
+          }, 100);
+        }
+      }
+    }
   }
 
   window.CineTubeAdminPage = { init };
