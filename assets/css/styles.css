@@ -100,10 +100,10 @@ button { cursor: pointer; }
   border-radius: var(--radius);
   color: var(--muted);
   font-size: 12px;
+  text-align: center;
+  font-weight: 600;
+  letter-spacing: 0.05em;
 }
-
-.db-status.ok { color: var(--ok); }
-.db-status.off { color: var(--gold); }
 
 .topbar {
   position: fixed;

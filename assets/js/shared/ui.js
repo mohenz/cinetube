@@ -30,9 +30,7 @@
   function setDbStatus(status) {
     const el = document.getElementById("dbStatus");
     if (!el) return;
-    el.textContent = status.message;
-    el.classList.toggle("ok", status.connected);
-    el.classList.toggle("off", !status.connected);
+    el.textContent = "Bloom Universe";
   }
 
   function movieCard(movie) {
