@@ -355,8 +355,8 @@ button { cursor: pointer; }
 
 .actor-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 24px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 20px;
 }
 
 .actor-card {
@@ -384,17 +384,27 @@ button { cursor: pointer; }
 }
 
 .actor-card-image {
-  display: grid;
-  place-items: center;
-  aspect-ratio: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 140px;
   overflow: hidden;
   background: var(--surface-2);
+  padding-top: 12px;
 }
 
 .actor-card-image img {
-  width: 100%;
-  height: 100%;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
   object-fit: cover;
+  border: 2px solid var(--line-soft);
+  transition: transform .2s ease, border-color .2s ease;
+}
+
+.actor-card:hover .actor-card-image img {
+  transform: scale(1.05);
+  border-color: var(--accent-soft);
 }
 
 .actor-card-body {
@@ -691,7 +701,6 @@ td:has(.table-thumb) { width: 116px; }
 
 @media (max-width: 1100px) {
   .poster-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .actor-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .detail-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .admin-grid { grid-template-columns: 1fr; }
   .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -729,7 +738,7 @@ td:has(.table-thumb) { width: 116px; }
   .section-head h1 { font-size: 30px; }
   .content-view { padding: 28px 16px 48px; }
   .poster-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
-  .actor-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  .actor-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
   .profile-panel { grid-template-columns: 1fr; }
   .profile-panel img { width: 120px; }
   .profile-panel h1 { font-size: 30px; }
@@ -742,7 +751,7 @@ td:has(.table-thumb) { width: 116px; }
 
 @media (max-width: 480px) {
   .poster-grid { gap: 12px; }
-  .actor-grid { grid-template-columns: 1fr; gap: 12px; }
+  .actor-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
   .section-head { align-items: start; flex-direction: column; }
   .detail-list { grid-template-columns: 1fr; }
   .stats-grid { grid-template-columns: 1fr; }
