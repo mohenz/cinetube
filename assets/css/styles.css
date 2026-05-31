@@ -14,6 +14,7 @@
   --ok: #67d39a;
   --danger: #ff8b83;
   --radius: 8px;
+  --movie-image-ratio: 312 / 183;
 }
 
 * { box-sizing: border-box; }
@@ -223,7 +224,7 @@ button { cursor: pointer; }
 .poster-frame {
   position: relative;
   overflow: hidden;
-  aspect-ratio: 2 / 3;
+  aspect-ratio: var(--movie-image-ratio);
   background: var(--surface-2);
   border: 1px solid var(--line-soft);
   border-radius: 6px;
@@ -373,6 +374,7 @@ button { cursor: pointer; }
 table { width: 100%; border-collapse: collapse; min-width: 680px; }
 th, td { padding: 12px; border-bottom: 1px solid var(--line); text-align: left; }
 th { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; }
+td:has(.table-thumb) { width: 116px; }
 .muted-text { color: var(--muted); }
 .link-button {
   min-height: 32px;
@@ -421,7 +423,7 @@ th { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spa
 .image-preview {
   display: grid;
   place-items: center;
-  aspect-ratio: 16 / 10;
+  aspect-ratio: var(--movie-image-ratio);
   overflow: hidden;
   min-height: 110px;
   color: var(--muted);
@@ -445,8 +447,9 @@ th { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spa
 
 .table-thumb {
   display: block;
-  width: 52px;
-  height: 52px;
+  width: 92px;
+  aspect-ratio: var(--movie-image-ratio);
+  height: auto;
   object-fit: cover;
   background: var(--surface-2);
   border: 1px solid var(--line-soft);
@@ -508,7 +511,7 @@ th { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spa
 
 .movie-detail {
   display: grid;
-  grid-template-columns: minmax(240px, 360px) minmax(0, 1fr);
+  grid-template-columns: minmax(320px, 520px) minmax(0, 1fr);
   gap: 32px;
   align-items: start;
 }
@@ -523,7 +526,7 @@ th { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spa
 .movie-detail-media img {
   display: block;
   width: 100%;
-  aspect-ratio: 2 / 3;
+  aspect-ratio: var(--movie-image-ratio);
   object-fit: cover;
 }
 
@@ -587,7 +590,7 @@ th { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spa
 
 .movie-image-strip img {
   width: 100%;
-  aspect-ratio: 16 / 9;
+  aspect-ratio: var(--movie-image-ratio);
   object-fit: cover;
   background: var(--surface-2);
   border: 1px solid var(--line-soft);
