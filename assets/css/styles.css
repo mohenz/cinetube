@@ -471,7 +471,7 @@ button { cursor: pointer; }
 table { width: 100%; border-collapse: collapse; min-width: 680px; }
 th, td { padding: 12px; border-bottom: 1px solid var(--line); text-align: left; }
 th { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; }
-td:has(.table-thumb) { width: 116px; }
+td:has(.table-thumb) { width: 208px; }
 .muted-text { color: var(--muted); }
 .link-button {
   min-height: 32px;
@@ -547,7 +547,7 @@ td:has(.table-thumb) { width: 116px; }
 
 .table-thumb {
   display: block;
-  width: 92px;
+  width: 184px;
   aspect-ratio: var(--movie-image-ratio);
   height: auto;
   object-fit: cover;

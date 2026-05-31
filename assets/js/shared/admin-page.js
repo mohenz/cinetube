@@ -347,7 +347,7 @@
 
     function tableRows(items) {
       if (kind === "movies") {
-        return items.map((item) => `<tr><td>${thumb(item.poster_url, item.title)}</td><td>${UI.escapeHtml(item.movie_code)}</td><td>${UI.escapeHtml(item.title)}</td><td>${UI.escapeHtml(item.category_name)}</td><td>${UI.escapeHtml(item.actor_name)}</td><td><span class="rating">${UI.escapeHtml(item.rating_grade)}</span></td><td>${item.is_main ? '<span class="summary-pill" style="min-height:24px;background:var(--accent);color:#fff;border-color:var(--accent);font-weight:700;">전시</span>' : '<span class="summary-pill" style="min-height:24px;">미전시</span>'}</td><td>${UI.escapeHtml(Store.effectiveClickCount(item))}</td><td>${UI.escapeHtml(item.ranking_score || 0)}</td><td>${rowActions(item)}</td></tr>`).join("");
+        return items.map((item) => `<tr><td>${thumb(item.poster_url, item.title)}</td><td>${UI.escapeHtml(item.movie_code)}</td><td>${UI.escapeHtml(item.category_name)}</td><td>${UI.escapeHtml(item.actor_name)}</td><td><span class="rating">${UI.escapeHtml(item.rating_grade)}</span></td><td>${item.is_main ? '<span class="summary-pill" style="min-height:24px;background:var(--accent);color:#fff;border-color:var(--accent);font-weight:700;">전시</span>' : '<span class="summary-pill" style="min-height:24px;">미전시</span>'}</td><td>${UI.escapeHtml(Store.effectiveClickCount(item))}</td><td>${UI.escapeHtml(item.ranking_score || 0)}</td><td>${rowActions(item)}</td></tr>`).join("");
       }
       if (kind === "categories") {
         return items.map((item) => `<tr><td>${thumb(item.representative_image_url, item.name)}</td><td>${UI.escapeHtml(item.category_code)}</td><td>${UI.escapeHtml(item.name)}</td><td>${item.is_visible === false ? "미전시" : "전시"}</td><td>${rowActions(item)}</td></tr>`).join("");
@@ -359,7 +359,7 @@
     }
 
     function headerRow() {
-      if (kind === "movies") return "<tr><th>포스터</th><th>영화코드</th><th>영화제목</th><th>카테고리</th><th>주연배우</th><th>평가등급</th><th>메인전시</th><th>클릭수</th><th>랭킹</th><th>관리</th></tr>";
+      if (kind === "movies") return "<tr><th>포스터</th><th>영화코드</th><th>카테고리</th><th>주연배우</th><th>평가등급</th><th>메인전시</th><th>클릭수</th><th>랭킹</th><th>관리</th></tr>";
       if (kind === "categories") return "<tr><th>대표이미지</th><th>코드</th><th>카테고리명</th><th>전시여부</th><th>관리</th></tr>";
       if (kind === "actors") return "<tr><th>대표이미지</th><th>배우명</th><th>나이</th><th>신장</th><th>신체사이즈</th><th>데뷔년도</th><th>관리</th></tr>";
       return "<tr><th>평가등급</th><th>정렬순서</th><th>관리</th></tr>";
