@@ -1,6 +1,17 @@
 <!doctype html>
 <html lang="ko">
   <head>
+    <script>
+      (function() {
+        const session = localStorage.getItem("cinetube_user_session");
+        const isLoginPage = window.location.pathname.endsWith("login.html");
+        if (!session && !isLoginPage) {
+          document.documentElement.style.display = "none";
+          const prefix = window.location.pathname.includes("/admin/") ? "../" : "";
+          window.location.href = prefix + "login.html";
+        }
+      })();
+    </script>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>CineTube Admin | Dashboard</title>
