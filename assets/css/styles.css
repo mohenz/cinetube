@@ -435,11 +435,6 @@ th { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spa
   font-size: 13px;
 }
 
-.image-field-actions {
-  display: flex;
-  justify-content: flex-end;
-}
-
 .table-thumb {
   display: block;
   width: 52px;

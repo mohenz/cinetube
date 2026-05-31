@@ -106,9 +106,6 @@
             ${value.url ? `<img src="${UI.escapeHtml(value.url)}" alt="${UI.escapeHtml(config.label)} 미리보기">` : `<span>이미지 없음</span>`}
           </div>
           <input class="image-input" type="file" name="file_${UI.escapeHtml(name)}" accept="image/*">
-          <div class="image-field-actions">
-            <button class="ghost-button image-clear" type="button"><span class="material-symbols-outlined">delete</span>이미지 삭제</button>
-          </div>
           <input type="hidden" name="url_${UI.escapeHtml(name)}" value="${UI.escapeHtml(value.url)}">
           <input type="hidden" name="asset_${UI.escapeHtml(name)}" value="${UI.escapeHtml(value.assetId)}">
         </div>`;
@@ -122,6 +119,15 @@
           <legend>이미지 관리</legend>
           <div class="image-grid">${fields.map(imageSlot).join("")}</div>
         </fieldset>`;
+    }
+
+    function renderImageActionButtons() {
+      const fields = imageFields[kind] || [];
+      return fields.map((config) => `
+        <button class="ghost-button image-clear-form" type="button" data-target-image-field="${UI.escapeHtml(config.field)}">
+          <span class="material-symbols-outlined">delete</span>${UI.escapeHtml(config.label)} 삭제
+        </button>
+      `).join("");
     }
 
     function normalize(formData) {
@@ -209,10 +215,22 @@
     }
 
     function bindImageFields() {
+      function clearSlot(slot) {
+        const fileInput = slot.querySelector(".image-input");
+        const preview = slot.querySelector(".image-preview");
+        const urlInput = slot.querySelector('input[name^="url_"]');
+        const assetInput = slot.querySelector('input[name^="asset_"]');
+        addRemovedAssetFromSlot(slot);
+        fileInput.value = "";
+        urlInput.value = "";
+        assetInput.value = "";
+        preview.classList.remove("has-image");
+        preview.innerHTML = "<span>이미지 없음</span>";
+      }
+
       formHost.querySelectorAll(".image-field").forEach((slot) => {
         const fileInput = slot.querySelector(".image-input");
         const preview = slot.querySelector(".image-preview");
-        const clearButton = slot.querySelector(".image-clear");
         const urlInput = slot.querySelector('input[name^="url_"]');
         const assetInput = slot.querySelector('input[name^="asset_"]');
 
@@ -224,14 +242,12 @@
           urlInput.value = "";
           assetInput.value = "";
         });
+      });
 
-        clearButton.addEventListener("click", () => {
-          addRemovedAssetFromSlot(slot);
-          fileInput.value = "";
-          urlInput.value = "";
-          assetInput.value = "";
-          preview.classList.remove("has-image");
-          preview.innerHTML = "<span>이미지 없음</span>";
+      formHost.querySelectorAll(".image-clear-form").forEach((button) => {
+        button.addEventListener("click", () => {
+          const slot = formHost.querySelector(`[data-image-field="${button.dataset.targetImageField}"]`);
+          if (slot) clearSlot(slot);
         });
       });
     }
@@ -254,6 +270,7 @@
           ${renderImageFields()}
           <div class="form-actions">
             <button class="primary-button" type="submit"><span class="material-symbols-outlined">save</span>${isEdit ? "수정 저장" : "저장"}</button>
+            ${renderImageActionButtons()}
             ${isEdit ? `<button class="ghost-button" type="button" id="cancelEdit"><span class="material-symbols-outlined">close</span>취소</button>` : ""}
           </div>
         </form>`;
