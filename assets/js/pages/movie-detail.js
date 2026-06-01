@@ -25,10 +25,11 @@
   document.title = `CineTube | ${movie.title}`;
   if (codeDisplay) codeDisplay.value = movie.movie_code || "";
 
-  const posterUrl = movie.poster_url || movie.capture_url || movie.snapshot_url || "assets/img/favicon.svg";
-  const captureUrl = movie.capture_url || movie.poster_url || "";
-  const snapshotUrl = movie.snapshot_url || "";
+  const posterUrl = UI.movieImageUrl(movie, "../assets/img/favicon.svg");
+  const captureUrl = movie.capture_url || movie.capture_asset?.public_url || movie.poster_url || movie.poster_asset?.public_url || "";
+  const snapshotUrl = movie.snapshot_url || movie.snapshot_asset?.public_url || "";
   const keywords = Array.isArray(movie.keywords) ? movie.keywords : [];
+  const movieAssets = [movie.poster_asset, movie.capture_asset, movie.snapshot_asset].filter(Boolean);
 
   detail.innerHTML = `
     <section class="movie-detail">
@@ -56,6 +57,7 @@
         <div class="hero-actions">
           ${movie.video_url ? `<a class="primary-button" href="${UI.escapeHtml(movie.video_url)}" target="_blank" rel="noreferrer"><span class="material-symbols-outlined">open_in_new</span>원본 링크</a>` : ""}
           <a class="ghost-button" href="../admin/movies.html?code=${UI.escapeHtml(movie.movie_code)}"><span class="material-symbols-outlined">edit</span>영화 관리</a>
+          <button class="ghost-button danger-action" type="button" id="deleteMovie"><span class="material-symbols-outlined">delete</span>영화정보 삭제</button>
         </div>
       </div>
     </section>
@@ -63,4 +65,32 @@
       ${captureUrl ? `<img src="${UI.escapeHtml(captureUrl)}" alt="${UI.escapeHtml(movie.title)} 캡쳐">` : ""}
       ${snapshotUrl ? `<img src="${UI.escapeHtml(snapshotUrl)}" alt="${UI.escapeHtml(movie.title)} 스냅샷">` : ""}
     </section>`;
+
+  const deleteButton = document.getElementById("deleteMovie");
+  if (deleteButton) {
+    deleteButton.addEventListener("click", async () => {
+      const confirmed = confirm([
+        "영화정보를 삭제하시겠습니까?",
+        "",
+        movie.movie_code || movie.id,
+        movie.title || "",
+        "",
+        "삭제 후 홈 화면으로 이동합니다."
+      ].join("\n"));
+      if (!confirmed) return;
+
+      deleteButton.disabled = true;
+      deleteButton.innerHTML = `<span class="material-symbols-outlined">hourglass_empty</span>삭제 중`;
+
+      try {
+        await Store.remove("movies", movie.id);
+        for (const asset of movieAssets) await Store.deleteMedia(asset);
+        window.location.href = "../index.html";
+      } catch (error) {
+        deleteButton.disabled = false;
+        deleteButton.innerHTML = `<span class="material-symbols-outlined">delete</span>영화정보 삭제`;
+        alert(`삭제 실패: ${error.message}`);
+      }
+    });
+  }
 })();
