@@ -4,14 +4,21 @@ PC 웹 우선, 모바일 반응형 영화정보 관리 사이트입니다. 화�
 
 ## 화면 구조
 - `index.html`: Home, 최신등록 8개, 맞춤추천 8개, 카테고리별 평가등급 상위 8개
-- `actors.html`: 주연배우 정보와 출연 작품 리스트
-- `categories.html`: 카테고리 정보와 작품 리스트
-- `ratings.html`: 평가등급별 작품 리스트
+- `pages/actors.html`: 주연배우 목록
+- `pages/actor.html`: 배우 상세정보와 출연 작품 리스트
+- `pages/categories.html`: 카테고리 정보와 작품 리스트
+- `pages/ratings.html`: 평가등급별 작품 리스트
+- `pages/movie.html`: 영화 상세정보
+- `auth/login.html`: 레거시 로그인 화면
 - `admin/index.html`: 관리 대시보드
 - `admin/movies.html`: 영화정보 관리
 - `admin/categories.html`: 카테고리정보 관리
 - `admin/actors.html`: 주연배우정보 관리
 - `admin/ratings.html`: 평가등급정보 관리
+
+## 문서 / 참조자료 구조
+- `docs/requirements/cinetube 기본요구사항.txt`: 기본 요구사항 원문
+- `docs/reference/`: Stitch 등 외부 참조 산출물 보관 위치
 
 ## 화면별 JS 구조
 - `assets/js/pages/home.js`: 홈 화면 전용

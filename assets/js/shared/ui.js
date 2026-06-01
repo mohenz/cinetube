@@ -22,10 +22,17 @@
     el.textContent = "Bloom Universe";
   }
 
+  function routePath(path) {
+    const inSubdirectory = window.location.pathname.includes("/pages/")
+      || window.location.pathname.includes("/admin/")
+      || window.location.pathname.includes("/auth/");
+    return `${inSubdirectory ? "../" : ""}${path}`;
+  }
+
   function movieCard(movie) {
     const keywords = Array.isArray(movie.keywords) ? movie.keywords.join(", ") : movie.keywords || "";
-    const posterUrl = movie.poster_url || movie.capture_url || "assets/img/favicon.svg";
-    const detailUrl = `movie.html?code=${encodeURIComponent(movie.movie_code || movie.id || "")}`;
+    const posterUrl = movie.poster_url || movie.capture_url || routePath("assets/img/favicon.svg");
+    const detailUrl = `${routePath("pages/movie.html")}?code=${encodeURIComponent(movie.movie_code || movie.id || "")}`;
     return `
       <article class="poster-card" title="${escapeHtml(movie.title)}" data-movie-code="${escapeHtml(movie.movie_code || movie.id || "")}" data-movie-href="${escapeHtml(detailUrl)}" tabindex="0" role="link" aria-label="${escapeHtml(movie.title)} 영화정보 보기">
         <div class="poster-frame">
@@ -125,6 +132,7 @@
     setDbStatus,
     movieCard,
     setupMovieCards,
+    routePath,
     movieSection,
     ratingRank,
     matchesSearch,

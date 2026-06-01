@@ -4,7 +4,12 @@ param(
 
 $ErrorActionPreference = "Stop"
 $ProjectRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
-$PgRoot = "C:\Program Files\PostgreSQL\16"
+$PgRoot = Get-ChildItem "C:\Program Files\PostgreSQL" -Directory -ErrorAction SilentlyContinue |
+  Sort-Object { [int]$_.Name } -Descending |
+  Select-Object -First 1 -ExpandProperty FullName
+if (-not $PgRoot) {
+  throw "PostgreSQL was not found under C:\Program Files\PostgreSQL"
+}
 $PgBin = Join-Path $PgRoot "bin"
 $DataDir = Join-Path $ProjectRoot "local\postgres-data"
 $LogPath = Join-Path $ProjectRoot "local\postgres.log"
@@ -15,7 +20,7 @@ $ApiOutLog = Join-Path $ProjectRoot "local\api.out.log"
 $ApiErrLog = Join-Path $ProjectRoot "local\api.err.log"
 
 if (-not (Test-Path (Join-Path $PgBin "initdb.exe"))) {
-  throw "PostgreSQL 16 was not found at $PgRoot"
+  throw "PostgreSQL binaries were not found at $PgRoot"
 }
 
 New-Item -ItemType Directory -Force (Join-Path $ProjectRoot "local") | Out-Null

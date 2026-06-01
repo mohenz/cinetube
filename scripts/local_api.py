@@ -4,7 +4,15 @@ import json
 import os
 import subprocess
 
-PG_BIN = r"C:\Program Files\PostgreSQL\16\bin"
+POSTGRES_ROOT = r"C:\Program Files\PostgreSQL"
+versions = []
+if os.path.isdir(POSTGRES_ROOT):
+    versions = [
+        os.path.join(POSTGRES_ROOT, name)
+        for name in os.listdir(POSTGRES_ROOT)
+        if name.isdigit() and os.path.isdir(os.path.join(POSTGRES_ROOT, name))
+    ]
+PG_BIN = os.path.join(sorted(versions, key=lambda path: int(os.path.basename(path)), reverse=True)[0], "bin") if versions else ""
 PSQL = os.path.join(PG_BIN, "psql.exe")
 ENV = {
     **os.environ,
@@ -76,7 +84,11 @@ def filter_clause(table, query):
 
 
 def row_json(table, sql):
-    output = run_sql(f"select coalesce(json_agg(row_to_json(q)), '[]'::json) from ({sql}) q;")
+    statement = sql.strip().lower()
+    if statement.startswith(("insert ", "update ")):
+        output = run_sql(f"with q as ({sql}) select coalesce(json_agg(row_to_json(q)), '[]'::json) from q;")
+    else:
+        output = run_sql(f"select coalesce(json_agg(row_to_json(q)), '[]'::json) from ({sql}) q;")
     return json.loads(output or "[]")
 
 

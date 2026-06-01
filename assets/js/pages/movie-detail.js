@@ -55,7 +55,7 @@
         </div>
         <div class="hero-actions">
           ${movie.video_url ? `<a class="primary-button" href="${UI.escapeHtml(movie.video_url)}" target="_blank" rel="noreferrer"><span class="material-symbols-outlined">open_in_new</span>원본 링크</a>` : ""}
-          <a class="ghost-button" href="admin/movies.html?code=${UI.escapeHtml(movie.movie_code)}"><span class="material-symbols-outlined">edit</span>영화 관리</a>
+          <a class="ghost-button" href="../admin/movies.html?code=${UI.escapeHtml(movie.movie_code)}"><span class="material-symbols-outlined">edit</span>영화 관리</a>
         </div>
       </div>
     </section>

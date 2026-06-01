@@ -43,7 +43,7 @@
           <p>Supabase 연결은 완료되었습니다. 관리자 화면에서 영화정보를 등록하면 홈 화면에 최신등록, 맞춤추천, 평가등급 상위 작품이 표시됩니다.</p>
           <div class="hero-actions">
             <a class="primary-button" href="admin/movies.html"><span class="material-symbols-outlined">add</span>영화 등록</a>
-            <a class="ghost-button" href="categories.html"><span class="material-symbols-outlined">grid_view</span>작품 탐색</a>
+            <a class="ghost-button" href="pages/categories.html"><span class="material-symbols-outlined">grid_view</span>작품 탐색</a>
           </div>
         </div>`;
       sections.innerHTML = [
@@ -62,7 +62,7 @@
         <p>${UI.escapeHtml(featured.description)}</p>
         <div class="hero-actions">
           <a class="primary-button" href="${UI.escapeHtml(featured.video_url || "#")}" target="_blank" rel="noreferrer"><span class="material-symbols-outlined">play_arrow</span>영상 링크</a>
-          <a class="ghost-button" href="categories.html"><span class="material-symbols-outlined">grid_view</span>작품 탐색</a>
+          <a class="ghost-button" href="pages/categories.html"><span class="material-symbols-outlined">grid_view</span>작품 탐색</a>
         </div>
       </div>`;
 
