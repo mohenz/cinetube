@@ -83,12 +83,13 @@ def filter_clause(table, query):
     return f"{pk} = {sql_literal(raw[3:])}"
 
 
-def row_json(table, sql):
-    statement = sql.strip().lower()
-    if statement.startswith(("insert ", "update ")):
-        output = run_sql(f"with q as ({sql}) select coalesce(json_agg(row_to_json(q)), '[]'::json) from q;")
+def row_json(table, sql, mutable=False):
+    inner_sql = sql.strip().rstrip(";")
+    statement = inner_sql.lower()
+    if mutable or statement.startswith(("insert ", "update ", "delete ")):
+        output = run_sql(f"with q as ({inner_sql}) select coalesce(json_agg(row_to_json(q)), '[]'::json) from q;")
     else:
-        output = run_sql(f"select coalesce(json_agg(row_to_json(q)), '[]'::json) from ({sql}) q;")
+        output = run_sql(f"select coalesce(json_agg(row_to_json(q)), '[]'::json) from ({inner_sql}) q;")
     return json.loads(output or "[]")
 
 
@@ -168,7 +169,7 @@ class Handler(BaseHTTPRequestHandler):
             raise ValueError("empty insert payload")
         values = [f"(json_populate_record(null::public.{table}, {json_literal(payload)}::json)).{c}" for c in columns]
         sql = f"insert into public.{table} ({','.join(columns)}) values ({','.join(values)}) returning *"
-        return row_json(table, sql)
+        return row_json(table, sql, mutable=True)
 
     def update_row(self, table, payload, where):
         columns = [c for c in TABLES[table]["update"] if c in payload]
@@ -176,7 +177,7 @@ class Handler(BaseHTTPRequestHandler):
             raise ValueError("empty update payload")
         sets = [f"{c} = (json_populate_record(null::public.{table}, {json_literal(payload)}::json)).{c}" for c in columns]
         sql = f"update public.{table} set {','.join(sets)} where {where} returning *"
-        return row_json(table, sql)
+        return row_json(table, sql, mutable=True)
 
     def send_json(self, value, status=200):
         body = json.dumps(value, ensure_ascii=False).encode("utf-8")
