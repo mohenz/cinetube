@@ -1,6 +1,7 @@
 -- CineTube import: Araki Noa reducing-only works
 -- Source URL requested by owner: https://javtiful.com/kr/actress/araki-noa
 -- Import rule: only Javtiful reducing-mosaic video cards are included.
+-- Actor profile reference: https://www.avdbs.com/menu/actor.php?actor_idx=11244
 
 insert into public.categories (
   category_code,
@@ -35,10 +36,10 @@ actor_insert as (
   )
   select
     'Araki Noa',
-    null,
-    null,
-    null,
-    null,
+    21,
+    162,
+    'B84(E)-W56-H87',
+    2025,
     'https://javtiful.com/uploads/uploads/collections/actresses/2026/05/03/269028a4be86eba8fb167b4bee5dd4bc.jpg',
     array[
       'https://javtiful.com/uploads/uploads/collections/actresses/2026/05/03/269028a4be86eba8fb167b4bee5dd4bc.jpg',
@@ -60,6 +61,10 @@ actor_ref as (
 actor_update as (
   update public.actors
   set
+    age = 21,
+    height_cm = 162,
+    body_size = 'B84(E)-W56-H87',
+    debut_year = 2025,
     representative_image_url = 'https://javtiful.com/uploads/uploads/collections/actresses/2026/05/03/269028a4be86eba8fb167b4bee5dd4bc.jpg',
     image_urls = array[
       'https://javtiful.com/uploads/uploads/collections/actresses/2026/05/03/269028a4be86eba8fb167b4bee5dd4bc.jpg',
