@@ -29,9 +29,23 @@
     return `${inSubdirectory ? "../" : ""}${path}`;
   }
 
+  function assetPublicUrl(asset) {
+    return asset?.public_url || "";
+  }
+
+  function movieImageUrl(movie, fallback = routePath("assets/img/favicon.svg")) {
+    return movie?.poster_url
+      || assetPublicUrl(movie?.poster_asset)
+      || movie?.capture_url
+      || assetPublicUrl(movie?.capture_asset)
+      || movie?.snapshot_url
+      || assetPublicUrl(movie?.snapshot_asset)
+      || fallback;
+  }
+
   function movieCard(movie) {
     const keywords = Array.isArray(movie.keywords) ? movie.keywords.join(", ") : movie.keywords || "";
-    const posterUrl = movie.poster_url || movie.capture_url || routePath("assets/img/favicon.svg");
+    const posterUrl = movieImageUrl(movie);
     const detailUrl = `${routePath("pages/movie.html")}?code=${encodeURIComponent(movie.movie_code || movie.id || "")}`;
     return `
       <article class="poster-card" title="${escapeHtml(movie.title)}" data-movie-code="${escapeHtml(movie.movie_code || movie.id || "")}" data-movie-href="${escapeHtml(detailUrl)}" tabindex="0" role="link" aria-label="${escapeHtml(movie.title)} 영화정보 보기">
@@ -131,6 +145,7 @@
     setupChrome,
     setDbStatus,
     movieCard,
+    movieImageUrl,
     setupMovieCards,
     routePath,
     movieSection,

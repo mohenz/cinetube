@@ -54,7 +54,11 @@
       return;
     }
 
-    document.documentElement.style.setProperty("--hero-image", `url("${featured.capture_url || featured.poster_url || ""}")`);
+    const heroImage = UI.movieImageUrl(featured, "");
+    document.documentElement.style.setProperty(
+      "--hero-image",
+      heroImage ? `url(${JSON.stringify(heroImage)})` : "linear-gradient(135deg, #1c1b1b, #000)"
+    );
     hero.innerHTML = `
       <div class="hero-inner">
         <p class="eyebrow">Featured Movie</p>
