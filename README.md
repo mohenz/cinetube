@@ -4,6 +4,7 @@ PC 웹 우선, 모바일 반응형 영화정보 관리 사이트입니다. 화�
 
 ## 화면 구조
 - `index.html`: Home, 최신등록 8개, 맞춤추천 8개, 카테고리별 평가등급 상위 8개
+- `pages/movies.html`: 최신영화 순 전체 영화목록
 - `pages/actors.html`: 주연배우 목록
 - `pages/actor.html`: 배우 상세정보와 출연 작품 리스트
 - `pages/categories.html`: 카테고리 정보와 작품 리스트
@@ -22,6 +23,7 @@ PC 웹 우선, 모바일 반응형 영화정보 관리 사이트입니다. 화�
 
 ## 화면별 JS 구조
 - `assets/js/pages/home.js`: 홈 화면 전용
+- `assets/js/pages/movies.js`: 전체 영화목록 화면 전용
 - `assets/js/pages/actors.js`: 주연배우 조회 화면 전용
 - `assets/js/pages/categories.js`: 카테고리 조회 화면 전용
 - `assets/js/pages/ratings.js`: 평가등급 조회 화면 전용

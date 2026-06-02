@@ -144,7 +144,7 @@ foreach ($row in (Table-Rows $export.rating_grades)) {
 }
 
 foreach ($row in (Table-Rows $export.movies)) {
-  $cols = "id","title","movie_code","category_code","actor_id","actor_ids","director_names","source_url","keywords","rating_grade","video_url","description","poster_url","poster_asset_id","capture_url","capture_asset_id","snapshot_url","snapshot_asset_id","release_month","production_company","recommendation_score","ranking_score","click_count","is_main","created_at"
+  $cols = "id","title","movie_code","category_code","actor_id","actor_ids","director_names","source_url","keywords","rating_grade","video_url","description","poster_url","poster_asset_id","capture_url","capture_asset_id","snapshot_url","snapshot_asset_id","release_month","production_company","recommendation_score","rotten_tomatoes_score","ranking_score","click_count","is_main","created_at"
   $vals = @(
     Row-Value $row "id"
     Row-Value $row "title"
@@ -167,6 +167,7 @@ foreach ($row in (Table-Rows $export.movies)) {
     Row-Value $row "release_month"
     Row-Value $row "production_company"
     Row-Value $row "recommendation_score"
+    Row-Value $row "rotten_tomatoes_score"
     Row-Value $row "ranking_score"
     Row-Value $row "click_count"
     Row-Value $row "is_main"

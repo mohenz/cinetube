@@ -71,6 +71,7 @@ create table public.movies (
   release_month text,
   production_company text,
   recommendation_score integer not null default 0,
+  rotten_tomatoes_score integer,
   ranking_score integer not null default 0,
   click_count integer not null default 0,
   is_main boolean not null default false,

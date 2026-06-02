@@ -77,6 +77,7 @@
       production_company: ["Studio Red", "CineWorks", "Frame Lab", "Nova Pictures"][n % 4],
       created_at: new Date(Date.UTC(2026, 4, 31 - index)).toISOString(),
       recommendation_score: 100 - index,
+      rotten_tomatoes_score: 95 - index,
       is_main: index === 0
     };
   });

@@ -9,6 +9,9 @@ alter table public.movies
 alter table public.movies
   add column if not exists source_url text;
 
+alter table public.movies
+  add column if not exists rotten_tomatoes_score integer;
+
 update public.movies
 set actor_ids = array[actor_id]
 where actor_id is not null

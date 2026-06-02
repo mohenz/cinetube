@@ -73,6 +73,7 @@
         local_click_count: Number(localClicks[movie.movie_code] || 0),
         ranking_score: Number(movie.ranking_score ?? movie.recommendation_score ?? 0),
         recommendation_score: Number(movie.recommendation_score || 0),
+        rotten_tomatoes_score: movie.rotten_tomatoes_score === null || movie.rotten_tomatoes_score === undefined || movie.rotten_tomatoes_score === "" ? null : Number(movie.rotten_tomatoes_score),
         poster_asset: mediaById.get(String(movie.poster_asset_id)) || null,
         capture_asset: mediaById.get(String(movie.capture_asset_id)) || null,
         snapshot_asset: mediaById.get(String(movie.snapshot_asset_id)) || null,

@@ -15,6 +15,7 @@
   --danger: #ff8b83;
   --radius: 8px;
   --movie-image-ratio: 312 / 183;
+  --poster-image-ratio: 2 / 3;
 }
 
 * { box-sizing: border-box; }
@@ -172,7 +173,7 @@ button { cursor: pointer; }
 }
 
 .hero {
-  min-height: 430px;
+  min-height: 450px;
   display: grid;
   align-items: end;
   padding: 80px 48px 48px;
@@ -207,8 +208,9 @@ button { cursor: pointer; }
 
 .poster-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
   gap: 24px;
+  align-items: start;
 }
 
 .poster-card {
@@ -227,8 +229,8 @@ button { cursor: pointer; }
 .poster-frame {
   position: relative;
   overflow: hidden;
-  aspect-ratio: var(--movie-image-ratio);
-  background: var(--surface-2);
+  aspect-ratio: var(--poster-image-ratio);
+  background: #0b0b0b;
   border: 1px solid var(--line-soft);
   border-radius: 6px;
 }
@@ -236,7 +238,7 @@ button { cursor: pointer; }
 .poster-frame img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   transition: transform .25s ease;
 }
 
@@ -705,7 +707,7 @@ td:has(.table-thumb) { width: 208px; }
 .drawer-backdrop { display: none; }
 
 @media (max-width: 1100px) {
-  .poster-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .poster-grid { grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); }
   .detail-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .admin-grid { grid-template-columns: 1fr; }
   .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -738,11 +740,11 @@ td:has(.table-thumb) { width: 208px; }
   }
   .topbar .ghost-button { display: none; }
   .app-shell { margin-left: 0; }
-  .hero { min-height: 360px; padding: 64px 16px 32px; }
+  .hero { min-height: 380px; padding: 64px 16px 32px; }
   .hero h1 { font-size: 34px; }
   .section-head h1 { font-size: 30px; }
   .content-view { padding: 28px 16px 48px; }
-  .poster-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  .poster-grid { grid-template-columns: repeat(auto-fit, minmax(min(160px, 100%), 1fr)); gap: 16px; }
   .actor-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
   .profile-panel { grid-template-columns: 1fr; }
   .profile-panel img { width: 120px; }
@@ -757,7 +759,7 @@ td:has(.table-thumb) { width: 208px; }
 }
 
 @media (max-width: 480px) {
-  .poster-grid { gap: 12px; }
+  .poster-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
   .actor-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
   .section-head { align-items: start; flex-direction: column; }
   .stats-grid { grid-template-columns: 1fr; }

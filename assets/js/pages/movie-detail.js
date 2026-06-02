@@ -30,6 +30,7 @@
   const snapshotUrl = movie.snapshot_url || movie.snapshot_asset?.public_url || "";
   const keywords = Array.isArray(movie.keywords) ? movie.keywords : [];
   const movieAssets = [movie.poster_asset, movie.capture_asset, movie.snapshot_asset].filter(Boolean);
+  const rottenTomatoesScore = movie.rotten_tomatoes_score;
 
   detail.innerHTML = `
     <section class="movie-detail">
@@ -51,7 +52,7 @@
           <div><span>출시년월</span><strong>${UI.escapeHtml(movie.release_month || "-")}</strong></div>
           <div><span>제작사</span><strong>${UI.escapeHtml(movie.production_company || "-")}</strong></div>
           <div><span>추천점수</span><strong>${UI.escapeHtml(movie.recommendation_score || 0)}</strong></div>
-          <div><span>정보출처</span><strong>${movie.source_url ? `<a href="${UI.escapeHtml(movie.source_url)}" target="_blank" rel="noreferrer">열기</a>` : "-"}</strong></div>
+          <div><span>루튼 토마토</span><strong>${UI.escapeHtml(rottenTomatoesScore === null || rottenTomatoesScore === undefined ? "-" : `${rottenTomatoesScore}%`)}</strong></div>
         </div>
         <div class="keyword-row">
           ${keywords.length ? keywords.map((keyword) => `<span>${UI.escapeHtml(keyword)}</span>`).join("") : `<span>키워드 없음</span>`}

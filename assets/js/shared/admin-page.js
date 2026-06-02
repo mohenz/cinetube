@@ -3,7 +3,7 @@
     movies: [
       ["title", "영화제목"], ["movie_code", "영화코드"], ["category_code", "카테고리", "category"], ["actor_ids", "주연배우", "actors"], ["director_names", "영화감독", "directors"],
       ["keywords", "키워드(쉼표 구분)"], ["rating_grade", "평가등급", "rating"], ["is_main", "메인전시 여부", "boolean"], ["video_url", "영상링크"], ["source_url", "정보출처 URL"], ["description", "주요내용", "textarea"],
-      ["release_month", "출시년월"], ["production_company", "제작사"], ["recommendation_score", "추천점수", "number"],
+      ["release_month", "출시년월"], ["production_company", "제작사"], ["recommendation_score", "추천점수", "number"], ["rotten_tomatoes_score", "루튼토마토 점수", "number"],
       ["ranking_score", "랭킹점수", "number"], ["click_count", "클릭수", "number"]
     ],
     categories: [
@@ -164,6 +164,26 @@
       `).join("");
     }
 
+    function renderTmdbImportPanel() {
+      if (kind !== "movies") return "";
+      const value = editingItem?.source_url && String(editingItem.source_url).includes("themoviedb.org")
+        ? editingItem.source_url
+        : "";
+      return `
+        <fieldset class="image-fieldset tmdb-import-panel">
+          <legend>TMDB URL 가져오기</legend>
+          <label>TMDB 영화 URL
+            <input class="input-control" id="tmdbImportUrl" type="url" value="${UI.escapeHtml(value)}" placeholder="https://www.themoviedb.org/movie/...">
+          </label>
+          <div class="form-actions">
+            <button class="ghost-button" id="tmdbImportButton" type="button">
+              <span class="material-symbols-outlined">download</span>가져오기
+            </button>
+            <span class="tmdb-import-status" id="tmdbImportStatus"></span>
+          </div>
+        </fieldset>`;
+    }
+
     function normalize(formData) {
       const payload = Object.fromEntries(formData.entries());
       Object.keys(payload).forEach((key) => {
@@ -187,6 +207,7 @@
         payload.source_url = payload.source_url || null;
         payload.keywords = payload.keywords ? payload.keywords.split(",").map((item) => item.trim()).filter(Boolean) : [];
         payload.recommendation_score = Number(payload.recommendation_score || 0);
+        payload.rotten_tomatoes_score = payload.rotten_tomatoes_score === "" ? null : Number(payload.rotten_tomatoes_score || 0);
         payload.ranking_score = Number(payload.ranking_score || 0);
         payload.click_count = Number(payload.click_count || 0);
         payload.is_main = payload.is_main === "true";
@@ -299,6 +320,164 @@
           const slot = formHost.querySelector(`[data-image-field="${button.dataset.targetImageField}"]`);
           if (slot) clearSlot(slot);
         });
+      });
+    }
+
+    function localApiBase() {
+      const config = window.CINETUBE_LOCAL_API || {};
+      return String(config.url || "").replace(/\/$/, "");
+    }
+
+    function setFieldValue(form, name, value) {
+      const field = form.querySelector(`[name="${name}"]`);
+      if (!field) return;
+      field.value = value ?? "";
+    }
+
+    function appendSelectOption(select, value, label) {
+      if (!select || !value) return;
+      const exists = Array.from(select.options).some((option) => String(option.value) === String(value));
+      if (!exists) {
+        const option = document.createElement("option");
+        option.value = value;
+        option.textContent = label || value;
+        select.appendChild(option);
+      }
+    }
+
+    function setImageSlotUrl(form, field, url, label) {
+      const slot = form.querySelector(`[data-image-field="${field}"]`);
+      if (!slot) return;
+      const preview = slot.querySelector(".image-preview");
+      const fileInput = slot.querySelector(".image-input");
+      const urlInput = slot.querySelector(`input[name="url_${field}"]`);
+      const assetInput = slot.querySelector(`input[name="asset_${field}"]`);
+      if (fileInput) fileInput.value = "";
+      if (urlInput) urlInput.value = url || "";
+      if (assetInput) assetInput.value = "";
+      if (!preview) return;
+      if (url) {
+        preview.classList.add("has-image");
+        preview.innerHTML = `<img src="${UI.escapeHtml(url)}" alt="${UI.escapeHtml(label)} 미리보기">`;
+      } else {
+        preview.classList.remove("has-image");
+        preview.innerHTML = "<span>이미지 없음</span>";
+      }
+    }
+
+    async function ensureTmdbCategory(imported, form) {
+      const code = imported.category_code;
+      if (!code) return "";
+      let category = data.categories.find((item) => String(item.category_code) === String(code));
+      if (!category) {
+        data = await Store.create("categories", {
+          category_code: code,
+          name: imported.category_name || code,
+          representative_image_url: imported.capture_url || imported.poster_url || null,
+          representative_image_asset_id: null,
+          is_visible: true
+        });
+        category = data.categories.find((item) => String(item.category_code) === String(code));
+      }
+      const select = form.querySelector('[name="category_code"]');
+      appendSelectOption(select, category?.category_code || code, category?.name || imported.category_name || code);
+      return category?.category_code || code;
+    }
+
+    async function ensureTmdbActors(imported, form) {
+      const profiles = (imported.actor_profiles || []).slice(0, 4);
+      const selectedIds = [];
+      for (const profile of profiles) {
+        const name = (profile.name || "").trim();
+        if (!name) continue;
+        let actor = data.actors.find((item) => String(item.name).toLowerCase() === name.toLowerCase());
+        if (!actor) {
+          data = await Store.create("actors", {
+            name,
+            age: 0,
+            height_cm: 0,
+            body_size: "",
+            debut_year: 0,
+            representative_image_url: profile.profile_url || null,
+            representative_image_asset_id: null,
+            image_urls: [],
+            image_asset_ids: []
+          });
+          actor = data.actors.find((item) => String(item.name).toLowerCase() === name.toLowerCase());
+        }
+        if (actor?.id && !selectedIds.includes(actor.id)) selectedIds.push(actor.id);
+      }
+      [0, 1, 2, 3].forEach((index) => {
+        const select = form.querySelector(`[name="actor_ids_${index}"]`);
+        data.actors.forEach((actor) => appendSelectOption(select, actor.id, actor.name));
+        select.value = selectedIds[index] || "";
+      });
+      return selectedIds;
+    }
+
+    async function fetchTmdbImport(url) {
+      const base = localApiBase();
+      if (!base) throw new Error("로컬 API 설정이 필요합니다");
+      const response = await fetch(`${base}/tmdb/import?url=${encodeURIComponent(url)}`);
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || `TMDB 조회 실패: HTTP ${response.status}`);
+      }
+      return await response.json();
+    }
+
+    async function applyTmdbImport(form, imported) {
+      const categoryCode = await ensureTmdbCategory(imported, form);
+      await ensureTmdbActors(imported, form);
+
+      setFieldValue(form, "title", imported.title);
+      setFieldValue(form, "movie_code", imported.movie_code);
+      setFieldValue(form, "category_code", categoryCode);
+      setFieldValue(form, "keywords", (imported.keywords || []).join(", "));
+      setFieldValue(form, "rating_grade", imported.rating_grade || "A");
+      setFieldValue(form, "is_main", imported.is_main ? "true" : "false");
+      setFieldValue(form, "video_url", imported.video_url);
+      setFieldValue(form, "source_url", imported.source_url);
+      setFieldValue(form, "description", imported.description);
+      setFieldValue(form, "release_month", imported.release_month);
+      setFieldValue(form, "production_company", imported.production_company);
+      setFieldValue(form, "recommendation_score", imported.recommendation_score);
+      setFieldValue(form, "rotten_tomatoes_score", imported.rotten_tomatoes_score ?? "");
+      setFieldValue(form, "ranking_score", imported.ranking_score);
+      setFieldValue(form, "click_count", 0);
+      [0, 1].forEach((index) => setFieldValue(form, `director_names_${index}`, imported.director_names?.[index] || ""));
+
+      setImageSlotUrl(form, "poster", imported.poster_url, "포스터");
+      setImageSlotUrl(form, "capture", imported.capture_url, "캡쳐");
+      setImageSlotUrl(form, "snapshot", imported.snapshot_url, "스냅샷");
+    }
+
+    function bindTmdbImport(form) {
+      if (kind !== "movies") return;
+      const input = document.getElementById("tmdbImportUrl");
+      const button = document.getElementById("tmdbImportButton");
+      const status = document.getElementById("tmdbImportStatus");
+      if (!input || !button) return;
+
+      button.addEventListener("click", async () => {
+        const url = input.value.trim();
+        if (!url) {
+          alert("TMDB 영화 URL을 입력해 주세요.");
+          return;
+        }
+        button.disabled = true;
+        if (status) status.textContent = "조회 중...";
+        try {
+          const imported = await fetchTmdbImport(url);
+          await applyTmdbImport(form, imported);
+          UI.setDbStatus(Store.getStatus());
+          if (status) status.textContent = "가져오기 완료";
+        } catch (error) {
+          if (status) status.textContent = "가져오기 실패";
+          alert(`TMDB 가져오기 실패: ${error.message}`);
+        } finally {
+          button.disabled = false;
+        }
       });
     }
 
@@ -444,6 +623,7 @@
       formHost.innerHTML = `
         <h2>${isEdit ? "정보 수정" : "신규 등록"}</h2>
         <form class="form-grid" id="entryForm">
+          ${renderTmdbImportPanel()}
           ${fieldSets[kind].map(inputFor).join("")}
           ${renderImageFields()}
           <div class="form-actions">
@@ -457,6 +637,7 @@
       setSelectValues(form);
       bindImageFields();
       bindMainExhibitionAutoCover(form);
+      bindTmdbImport(form);
 
       const cancel = document.getElementById("cancelEdit");
       if (cancel) cancel.addEventListener("click", () => {
