@@ -54,7 +54,7 @@
           <div class="poster-overlay">
             <span class="rating">${escapeHtml(movie.rating_grade)}</span>
             <span>${escapeHtml(movie.release_month || "")} · ${escapeHtml(movie.category_name || "")}</span>
-            <span>${escapeHtml(movie.actor_name || "")}</span>
+            <span>${escapeHtml(movie.actor_names || movie.actor_name || "")}</span>
           </div>
         </div>
         <h3 class="poster-title">${escapeHtml(movie.title)}</h3>
@@ -110,6 +110,9 @@
       movie.movie_code,
       movie.category_name,
       movie.actor_name,
+      movie.actor_names,
+      Array.isArray(movie.director_names) ? movie.director_names.join(" ") : movie.director_names,
+      movie.source_url,
       movie.rating_grade,
       Array.isArray(movie.keywords) ? movie.keywords.join(" ") : movie.keywords
     ].join(" ").toLowerCase();

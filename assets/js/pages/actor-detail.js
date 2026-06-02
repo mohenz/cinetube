@@ -20,7 +20,7 @@
     return;
   }
 
-  const movies = data.movies.filter((movie) => String(movie.actor_id) === String(actor.id));
+  const movies = data.movies.filter((movie) => (movie.actor_ids || [movie.actor_id]).some((id) => String(id) === String(actor.id)));
   const imageUrl = actor.representative_image_url || actor.image_urls?.[0] || "assets/img/favicon.svg";
 
   document.title = `CineTube | ${actor.name}`;

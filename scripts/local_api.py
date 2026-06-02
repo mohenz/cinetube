@@ -45,16 +45,17 @@ TABLES = {
     },
     "movies": {
         "pk": "id",
-        "insert": ["title", "movie_code", "category_code", "actor_id", "keywords", "rating_grade", "video_url", "description", "poster_url", "poster_asset_id", "capture_url", "capture_asset_id", "snapshot_url", "snapshot_asset_id", "release_month", "production_company", "recommendation_score", "ranking_score", "click_count", "is_main"],
-        "update": ["title", "movie_code", "category_code", "actor_id", "keywords", "rating_grade", "video_url", "description", "poster_url", "poster_asset_id", "capture_url", "capture_asset_id", "snapshot_url", "snapshot_asset_id", "release_month", "production_company", "recommendation_score", "ranking_score", "click_count", "is_main"],
+        "insert": ["title", "movie_code", "category_code", "actor_id", "actor_ids", "director_names", "source_url", "keywords", "rating_grade", "video_url", "description", "poster_url", "poster_asset_id", "capture_url", "capture_asset_id", "snapshot_url", "snapshot_asset_id", "release_month", "production_company", "recommendation_score", "ranking_score", "click_count", "is_main"],
+        "update": ["title", "movie_code", "category_code", "actor_id", "actor_ids", "director_names", "source_url", "keywords", "rating_grade", "video_url", "description", "poster_url", "poster_asset_id", "capture_url", "capture_asset_id", "snapshot_url", "snapshot_asset_id", "release_month", "production_company", "recommendation_score", "ranking_score", "click_count", "is_main"],
     },
 }
 
 
 def run_sql(sql):
     proc = subprocess.run(
-        [PSQL, "-X", "-q", "-t", "-A", "-c", sql],
+        [PSQL, "-X", "-q", "-t", "-A"],
         env=ENV,
+        input=sql,
         capture_output=True,
         text=True,
         encoding="utf-8",

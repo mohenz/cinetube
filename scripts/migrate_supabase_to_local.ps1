@@ -56,11 +56,20 @@ function Sql-UuidArray {
   return "array[$(($items | ForEach-Object { (Sql-Scalar $_) + '::uuid' }) -join ",")]::uuid[]"
 }
 
+function Sql-BigintArray {
+  param($Value)
+  if ($null -eq $Value) { return "array[]::bigint[]" }
+  $items = @($Value) | Where-Object { $_ -ne $null -and $_ -ne "" }
+  if ($items.Count -eq 0) { return "array[]::bigint[]" }
+  return "array[$(($items | ForEach-Object { [string][long]$_ }) -join ",")]::bigint[]"
+}
+
 function Row-Value {
   param($Row, [string]$Column, [string]$Type = "scalar")
   $value = $Row.$Column
   if ($Type -eq "text_array") { return Sql-TextArray $value }
   if ($Type -eq "uuid_array") { return Sql-UuidArray $value }
+  if ($Type -eq "bigint_array") { return Sql-BigintArray $value }
   return Sql-Scalar $value
 }
 
@@ -135,13 +144,16 @@ foreach ($row in (Table-Rows $export.rating_grades)) {
 }
 
 foreach ($row in (Table-Rows $export.movies)) {
-  $cols = "id","title","movie_code","category_code","actor_id","keywords","rating_grade","video_url","description","poster_url","poster_asset_id","capture_url","capture_asset_id","snapshot_url","snapshot_asset_id","release_month","production_company","recommendation_score","ranking_score","click_count","is_main","created_at"
+  $cols = "id","title","movie_code","category_code","actor_id","actor_ids","director_names","source_url","keywords","rating_grade","video_url","description","poster_url","poster_asset_id","capture_url","capture_asset_id","snapshot_url","snapshot_asset_id","release_month","production_company","recommendation_score","ranking_score","click_count","is_main","created_at"
   $vals = @(
     Row-Value $row "id"
     Row-Value $row "title"
     Row-Value $row "movie_code"
     Row-Value $row "category_code"
     Row-Value $row "actor_id"
+    Row-Value $row "actor_ids" "bigint_array"
+    Row-Value $row "director_names" "text_array"
+    Row-Value $row "source_url"
     Row-Value $row "keywords" "text_array"
     Row-Value $row "rating_grade"
     Row-Value $row "video_url"

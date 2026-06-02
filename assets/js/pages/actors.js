@@ -18,7 +18,7 @@
   }
 
   function movieCount(actor) {
-    return data.movies.filter((movie) => String(movie.actor_id) === String(actor.id)).length;
+    return data.movies.filter((movie) => (movie.actor_ids || [movie.actor_id]).some((id) => String(id) === String(actor.id))).length;
   }
 
   function matchesActor(actor, term) {

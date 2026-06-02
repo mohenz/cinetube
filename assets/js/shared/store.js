@@ -62,9 +62,13 @@
     const ratingOrder = new Map(data.ratings.map((item) => [item.grade, Number(item.display_order || 99)]));
     const movies = data.movies.map((movie) => {
       const category = categoriesByCode.get(movie.category_code) || {};
-      const actor = actorsById.get(String(movie.actor_id)) || {};
+      const actorIds = (Array.isArray(movie.actor_ids) && movie.actor_ids.length ? movie.actor_ids : [movie.actor_id])
+        .filter((id) => id !== undefined && id !== null && id !== "")
+        .slice(0, 4);
+      const actors = actorIds.map((id) => actorsById.get(String(id))).filter(Boolean);
       return {
         ...movie,
+        actor_ids: actorIds,
         click_count: Number(movie.click_count || 0),
         local_click_count: Number(localClicks[movie.movie_code] || 0),
         ranking_score: Number(movie.ranking_score ?? movie.recommendation_score ?? 0),
@@ -73,7 +77,10 @@
         capture_asset: mediaById.get(String(movie.capture_asset_id)) || null,
         snapshot_asset: mediaById.get(String(movie.snapshot_asset_id)) || null,
         category_name: category.name || movie.category_code || "-",
-        actor_name: actor.name || "-",
+        actor_list: actors,
+        actor_name: actors[0]?.name || "-",
+        actor_names: actors.map((actor) => actor.name).join(", ") || "-",
+        director_names: Array.isArray(movie.director_names) ? movie.director_names.slice(0, 2).filter(Boolean) : [],
         rating_order: ratingOrder.get(movie.rating_grade) || 99
       };
     });

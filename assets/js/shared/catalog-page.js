@@ -31,7 +31,7 @@
     function moviesBySelection() {
       const term = searchInput ? searchInput.value.trim() : "";
       return data.movies.filter((movie) => {
-        if (kind === "actors" && String(movie.actor_id) !== selected) return false;
+        if (kind === "actors" && !(movie.actor_ids || [movie.actor_id]).some((id) => String(id) === selected)) return false;
         if (kind === "categories" && movie.category_code !== selected) return false;
         if (kind === "ratings" && movie.rating_grade !== selected) return false;
         return UI.matchesSearch(movie, term);

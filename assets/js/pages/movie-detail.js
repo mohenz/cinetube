@@ -46,16 +46,19 @@
         </div>
         <p class="movie-description">${UI.escapeHtml(movie.description || "등록된 주요내용이 없습니다.")}</p>
         <div class="detail-list movie-detail-list">
-          <div><span>주연배우</span><strong>${UI.escapeHtml(movie.actor_name || "-")}</strong></div>
+          <div><span>주연배우</span><strong>${UI.escapeHtml(movie.actor_names || movie.actor_name || "-")}</strong></div>
+          <div><span>영화감독</span><strong>${UI.escapeHtml((movie.director_names || []).join(", ") || "-")}</strong></div>
           <div><span>출시년월</span><strong>${UI.escapeHtml(movie.release_month || "-")}</strong></div>
           <div><span>제작사</span><strong>${UI.escapeHtml(movie.production_company || "-")}</strong></div>
           <div><span>추천점수</span><strong>${UI.escapeHtml(movie.recommendation_score || 0)}</strong></div>
+          <div><span>정보출처</span><strong>${movie.source_url ? `<a href="${UI.escapeHtml(movie.source_url)}" target="_blank" rel="noreferrer">열기</a>` : "-"}</strong></div>
         </div>
         <div class="keyword-row">
           ${keywords.length ? keywords.map((keyword) => `<span>${UI.escapeHtml(keyword)}</span>`).join("") : `<span>키워드 없음</span>`}
         </div>
         <div class="hero-actions">
-          ${movie.video_url ? `<a class="primary-button" href="${UI.escapeHtml(movie.video_url)}" target="_blank" rel="noreferrer"><span class="material-symbols-outlined">open_in_new</span>원본 링크</a>` : ""}
+          ${movie.video_url ? `<a class="primary-button" href="${UI.escapeHtml(movie.video_url)}" target="_blank" rel="noreferrer"><span class="material-symbols-outlined">open_in_new</span>영상 링크</a>` : ""}
+          ${movie.source_url ? `<a class="ghost-button" href="${UI.escapeHtml(movie.source_url)}" target="_blank" rel="noreferrer"><span class="material-symbols-outlined">source</span>정보출처</a>` : ""}
           <a class="ghost-button" href="../admin/movies.html?code=${UI.escapeHtml(movie.movie_code)}"><span class="material-symbols-outlined">edit</span>영화 관리</a>
           <button class="ghost-button danger-action" type="button" id="deleteMovie"><span class="material-symbols-outlined">delete</span>영화정보 삭제</button>
         </div>

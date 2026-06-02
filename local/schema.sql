@@ -55,6 +55,9 @@ create table public.movies (
   movie_code text not null unique,
   category_code text references public.categories(category_code) on update cascade on delete set null,
   actor_id bigint references public.actors(id) on update cascade on delete set null,
+  actor_ids bigint[] not null default '{}',
+  director_names text[] not null default '{}',
+  source_url text,
   keywords text[] not null default '{}',
   rating_grade text references public.rating_grades(grade) on update cascade on delete set null,
   video_url text,
@@ -76,6 +79,7 @@ create table public.movies (
 
 create index idx_movies_category_code on public.movies(category_code);
 create index idx_movies_actor_id on public.movies(actor_id);
+create index idx_movies_actor_ids on public.movies using gin(actor_ids);
 create index idx_movies_rating_grade on public.movies(rating_grade);
 create index idx_movies_created_at on public.movies(created_at desc);
 create index idx_movies_recommendation_score on public.movies(recommendation_score desc);

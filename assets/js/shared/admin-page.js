@@ -1,8 +1,8 @@
 (function () {
   const fieldSets = {
     movies: [
-      ["title", "영화제목"], ["movie_code", "영화코드"], ["category_code", "카테고리", "category"], ["actor_id", "주연배우", "actor"], ["keywords", "키워드(쉼표 구분)"],
-      ["rating_grade", "평가등급", "rating"], ["is_main", "메인전시 여부", "boolean"], ["video_url", "영상링크"], ["description", "주요내용", "textarea"],
+      ["title", "영화제목"], ["movie_code", "영화코드"], ["category_code", "카테고리", "category"], ["actor_ids", "주연배우", "actors"], ["director_names", "영화감독", "directors"],
+      ["keywords", "키워드(쉼표 구분)"], ["rating_grade", "평가등급", "rating"], ["is_main", "메인전시 여부", "boolean"], ["video_url", "영상링크"], ["source_url", "정보출처 URL"], ["description", "주요내용", "textarea"],
       ["release_month", "출시년월"], ["production_company", "제작사"], ["recommendation_score", "추천점수", "number"],
       ["ranking_score", "랭킹점수", "number"], ["click_count", "클릭수", "number"]
     ],
@@ -67,6 +67,14 @@
       return "";
     }
 
+    function actorOptions(selectedValue) {
+      const selected = String(selectedValue || "");
+      return [
+        `<option value="">선택 안 함</option>`,
+        ...data.actors.map((item) => `<option value="${UI.escapeHtml(item.id)}" ${String(item.id) === selected ? "selected" : ""}>${UI.escapeHtml(item.name)}</option>`)
+      ].join("");
+    }
+
     function valueFor(name) {
       if (!editingItem) return "";
       const value = editingItem[name];
@@ -84,6 +92,20 @@
       }
       if (type === "category" || type === "actor" || type === "rating") {
         return `<label>${label}<select class="select-control" name="${name}">${optionList(type)}</select></label>`;
+      }
+      if (type === "actors") {
+        const actorIds = editingItem
+          ? (Array.isArray(editingItem.actor_ids) && editingItem.actor_ids.length ? editingItem.actor_ids : [editingItem.actor_id]).filter(Boolean).slice(0, 4)
+          : [];
+        return Array.from({ length: 4 }, (_, index) => `
+          <label>${label} ${index + 1}<select class="select-control" name="actor_ids_${index}">${actorOptions(actorIds[index])}</select></label>
+        `).join("");
+      }
+      if (type === "directors") {
+        const directors = editingItem && Array.isArray(editingItem.director_names) ? editingItem.director_names : [];
+        return Array.from({ length: 2 }, (_, index) => `
+          <label>${label} ${index + 1}<input class="input-control" name="director_names_${index}" type="text" value="${UI.escapeHtml(directors[index] || "")}"></label>
+        `).join("");
       }
       return `<label>${label}<input class="input-control" name="${name}" type="${type || "text"}" value="${value}" ${disabled}></label>`;
     }
@@ -149,7 +171,20 @@
       });
 
       if (kind === "movies") {
-        payload.actor_id = payload.actor_id ? Number(payload.actor_id) : null;
+        payload.actor_ids = [0, 1, 2, 3]
+          .map((index) => payload[`actor_ids_${index}`])
+          .filter(Boolean)
+          .map(Number)
+          .filter((id, index, list) => Number.isFinite(id) && list.indexOf(id) === index)
+          .slice(0, 4);
+        [0, 1, 2, 3].forEach((index) => delete payload[`actor_ids_${index}`]);
+        payload.actor_id = payload.actor_ids[0] || null;
+        payload.director_names = [0, 1]
+          .map((index) => (payload[`director_names_${index}`] || "").trim())
+          .filter(Boolean)
+          .slice(0, 2);
+        [0, 1].forEach((index) => delete payload[`director_names_${index}`]);
+        payload.source_url = payload.source_url || null;
         payload.keywords = payload.keywords ? payload.keywords.split(",").map((item) => item.trim()).filter(Boolean) : [];
         payload.recommendation_score = Number(payload.recommendation_score || 0);
         payload.ranking_score = Number(payload.ranking_score || 0);
@@ -485,6 +520,7 @@
           renderForm();
           renderTable();
           UI.setDbStatus(Store.getStatus());
+          if (isEdit) alert("정보수정이 완료되었습니다.");
         } catch (error) {
           alert(`저장 실패: ${error.message}`);
         }
@@ -508,7 +544,7 @@
     function deleteMessage(item) {
       const label = item.title || item.name || item.category_code || item.grade || item[primaryKey];
       if (kind === "actors") {
-        const linkedMovies = data.movies.filter((movie) => String(movie.actor_id) === String(item.id)).length;
+        const linkedMovies = data.movies.filter((movie) => (movie.actor_ids || [movie.actor_id]).some((id) => String(id) === String(item.id))).length;
         return [
           "주연배우 정보를 삭제하시겠습니까?",
           "",
@@ -524,7 +560,7 @@
       if (kind === "movies") {
         return items.map((item) => {
           const key = UI.escapeHtml(item[primaryKey]);
-          return `<tr><td class="table-movie-trigger" data-key="${key}" style="cursor:pointer;" title="클릭 시 조회 및 수정">${thumb(UI.movieImageUrl(item, ""), item.title)}</td><td class="table-movie-trigger" data-key="${key}" style="cursor:pointer;color:var(--accent-soft);font-weight:600;text-decoration:underline;" title="클릭 시 조회 및 수정">${UI.escapeHtml(item.movie_code)}</td><td>${UI.escapeHtml(item.category_name)}</td><td>${UI.escapeHtml(item.actor_name)}</td><td><span class="rating">${UI.escapeHtml(item.rating_grade)}</span></td><td>${item.is_main ? '<span class="summary-pill" style="min-height:24px;background:var(--accent);color:#fff;border-color:var(--accent);font-weight:700;">전시</span>' : '<span class="summary-pill" style="min-height:24px;">미전시</span>'}</td><td>${UI.escapeHtml(Store.effectiveClickCount(item))}</td><td>${UI.escapeHtml(item.ranking_score || 0)}</td><td>${rowActions(item)}</td></tr>`;
+          return `<tr><td class="table-movie-trigger" data-key="${key}" style="cursor:pointer;" title="클릭 시 조회 및 수정">${thumb(UI.movieImageUrl(item, ""), item.title)}</td><td class="table-movie-trigger" data-key="${key}" style="cursor:pointer;color:var(--accent-soft);font-weight:600;text-decoration:underline;" title="클릭 시 조회 및 수정">${UI.escapeHtml(item.movie_code)}</td><td>${UI.escapeHtml(item.category_name)}</td><td>${UI.escapeHtml(item.actor_names || item.actor_name)}</td><td>${UI.escapeHtml((item.director_names || []).join(", ") || "-")}</td><td><span class="rating">${UI.escapeHtml(item.rating_grade)}</span></td><td>${item.is_main ? '<span class="summary-pill" style="min-height:24px;background:var(--accent);color:#fff;border-color:var(--accent);font-weight:700;">전시</span>' : '<span class="summary-pill" style="min-height:24px;">미전시</span>'}</td><td>${UI.escapeHtml(Store.effectiveClickCount(item))}</td><td>${UI.escapeHtml(item.ranking_score || 0)}</td><td>${rowActions(item)}</td></tr>`;
         }).join("");
       }
       if (kind === "categories") {
@@ -540,7 +576,7 @@
     }
 
     function headerRow() {
-      if (kind === "movies") return "<tr><th>포스터</th><th>영화코드</th><th>카테고리</th><th>주연배우</th><th>평가등급</th><th>메인전시</th><th>클릭수</th><th>랭킹</th><th>관리</th></tr>";
+      if (kind === "movies") return "<tr><th>포스터</th><th>영화코드</th><th>카테고리</th><th>주연배우</th><th>감독</th><th>평가등급</th><th>메인전시</th><th>클릭수</th><th>랭킹</th><th>관리</th></tr>";
       if (kind === "categories") return "<tr><th>대표이미지</th><th>코드</th><th>카테고리명</th><th>전시여부</th><th>관리</th></tr>";
       if (kind === "actors") return "<tr><th>대표이미지</th><th>배우명</th><th>나이</th><th>신장</th><th>신체사이즈</th><th>데뷔년도</th><th>관리</th></tr>";
       return "<tr><th>평가등급</th><th>정렬순서</th><th>관리</th></tr>";
@@ -650,6 +686,7 @@
             data = await Store.load();
             renderTable();
             UI.setDbStatus(Store.getStatus());
+            alert("삭제가 완료되었습니다.");
           } catch (error) {
             alert(`삭제 실패: ${error.message}`);
           }
