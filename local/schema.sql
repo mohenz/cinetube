@@ -4,6 +4,7 @@ drop table if exists public.movies;
 drop table if exists public.categories;
 drop table if exists public.actors;
 drop table if exists public.rating_grades;
+drop table if exists public.common_codes;
 drop table if exists public.media_assets;
 
 create table public.media_assets (
@@ -49,6 +50,18 @@ create table public.rating_grades (
   display_order integer not null
 );
 
+create table public.common_codes (
+  id bigint generated always as identity primary key,
+  code_group text not null,
+  code_value text not null,
+  code_label text not null,
+  display_order integer not null default 99,
+  is_enabled boolean not null default true,
+  extra jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  unique (code_group, code_value)
+);
+
 create table public.movies (
   id bigint generated always as identity primary key,
   title text not null,
@@ -87,7 +100,21 @@ create index idx_movies_recommendation_score on public.movies(recommendation_sco
 create index idx_movies_ranking_score on public.movies(ranking_score desc);
 create index idx_movies_click_count on public.movies(click_count desc);
 create index idx_media_assets_owner on public.media_assets(owner_table, owner_id, owner_field);
+create index idx_common_codes_group_order on public.common_codes(code_group, display_order, code_label);
 
 insert into public.rating_grades (grade, display_order)
 values ('A+', 1), ('A', 2), ('B+', 3), ('B', 4), ('C', 5)
 on conflict (grade) do update set display_order = excluded.display_order;
+
+insert into public.common_codes (code_group, code_value, code_label, display_order, is_enabled, extra)
+values
+  ('import_site', 'auto', '자동 인식', 0, true, '{"system": true}'::jsonb),
+  ('import_site', 'tmdb', 'TMDB', 10, true, '{"placeholder": "TMDB URL 또는 TMDB 작품번호"}'::jsonb),
+  ('import_site', 'javtiful', 'Javtiful', 20, true, '{"placeholder": "Javtiful URL 또는 작품번호"}'::jsonb),
+  ('import_site', 'supjav', 'Supjav', 30, true, '{"placeholder": "Supjav URL 또는 작품번호"}'::jsonb),
+  ('import_site', 'missav', 'MissAV', 40, true, '{"placeholder": "MissAV URL 또는 작품번호"}'::jsonb)
+on conflict (code_group, code_value) do update set
+  code_label = excluded.code_label,
+  display_order = excluded.display_order,
+  is_enabled = excluded.is_enabled,
+  extra = excluded.extra;

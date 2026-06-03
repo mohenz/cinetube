@@ -48,6 +48,11 @@ TABLES = {
         "insert": ["grade", "display_order"],
         "update": ["display_order"],
     },
+    "common_codes": {
+        "pk": "id",
+        "insert": ["code_group", "code_value", "code_label", "display_order", "is_enabled", "extra"],
+        "update": ["code_group", "code_value", "code_label", "display_order", "is_enabled", "extra"],
+    },
     "movies": {
         "pk": "id",
         "insert": ["title", "movie_code", "category_code", "actor_id", "actor_ids", "director_names", "source_url", "keywords", "rating_grade", "video_url", "description", "poster_url", "poster_asset_id", "capture_url", "capture_asset_id", "snapshot_url", "snapshot_asset_id", "release_month", "production_company", "recommendation_score", "rotten_tomatoes_score", "ranking_score", "click_count", "is_main"],

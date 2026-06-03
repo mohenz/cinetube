@@ -5,6 +5,7 @@
     categories: "categories",
     actors: "actors",
     ratings: "rating_grades",
+    commonCodes: "common_codes",
     mediaAssets: "media_assets"
   };
 
@@ -12,7 +13,8 @@
     movies: "id",
     categories: "category_code",
     actors: "id",
-    ratings: "grade"
+    ratings: "grade",
+    commonCodes: "id"
   };
 
   const state = {
@@ -26,6 +28,16 @@
 
   function clone(value) {
     return JSON.parse(JSON.stringify(value));
+  }
+
+  function defaultCommonCodes() {
+    return [
+      { id: -1, code_group: "import_site", code_value: "auto", code_label: "자동 인식", display_order: 0, is_enabled: true, extra: { system: true } },
+      { id: -2, code_group: "import_site", code_value: "tmdb", code_label: "TMDB", display_order: 10, is_enabled: true, extra: {} },
+      { id: -3, code_group: "import_site", code_value: "javtiful", code_label: "Javtiful", display_order: 20, is_enabled: true, extra: {} },
+      { id: -4, code_group: "import_site", code_value: "supjav", code_label: "Supjav", display_order: 30, is_enabled: true, extra: {} },
+      { id: -5, code_group: "import_site", code_value: "missav", code_label: "MissAV", display_order: 40, is_enabled: true, extra: {} }
+    ];
   }
 
   function hasConfig() {
@@ -94,16 +106,16 @@
       representative_image_asset: mediaById.get(String(actor.representative_image_asset_id)) || null,
       image_assets: Array.isArray(actor.image_asset_ids) ? actor.image_asset_ids.map((id) => mediaById.get(String(id))).filter(Boolean) : []
     }));
-    return { ...data, categories, actors, movies };
+    return { ...data, categories, actors, movies, commonCodes: data.commonCodes || defaultCommonCodes() };
   }
 
   async function fetchTable(client, kind) {
     if (state.mode === "local") return fetchLocalTable(kind);
     const table = tableNames[kind];
-    const orderColumn = kind === "ratings" ? "display_order" : "created_at";
+    const orderColumn = kind === "ratings" || kind === "commonCodes" ? "display_order" : "created_at";
     let query = client.from(table).select("*");
-    if (kind === "ratings") query = query.order(orderColumn, { ascending: true });
-    if (kind !== "ratings") query = query.order(orderColumn, { ascending: false });
+    if (kind === "ratings" || kind === "commonCodes") query = query.order(orderColumn, { ascending: true });
+    if (kind !== "ratings" && kind !== "commonCodes") query = query.order(orderColumn, { ascending: false });
     const { data, error } = await query;
     if (error) throw error;
     return data || [];
@@ -136,8 +148,8 @@
 
   async function fetchLocalTable(kind) {
     const table = tableNames[kind];
-    const orderColumn = kind === "ratings" ? "display_order" : "created_at";
-    const direction = kind === "ratings" ? "asc" : "desc";
+    const orderColumn = kind === "ratings" || kind === "commonCodes" ? "display_order" : "created_at";
+    const direction = kind === "ratings" || kind === "commonCodes" ? "asc" : "desc";
     return await requestLocal(`/${table}?select=*&order=${orderColumn}.${direction}`) || [];
   }
 
@@ -198,19 +210,20 @@
       state.mode = "local";
       state.client = null;
       try {
-        const [movies, categories, actors, ratings, mediaAssets] = await Promise.all([
+        const [movies, categories, actors, ratings, commonCodes, mediaAssets] = await Promise.all([
           fetchTable(null, "movies"),
           fetchTable(null, "categories"),
           fetchTable(null, "actors"),
           fetchTable(null, "ratings"),
+          fetchOptionalTable(null, "commonCodes"),
           fetchOptionalTable(null, "mediaAssets")
         ]);
-        state.data = enrich({ movies, categories, actors, ratings, mediaAssets });
+        state.data = enrich({ movies, categories, actors, ratings, commonCodes, mediaAssets });
         state.status = { connected: true, message: "Local PostgreSQL 연결됨" };
         return state.data;
       } catch (error) {
         console.error(error);
-        state.data = enrich({ ...clone(window.CineTubeSampleData), mediaAssets: [] });
+        state.data = enrich({ ...clone(window.CineTubeSampleData), commonCodes: defaultCommonCodes(), mediaAssets: [] });
         state.status = { connected: false, message: "Local DB 오류: 샘플 데이터" };
         return state.data;
       }
@@ -220,25 +233,26 @@
     state.client = createClient();
     if (!state.client) {
       state.mediaAssetsReady = true;
-      state.data = enrich({ ...clone(window.CineTubeSampleData), mediaAssets: [] });
+      state.data = enrich({ ...clone(window.CineTubeSampleData), commonCodes: defaultCommonCodes(), mediaAssets: [] });
       state.status = { connected: false, message: "DB 미설정: 샘플 데이터" };
       return state.data;
     }
 
     try {
-      const [movies, categories, actors, ratings, mediaAssets] = await Promise.all([
+      const [movies, categories, actors, ratings, commonCodes, mediaAssets] = await Promise.all([
         fetchTable(state.client, "movies"),
         fetchTable(state.client, "categories"),
         fetchTable(state.client, "actors"),
         fetchTable(state.client, "ratings"),
+        fetchOptionalTable(state.client, "commonCodes"),
         fetchOptionalTable(state.client, "mediaAssets")
       ]);
-      state.data = enrich({ movies, categories, actors, ratings, mediaAssets });
+      state.data = enrich({ movies, categories, actors, ratings, commonCodes, mediaAssets });
       state.status = { connected: true, message: "Supabase 연결됨" };
       return state.data;
     } catch (error) {
       console.error(error);
-      state.data = enrich({ ...clone(window.CineTubeSampleData), mediaAssets: [] });
+      state.data = enrich({ ...clone(window.CineTubeSampleData), commonCodes: defaultCommonCodes(), mediaAssets: [] });
       state.status = { connected: false, message: "Supabase 오류: 샘플 데이터" };
       return state.data;
     }

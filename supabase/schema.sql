@@ -6,6 +6,7 @@ drop table if exists public.movies;
 drop table if exists public.categories;
 drop table if exists public.actors;
 drop table if exists public.rating_grades;
+drop table if exists public.common_codes;
 drop table if exists public.media_assets;
 
 -- 2. Create media_assets table first (so other tables can reference it directly)
@@ -55,7 +56,20 @@ create table public.rating_grades (
   display_order integer not null
 );
 
--- 6. Create movies table
+-- 6. Create common code table
+create table public.common_codes (
+  id bigint generated always as identity primary key,
+  code_group text not null,
+  code_value text not null,
+  code_label text not null,
+  display_order integer not null default 99,
+  is_enabled boolean not null default true,
+  extra jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  unique (code_group, code_value)
+);
+
+-- 7. Create movies table
 create table public.movies (
   id bigint generated always as identity primary key,
   title text not null,
@@ -85,7 +99,7 @@ create table public.movies (
   created_at timestamptz not null default now()
 );
 
--- 7. Create indexes for performance and rapid lookup
+-- 8. Create indexes for performance and rapid lookup
 create index idx_movies_category_code on public.movies(category_code);
 create index idx_movies_actor_id on public.movies(actor_id);
 create index idx_movies_actor_ids on public.movies using gin(actor_ids);
@@ -95,8 +109,9 @@ create index idx_movies_recommendation_score on public.movies(recommendation_sco
 create index idx_movies_ranking_score on public.movies(ranking_score desc);
 create index idx_movies_click_count on public.movies(click_count desc);
 create index idx_media_assets_owner on public.media_assets(owner_table, owner_id, owner_field);
+create index idx_common_codes_group_order on public.common_codes(code_group, display_order, code_label);
 
--- 8. Seed storage bucket and default rating grades
+-- 9. Seed storage bucket and default rating grades
 insert into storage.buckets (id, name, public)
 values ('cinetube-images', 'cinetube-images', true)
 on conflict (id) do update set public = excluded.public;
@@ -105,26 +120,42 @@ insert into public.rating_grades (grade, display_order)
 values ('A+', 1), ('A', 2), ('B+', 3), ('B', 4), ('C', 5)
 on conflict (grade) do update set display_order = excluded.display_order;
 
--- 9. Enable Row Level Security (RLS) on all tables
+insert into public.common_codes (code_group, code_value, code_label, display_order, is_enabled, extra)
+values
+  ('import_site', 'auto', '자동 인식', 0, true, '{"system": true}'::jsonb),
+  ('import_site', 'tmdb', 'TMDB', 10, true, '{"placeholder": "TMDB URL 또는 TMDB 작품번호"}'::jsonb),
+  ('import_site', 'javtiful', 'Javtiful', 20, true, '{"placeholder": "Javtiful URL 또는 작품번호"}'::jsonb),
+  ('import_site', 'supjav', 'Supjav', 30, true, '{"placeholder": "Supjav URL 또는 작품번호"}'::jsonb),
+  ('import_site', 'missav', 'MissAV', 40, true, '{"placeholder": "MissAV URL 또는 작품번호"}'::jsonb)
+on conflict (code_group, code_value) do update set
+  code_label = excluded.code_label,
+  display_order = excluded.display_order,
+  is_enabled = excluded.is_enabled,
+  extra = excluded.extra;
+
+-- 10. Enable Row Level Security (RLS) on all tables
 alter table public.media_assets enable row level security;
 alter table public.categories enable row level security;
 alter table public.actors enable row level security;
 alter table public.rating_grades enable row level security;
+alter table public.common_codes enable row level security;
 alter table public.movies enable row level security;
 
--- 10. Configure Row Level Security (RLS) Policies
+-- 11. Configure Row Level Security (RLS) Policies
 
 -- public read access policies
 drop policy if exists "public read media assets" on public.media_assets;
 drop policy if exists "public read categories" on public.categories;
 drop policy if exists "public read actors" on public.actors;
 drop policy if exists "public read rating grades" on public.rating_grades;
+drop policy if exists "public read common codes" on public.common_codes;
 drop policy if exists "public read movies" on public.movies;
 
 create policy "public read media assets" on public.media_assets for select using (true);
 create policy "public read categories" on public.categories for select using (true);
 create policy "public read actors" on public.actors for select using (true);
 create policy "public read rating grades" on public.rating_grades for select using (true);
+create policy "public read common codes" on public.common_codes for select using (true);
 create policy "public read movies" on public.movies for select using (true);
 
 -- authenticated write access policies
@@ -132,12 +163,14 @@ drop policy if exists "authenticated write media assets" on public.media_assets;
 drop policy if exists "authenticated write categories" on public.categories;
 drop policy if exists "authenticated write actors" on public.actors;
 drop policy if exists "authenticated write rating grades" on public.rating_grades;
+drop policy if exists "authenticated write common codes" on public.common_codes;
 drop policy if exists "authenticated write movies" on public.movies;
 
 create policy "write media assets" on public.media_assets for all using (true) with check (true);
 create policy "write categories" on public.categories for all using (true) with check (true);
 create policy "write actors" on public.actors for all using (true) with check (true);
 create policy "write rating grades" on public.rating_grades for all using (true) with check (true);
+create policy "write common codes" on public.common_codes for all using (true) with check (true);
 create policy "write movies" on public.movies for all using (true) with check (true);
 
 -- storage objects policies

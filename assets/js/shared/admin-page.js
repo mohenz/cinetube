@@ -14,6 +14,9 @@
     ],
     ratings: [
       ["grade", "평가등급"], ["display_order", "정렬순서", "number"]
+    ],
+    commonCodes: [
+      ["code_group", "코드그룹"], ["code_value", "코드값"], ["code_label", "표시명"], ["display_order", "정렬순서", "number"], ["is_enabled", "사용여부", "boolean"], ["extra", "부가정보 JSON", "textarea"]
     ]
   };
 
@@ -53,7 +56,7 @@
     let pageSize = "20";
 
     const searchInput = document.getElementById("searchInput");
-    if (searchInput && (kind === "movies" || kind === "actors")) {
+    if (searchInput && (kind === "movies" || kind === "actors" || kind === "commonCodes")) {
       searchInput.addEventListener("input", () => {
         currentPage = 1;
         const actorTableSearch = document.getElementById("actorTableSearch");
@@ -83,6 +86,7 @@
       if (!editingItem) return "";
       const value = editingItem[name];
       if (Array.isArray(value)) return value.join(", ");
+      if (value && typeof value === "object") return JSON.stringify(value, null, 2);
       return value ?? "";
     }
 
@@ -92,7 +96,9 @@
       if (type === "textarea") return `<label>${label}<textarea class="input-control" name="${name}" rows="4">${value}</textarea></label>`;
       if (type === "boolean") {
         const current = String(valueFor(name) === false ? "false" : "true");
-        return `<label>${label}<select class="select-control" name="${name}"><option value="true" ${current === "true" ? "selected" : ""}>전시</option><option value="false" ${current === "false" ? "selected" : ""}>미전시</option></select></label>`;
+        const trueLabel = name === "is_enabled" ? "사용" : "전시";
+        const falseLabel = name === "is_enabled" ? "미사용" : "미전시";
+        return `<label>${label}<select class="select-control" name="${name}"><option value="true" ${current === "true" ? "selected" : ""}>${trueLabel}</option><option value="false" ${current === "false" ? "selected" : ""}>${falseLabel}</option></select></label>`;
       }
       if (type === "category" || type === "actor" || type === "rating") {
         return `<label>${label}<select class="select-control" name="${name}">${optionList(type)}</select></label>`;
@@ -171,6 +177,8 @@
     function renderMovieImportPanel() {
       if (kind !== "movies") return "";
       const value = editingItem?.source_url || "";
+      const sites = importSiteCodes();
+      const defaultSite = sites[0]?.code_value || "auto";
       return `
         <fieldset class="image-fieldset tmdb-import-panel">
           <legend>URL / 작품번호 가져오기</legend>
@@ -179,13 +187,11 @@
           </label>
           <div class="import-site-field">
             <span class="import-site-label">가져오기 대상</span>
-            <input type="hidden" id="movieImportSite" value="auto">
+            <input type="hidden" id="movieImportSite" value="${UI.escapeHtml(defaultSite)}">
             <div class="import-site-buttons" role="group" aria-label="가져오기 대상">
-              <button class="import-site-button active" type="button" data-import-site="auto" aria-pressed="true">자동 인식</button>
-              <button class="import-site-button" type="button" data-import-site="tmdb" aria-pressed="false">TMDB</button>
-              <button class="import-site-button" type="button" data-import-site="javtiful" aria-pressed="false">Javtiful</button>
-              <button class="import-site-button" type="button" data-import-site="supjav" aria-pressed="false">Supjav</button>
-              <button class="import-site-button" type="button" data-import-site="missav" aria-pressed="false">MissAV</button>
+              ${sites.map((site, index) => `
+                <button class="import-site-button ${index === 0 ? "active" : ""}" type="button" data-import-site="${UI.escapeHtml(site.code_value)}" aria-pressed="${index === 0 ? "true" : "false"}">${UI.escapeHtml(site.code_label)}</button>
+              `).join("")}
             </div>
           </div>
           <div class="form-actions">
@@ -195,6 +201,20 @@
             <span class="tmdb-import-status" id="movieImportStatus"></span>
           </div>
         </fieldset>`;
+    }
+
+    function importSiteCodes() {
+      const sites = (data.commonCodes || [])
+        .filter((item) => item.code_group === "import_site" && item.is_enabled !== false)
+        .sort((a, b) => Number(a.display_order ?? 99) - Number(b.display_order ?? 99));
+      if (sites.length) return sites;
+      return [
+        { code_value: "auto", code_label: "자동 인식", display_order: 0 },
+        { code_value: "tmdb", code_label: "TMDB", display_order: 10 },
+        { code_value: "javtiful", code_label: "Javtiful", display_order: 20 },
+        { code_value: "supjav", code_label: "Supjav", display_order: 30 },
+        { code_value: "missav", code_label: "MissAV", display_order: 40 }
+      ];
     }
 
     function renderActorImportPanel() {
@@ -276,6 +296,15 @@
         payload.image_asset_ids = [];
       }
       if (kind === "ratings") payload.display_order = Number(payload.display_order || 99);
+      if (kind === "commonCodes") {
+        payload.display_order = Number(payload.display_order || 99);
+        payload.is_enabled = payload.is_enabled === "true";
+        try {
+          payload.extra = payload.extra ? JSON.parse(payload.extra) : {};
+        } catch (error) {
+          throw new Error("부가정보 JSON 형식이 올바르지 않습니다.");
+        }
+      }
       return payload;
     }
 
@@ -851,6 +880,9 @@
           return `<tr><td class="table-record-trigger" data-key="${key}" style="cursor:pointer;" title="클릭 시 조회 및 수정">${thumb(item.representative_image_url, item.name)}</td><td class="table-record-trigger" data-key="${key}" style="cursor:pointer;color:var(--accent-soft);font-weight:600;text-decoration:underline;" title="클릭 시 조회 및 수정">${UI.escapeHtml(item.name)}</td><td>${UI.escapeHtml(movieCount)}</td><td>${UI.escapeHtml(item.debut_year)}</td><td>${rowActions(item)}</td></tr>`;
         }).join("");
       }
+      if (kind === "commonCodes") {
+        return items.map((item) => `<tr><td>${UI.escapeHtml(item.code_group)}</td><td>${UI.escapeHtml(item.code_value)}</td><td>${UI.escapeHtml(item.code_label)}</td><td>${UI.escapeHtml(item.display_order)}</td><td>${item.is_enabled === false ? "미사용" : "사용"}</td><td>${rowActions(item)}</td></tr>`).join("");
+      }
       return items.map((item) => `<tr><td><span class="rating">${UI.escapeHtml(item.grade)}</span></td><td>${UI.escapeHtml(item.display_order)}</td><td>${rowActions(item)}</td></tr>`).join("");
     }
 
@@ -858,6 +890,7 @@
       if (kind === "movies") return "<tr><th>포스터</th><th>영화코드</th><th>카테고리</th><th>주연배우</th><th>감독</th><th>평가등급</th><th>메인전시</th><th>클릭수</th><th>랭킹</th><th>관리</th></tr>";
       if (kind === "categories") return "<tr><th>대표이미지</th><th>코드</th><th>카테고리명</th><th>전시여부</th><th>관리</th></tr>";
       if (kind === "actors") return "<tr><th>대표이미지</th><th>배우명</th><th>작품수</th><th>데뷔년도</th><th>관리</th></tr>";
+      if (kind === "commonCodes") return "<tr><th>코드그룹</th><th>코드값</th><th>표시명</th><th>정렬</th><th>사용여부</th><th>관리</th></tr>";
       return "<tr><th>평가등급</th><th>정렬순서</th><th>관리</th></tr>";
     }
 
@@ -884,6 +917,14 @@
         if (term) {
           filteredItems = allItems.filter((actor) => String(actor.name || "").toLowerCase().includes(term));
         }
+      }
+      if (kind === "commonCodes" && searchInput && searchInput.value.trim()) {
+        const term = searchInput.value.trim().toLowerCase();
+        filteredItems = allItems.filter((item) => [
+          item.code_group,
+          item.code_value,
+          item.code_label
+        ].some((value) => String(value || "").toLowerCase().includes(term)));
       }
 
       let paginatedItems = filteredItems;
