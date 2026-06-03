@@ -183,7 +183,7 @@
         <fieldset class="image-fieldset tmdb-import-panel">
           <legend>URL / 작품번호 가져오기</legend>
           <label>URL 또는 작품번호
-            <input class="input-control" id="movieImportInput" type="text" value="${UI.escapeHtml(value)}" placeholder="TMDB URL, Javtiful URL, Supjav URL, 작품번호">
+            <input class="input-control" id="movieImportInput" type="text" value="${UI.escapeHtml(value)}" placeholder="영화소스등록">
           </label>
           <div class="import-site-field">
             <span class="import-site-label">가져오기 대상</span>
