@@ -1,11 +1,13 @@
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import parse_qs, urlparse
-from urllib.request import Request, urlopen
+from urllib.parse import parse_qs, unquote, urlparse
+from urllib.request import HTTPCookieProcessor, Request, build_opener, urlopen
+from http.cookiejar import CookieJar
 from html import unescape
 import json
 import os
 import re
 import subprocess
+from functools import lru_cache
 
 POSTGRES_ROOT = r"C:\Program Files\PostgreSQL"
 versions = []
@@ -55,6 +57,7 @@ TABLES = {
 
 
 TMDB_IMAGE_BASE = "https://media.themoviedb.org/t/p"
+IMPORT_SITES = ("tmdb", "javtiful", "supjav", "missav")
 
 
 def clean_text(value):
@@ -63,6 +66,619 @@ def clean_text(value):
     value = re.sub(r"<[^>]+>", " ", value)
     value = unescape(value)
     return re.sub(r"\s+", " ", value).strip()
+
+
+def html_text_lines(html):
+    value = re.sub(r"<script[^>]*>.*?</script>|<style[^>]*>.*?</style>", " ", html or "", flags=re.I | re.S)
+    value = re.sub(r"<br\s*/?>", "\n", value, flags=re.I)
+    value = re.sub(r"</(p|div|section|article|li|dt|dd|tr|h[1-6])>", "\n", value, flags=re.I)
+    value = re.sub(r"<[^>]+>", " ", value)
+    value = unescape(value)
+    lines = [re.sub(r"\s+", " ", line).strip() for line in value.splitlines()]
+    return "\n".join(line for line in lines if line)
+
+
+def absolute_url(base_url, value):
+    if not value:
+        return None
+    value = unescape(value).strip()
+    if value.startswith("//"):
+        return "https:" + value
+    if value.startswith("http://") or value.startswith("https://"):
+        return value
+    parsed = urlparse(base_url)
+    if value.startswith("/"):
+        return f"{parsed.scheme}://{parsed.netloc}{value}"
+    root = base_url.rsplit("/", 1)[0]
+    return f"{root}/{value}"
+
+
+def extract_movie_code(value):
+    match = re.search(r"\b([A-Z]{2,10}-\d{2,6})\b", value or "", re.I)
+    return match.group(1).upper() if match else ""
+
+
+def code_slug(value):
+    code = extract_movie_code(value)
+    return code.lower() if code else re.sub(r"[^a-z0-9-]+", "-", (value or "").lower()).strip("-")
+
+
+def meta_content(html, key):
+    values = meta_contents(html, key)
+    return values[0] if values else ""
+
+
+def first_match(patterns, text, flags=re.I | re.S):
+    for pattern in patterns:
+        match = re.search(pattern, text or "", flags)
+        if match:
+            return clean_text(match.group(1))
+    return ""
+
+
+def find_json_ld(html):
+    blocks = []
+    for match in re.finditer(r"<script[^>]+type=[\"']application/ld\+json[\"'][^>]*>(.*?)</script>", html or "", re.I | re.S):
+        raw = clean_text(match.group(1))
+        try:
+            blocks.append(json.loads(raw))
+        except Exception:
+            continue
+    return blocks
+
+
+def link_texts(html, href_keywords):
+    items = []
+    pattern = re.compile(r"<a\b([^>]*)>(.*?)</a>", re.I | re.S)
+    href_pattern = re.compile(r"href=[\"']([^\"']+)[\"']", re.I)
+    for match in pattern.finditer(html or ""):
+        attrs, body = match.groups()
+        href_match = href_pattern.search(attrs)
+        href = href_match.group(1) if href_match else ""
+        if not any(keyword in href.lower() for keyword in href_keywords):
+            continue
+        text = clean_text(body)
+        if not text or len(text) > 80:
+            continue
+        if text.lower() in {"home", "movies", "javtiful", "supjav"}:
+            continue
+        if text not in items:
+            items.append(text)
+    return items
+
+
+def extract_image_candidates(html, base_url):
+    images = []
+    for value in meta_contents(html, "og:image"):
+        url = absolute_url(base_url, value)
+        if url and url not in images:
+            images.append(url)
+
+    img_pattern = re.compile(r"<img[^>]+>", re.I)
+    attr_pattern = re.compile(r"(src|data-src|data-original|data-lazy-src|data-link)=[\"']([^\"']*)[\"']", re.I)
+    for tag in img_pattern.finditer(html or ""):
+        attrs = {match.group(1).lower(): match.group(2) for match in attr_pattern.finditer(tag.group(0))}
+        for key in ("data-original", "data-lazy-src", "data-src", "data-link", "src"):
+          url = absolute_url(base_url, attrs.get(key))
+          if url and url not in images and not url.startswith("data:"):
+              images.append(url)
+    return images
+
+
+def best_poster_url(images):
+    if not images:
+        return None
+    preferred = [
+        "poster", "cover", "pl.jpg", "thumb", "jacket", "package", "uploads/videos/thumbs"
+    ]
+    for keyword in preferred:
+        match = next((url for url in images if keyword in url.lower()), None)
+        if match:
+            return match
+    return images[0]
+
+
+def clean_av_title(title, movie_code):
+    title = clean_text(title)
+    title = re.sub(r"\s*[-|]\s*(Javtiful|Supjav).*$", "", title, flags=re.I)
+    if movie_code and movie_code.lower() not in title.lower():
+        title = f"{movie_code} {title}".strip()
+    return title
+
+
+def title_from_url_slug(url, movie_code):
+    path = urlparse(url or "").path.strip("/")
+    slug = path.split("/")[-1] if path else ""
+    if slug.endswith(".html"):
+        slug = slug[:-5]
+    slug = re.sub(r"^\d+[-_]*", "", slug)
+    if movie_code:
+        slug = re.sub(re.escape(movie_code).replace("\\-", "[-_]"), "", slug, flags=re.I)
+    slug = re.sub(r"[-_]+", " ", slug).strip()
+    words = [part.capitalize() for part in slug.split() if part]
+    title = " ".join(words)
+    return f"{movie_code} {title}".strip() if movie_code else title
+
+
+def build_external_import_fallback(value, site, error_message=""):
+    url = value if str(value or "").startswith(("http://", "https://")) else ""
+    movie_code = extract_movie_code(value)
+    title = title_from_url_slug(url, movie_code) if url else movie_code
+    site_name = "Javtiful" if site == "javtiful" else "Supjav"
+    return {
+        "title": title or movie_code or value,
+        "movie_code": movie_code or code_slug(value).upper(),
+        "category_code": "reducing-mosaic",
+        "category_name": "Reducing Mosaic",
+        "actor_names": [],
+        "actor_profiles": [],
+        "director_names": [],
+        "keywords": [item for item in [site_name, "Reducing", movie_code] if item],
+        "rating_grade": "B+",
+        "video_url": url or value,
+        "source_url": url or value,
+        "description": f"{site_name} 페이지 직접 조회가 차단되어 URL/작품번호 기준 최소 정보만 가져왔습니다. {error_message}".strip(),
+        "poster_url": None,
+        "capture_url": None,
+        "snapshot_url": None,
+        "release_month": "",
+        "production_company": "",
+        "recommendation_score": 80,
+        "ranking_score": 80,
+        "rotten_tomatoes_score": None,
+        "is_main": False,
+        "import_warning": "remote_fetch_blocked",
+    }
+
+
+def infer_actor_names(html, title, movie_code):
+    names = []
+    for name in link_texts(html, ["/actor", "/actors", "/star", "/stars", "/model", "/models", "/idol"]):
+        if extract_movie_code(name):
+            continue
+        if name not in names:
+            names.append(name)
+
+    for key in ("article:tag", "keywords"):
+        for raw in meta_contents(html, key):
+            for token in re.split(r",|、|\|", raw):
+                token = clean_text(token)
+                if not token or extract_movie_code(token):
+                    continue
+                if re.search(r"jav|uncensored|mosaic|reducing|movie|video|hd|fhd", token, re.I):
+                    continue
+                if 2 <= len(token) <= 40 and token not in names:
+                    names.append(token)
+
+    if not names:
+        tail = title
+        if movie_code:
+            tail = re.sub(re.escape(movie_code), "", tail, flags=re.I).strip(" -:")
+        words = re.findall(r"[A-Z][a-z]+", tail)
+        if len(words) >= 2:
+            candidate = " ".join(words[-2:])
+            if candidate not in names:
+                names.append(candidate)
+
+    return names[:4]
+
+
+def build_external_import(url, site):
+    if site == "projectjav":
+        return build_projectjav_import(url)
+    if site == "missav":
+        return build_missav_import(url)
+    try:
+        html = fetch_remote_text(url)
+    except Exception as exc:
+        return build_external_import_fallback(url, site, str(exc))
+    title = meta_content(html, "og:title") or first_match([r"<title[^>]*>(.*?)</title>"], html) or ""
+    description = meta_content(html, "description") or meta_content(html, "og:description") or ""
+    text = clean_text(re.sub(r"<script[^>]*>.*?</script>|<style[^>]*>.*?</style>", " ", html, flags=re.I | re.S))
+    movie_code = extract_movie_code(title) or extract_movie_code(url) or extract_movie_code(text)
+    images = extract_image_candidates(html, url)
+    poster = best_poster_url(images)
+    actor_names = infer_actor_names(html, title, movie_code)
+
+    release_month = ""
+    release_match = re.search(r"\b(20\d{2}|19\d{2})[-/.](0?[1-9]|1[0-2])[-/.]\d{1,2}\b", text)
+    if release_match:
+        release_month = f"{release_match.group(1)}-{int(release_match.group(2)):02d}"
+
+    studio = first_match([
+        r"(?:Studio|Maker|제작사|メーカー)\s*[:：]\s*([^\n\r|<]{1,80})",
+        r"(?:Label|레이블)\s*[:：]\s*([^\n\r|<]{1,80})",
+    ], text)
+
+    site_name = "Javtiful" if site == "javtiful" else "Supjav"
+    category_code = "reducing-mosaic"
+    category_name = "Reducing Mosaic"
+    keywords = [site_name, "Reducing", movie_code, *actor_names]
+
+    return {
+        "title": clean_av_title(title, movie_code),
+        "movie_code": movie_code or code_slug(url).upper(),
+        "category_code": category_code,
+        "category_name": category_name,
+        "actor_names": actor_names,
+        "actor_profiles": [{"name": name, "profile_url": None} for name in actor_names],
+        "director_names": [],
+        "keywords": [item for item in keywords if item],
+        "rating_grade": "B+",
+        "video_url": url,
+        "source_url": url,
+        "description": clean_text(description),
+        "poster_url": poster,
+        "capture_url": images[1] if len(images) > 1 else poster,
+        "snapshot_url": images[2] if len(images) > 2 else (images[1] if len(images) > 1 else poster),
+        "release_month": release_month,
+        "production_company": studio,
+        "recommendation_score": 80,
+        "ranking_score": 80,
+        "rotten_tomatoes_score": None,
+        "is_main": False,
+    }
+
+
+def extract_label_value(text, label):
+    pattern = re.compile(rf"{re.escape(label)}\s+([^\n\r]+)", re.I)
+    match = pattern.search(text or "")
+    return clean_text(match.group(1)) if match else ""
+
+
+def extract_colon_value(text, label):
+    pattern = re.compile(rf"{re.escape(label)}\s*[:：]\s*([^\n\r]+)", re.I)
+    match = pattern.search(text or "")
+    return clean_text(match.group(1)) if match else ""
+
+
+def extract_projectjav_download_title(html, movie_code):
+    for href in re.findall(r"href=[\"'](magnet:\?[^\"']+)[\"']", html or "", re.I):
+        params = parse_qs(urlparse(unescape(href)).query)
+        dn = params.get("dn", [""])[0]
+        title = clean_text(unquote(dn).replace("+", " "))
+        if not title or movie_code.lower() not in title.lower():
+            continue
+        title = re.sub(r"^\+*\s*", "", title)
+        title = re.sub(r"^\[[^\]]+\]\s*", "", title)
+        return title
+    return ""
+
+
+def projectjav_fallback_from_url(url, error_message=""):
+    path = urlparse(url or "").path.strip("/")
+    slug_match = re.search(r"movie/(.+)-(\d+)$", path, re.I)
+    slug = slug_match.group(1) if slug_match else path.split("/")[-1]
+    project_id = slug_match.group(2) if slug_match else ""
+    movie_code = extract_movie_code(slug) or slug.split("-")[0].upper()
+    poster = f"https://images.projectjav.com/data/covers/{project_id}.jpg" if project_id else None
+    screenshot = f"https://images.projectjav.com/data/screenshots/{project_id}.jpg?width=300" if project_id else poster
+    return {
+        "title": movie_code,
+        "movie_code": movie_code,
+        "category_code": "projectjav",
+        "category_name": "ProjectJAV",
+        "actor_names": [],
+        "actor_profiles": [],
+        "director_names": [],
+        "keywords": [item for item in ["ProjectJAV", movie_code] if item],
+        "rating_grade": "B+",
+        "video_url": url,
+        "source_url": url,
+        "description": f"ProjectJAV 페이지 직접 조회가 차단되어 URL 구조 기준으로 최소 정보를 가져왔습니다. {error_message}".strip(),
+        "poster_url": poster,
+        "capture_url": screenshot,
+        "snapshot_url": screenshot,
+        "release_month": "",
+        "production_company": "",
+        "recommendation_score": 80,
+        "ranking_score": 80,
+        "rotten_tomatoes_score": None,
+        "is_main": False,
+        "import_warning": "remote_fetch_blocked",
+    }
+
+
+def build_projectjav_import(url):
+    try:
+        html = fetch_remote_text(url)
+    except Exception as exc:
+        return projectjav_fallback_from_url(url, str(exc))
+    text = clean_text(re.sub(r"<script[^>]*>.*?</script>|<style[^>]*>.*?</style>", " ", html, flags=re.I | re.S))
+    title_meta = meta_content(html, "description") or first_match([r"<title[^>]*>(.*?)</title>"], html)
+    h1 = first_match([r"<h1[^>]*>(.*?)</h1>"], html)
+    movie_code = (h1 or extract_movie_code(url) or extract_movie_code(title_meta) or code_slug(url)).upper()
+
+    images = extract_image_candidates(html, url)
+    cover = next((image for image in images if "/data/covers/" in image.lower()), None) or best_poster_url(images)
+    screenshot = next((image for image in images if "/data/screenshots/" in image.lower()), None) or cover
+
+    actor_names = []
+    for name in link_texts(html, ["/actress/"]):
+        if name not in actor_names:
+            actor_names.append(name)
+    tags = []
+    for name in link_texts(html, ["/tag/"]):
+        if name not in tags:
+            tags.append(name)
+
+    download_title = extract_projectjav_download_title(html, movie_code)
+    fallback_actor = actor_names[0] if actor_names else ""
+    title = download_title or f"{movie_code} {fallback_actor}".strip()
+
+    date_added = extract_label_value(text, "Date added")
+    release_month = ""
+    date_match = re.search(r"(\d{1,2})/(\d{1,2})/(20\d{2}|19\d{2})", date_added)
+    if date_match:
+        release_month = f"{date_match.group(3)}-{int(date_match.group(2)):02d}"
+
+    publisher = extract_label_value(text, "Publisher")
+    if re.match(r"^(Date added|Editor Rate|Views|Downloads)\b", publisher, re.I):
+        publisher = ""
+    description = clean_text(title_meta) or f"ProjectJAV movie metadata imported from {url}."
+
+    return {
+        "title": title,
+        "movie_code": movie_code,
+        "category_code": "projectjav",
+        "category_name": "ProjectJAV",
+        "actor_names": actor_names[:4],
+        "actor_profiles": [{"name": name, "profile_url": None} for name in actor_names[:4]],
+        "director_names": [],
+        "keywords": [item for item in ["ProjectJAV", movie_code, *actor_names[:2], *tags[:4]] if item],
+        "rating_grade": "B+",
+        "video_url": url,
+        "source_url": url,
+        "description": description,
+        "poster_url": cover,
+        "capture_url": screenshot,
+        "snapshot_url": screenshot,
+        "release_month": release_month,
+        "production_company": publisher,
+        "recommendation_score": 80,
+        "ranking_score": 80,
+        "rotten_tomatoes_score": None,
+        "is_main": False,
+    }
+
+
+def build_missav_import(url):
+    html = fetch_remote_text(url)
+    text = html_text_lines(html)
+    title = first_match([r"<h1[^>]*>(.*?)</h1>"], html) or meta_content(html, "og:title")
+    movie_code = extract_movie_code(title) or extract_movie_code(url) or extract_colon_value(text, "코드").upper()
+    title = clean_av_title(title, movie_code)
+
+    poster = meta_content(html, "og:image") or meta_content(html, "twitter:image")
+    images = extract_image_candidates(html, url)
+    if not poster:
+        poster = best_poster_url(images)
+
+    release_month = ""
+    release_date = extract_colon_value(text, "출시일")
+    release_match = re.search(r"(20\d{2}|19\d{2})[-/.](0?[1-9]|1[0-2])[-/.]\d{1,2}", release_date)
+    if release_match:
+        release_month = f"{release_match.group(1)}-{int(release_match.group(2)):02d}"
+
+    genre_text = extract_colon_value(text, "장르")
+    genres = [clean_text(item) for item in re.split(r",|、", genre_text) if clean_text(item)]
+    actor_text = extract_colon_value(text, "여배우")
+    actor_names = [clean_text(item) for item in re.split(r",|、", actor_text) if clean_text(item)]
+    if not actor_names:
+        actor_names = link_texts(html, ["/actresses/"])[:4]
+    maker = extract_colon_value(text, "제작사")
+    tag_text = extract_colon_value(text, "태그")
+    tags = [clean_text(item) for item in re.split(r",|、", tag_text) if clean_text(item)]
+
+    description = meta_content(html, "description") or ""
+    detail_match = re.search(r"상세\s+(.+?)\s+코드\s*:", text, re.I | re.S)
+    if detail_match:
+        description = clean_text(detail_match.group(1))
+
+    return {
+        "title": title,
+        "movie_code": movie_code,
+        "category_code": "missav",
+        "category_name": "MissAV",
+        "actor_names": actor_names[:4],
+        "actor_profiles": [{"name": name, "profile_url": None} for name in actor_names[:4]],
+        "director_names": [],
+        "keywords": [item for item in ["MissAV", movie_code, *actor_names[:2], *genres[:4], *tags[:2]] if item],
+        "rating_grade": "B+",
+        "video_url": url,
+        "source_url": url,
+        "description": clean_text(description),
+        "poster_url": poster,
+        "capture_url": poster,
+        "snapshot_url": poster,
+        "release_month": release_month,
+        "production_company": maker,
+        "recommendation_score": 80,
+        "ranking_score": 80,
+        "rotten_tomatoes_score": None,
+        "is_main": False,
+    }
+
+
+def extract_first_external_result(search_url, code, site):
+    html = fetch_remote_text(search_url)
+    code_pattern = re.escape(code)
+    links = []
+    for match in re.finditer(r"<a\b([^>]*)href=[\"']([^\"']+)[\"']([^>]*)>(.*?)</a>", html, re.I | re.S):
+        href = unescape(match.group(2))
+        body = clean_text(match.group(4))
+        haystack = f"{href} {body}"
+        if not re.search(code_pattern, haystack, re.I):
+            continue
+        url = absolute_url(search_url, href)
+        if site == "javtiful" and "javtiful.com" not in url:
+            continue
+        if site == "supjav" and "supjav.com" not in url:
+            continue
+        if site == "projectjav" and "projectjav.com/movie/" not in url:
+            continue
+        if site == "missav" and "/v/" not in url:
+            continue
+        if url not in links:
+            links.append(url)
+    return links[0] if links else ""
+
+
+def resolve_external_input(value, site):
+    value = (value or "").strip()
+    if value.startswith("http://") or value.startswith("https://"):
+        return value
+    code = extract_movie_code(value)
+    if not code:
+        raise ValueError("URL 또는 작품번호가 필요합니다")
+    if site == "javtiful":
+        search_urls = [
+            f"https://javtiful.com/search/videos/{code}",
+            f"https://javtiful.com/?s={code}",
+            f"https://javtiful.com/?q={code}",
+        ]
+    elif site == "supjav":
+        search_urls = [
+            f"https://supjav.com/?s={code}",
+            f"https://supjav.com/?s={code.lower()}",
+        ]
+    elif site == "projectjav":
+        search_urls = [
+            f"https://projectjav.com/?searchTerm={code.upper()}",
+            f"https://projectjav.com/?searchTerm={code.lower()}",
+        ]
+    else:
+        return f"https://missav123.to/ko/v/{code.lower()}"
+    for search_url in search_urls:
+        try:
+            result = extract_first_external_result(search_url, code, site)
+            if result:
+                return result
+        except Exception:
+            continue
+    return value
+
+
+def detect_import_site(value):
+    raw = (value or "").strip()
+    host = urlparse(raw).netloc.lower()
+    if "themoviedb.org" in host:
+        return "tmdb"
+    if "javtiful.com" in host:
+        return "javtiful"
+    if "supjav.com" in host:
+        return "supjav"
+    if "projectjav.com" in host:
+        raise ValueError("ProjectJAV는 가져오기 자동인식 대상에서 제외되었습니다. MissAV 등 다른 참조주소를 사용해 주세요.")
+    if "missav" in host or "123av.com" in host:
+        return "missav"
+    if extract_movie_code(raw):
+        return "javtiful"
+    raise ValueError("지원하는 URL은 TMDB, Javtiful, Supjav, MissAV입니다")
+
+
+def build_movie_import(value, site="auto"):
+    site = site if site in IMPORT_SITES else detect_import_site(value)
+    if site == "tmdb":
+        return build_tmdb_import(value)
+    url = resolve_external_input(value, site)
+    return build_external_import(url, site)
+
+
+def int_or_zero(value):
+    match = re.search(r"\d+", str(value or ""))
+    return int(match.group(0)) if match else 0
+
+
+def actor_name_from_heading(heading):
+    parts = [clean_text(part) for part in re.split(r"/|\|", heading or "") if clean_text(part)]
+    latin = [part for part in parts if re.search(r"[A-Za-z]", part)]
+    return latin[-1] if latin else (parts[0] if parts else "")
+
+
+def build_body_size(text):
+    body_match = re.search(
+        r"신체\s*사이즈\s*[:：]\s*B\s*([0-9]{2,3})\s*/\s*W\s*([0-9]{2,3})\s*/\s*H\s*([0-9]{2,3})",
+        text,
+        re.I,
+    )
+    if not body_match:
+        body_match = re.search(r"\bB\s*([0-9]{2,3})\s*[-/]\s*W\s*([0-9]{2,3})\s*[-/]\s*H\s*([0-9]{2,3})", text, re.I)
+    if not body_match:
+        return ""
+    bust, waist, hip = body_match.groups()
+    cup_match = re.search(r"컵\s*사이즈\s*[:：]\s*([A-Z])\s*컵", text, re.I)
+    cup = cup_match.group(1).upper() if cup_match else ""
+    return f"B{bust}{f'({cup})' if cup else ''}-W{waist}-H{hip}"
+
+
+def build_actor_import_fallback(actor_name, url, error_message=""):
+    return {
+        "name": actor_name or "",
+        "age": 0,
+        "height_cm": 0,
+        "body_size": "",
+        "debut_year": 0,
+        "representative_image_url": None,
+        "image_urls": [],
+        "source_url": url or "",
+        "aliases": [],
+        "import_warning": "remote_fetch_blocked",
+        "description": error_message,
+    }
+
+
+def build_avdbs_actor_import(url, actor_name=""):
+    try:
+        html = fetch_remote_text(url)
+    except Exception as exc:
+        return build_actor_import_fallback(actor_name, url, str(exc))
+
+    text = clean_text(re.sub(r"<script[^>]*>.*?</script>|<style[^>]*>.*?</style>", " ", html, flags=re.I | re.S))
+    heading = first_match([r"<h1[^>]*>(.*?)</h1>"], html) or meta_content(html, "og:title")
+    aliases = [clean_text(part) for part in re.split(r"/|\|", heading or "") if clean_text(part)]
+    parsed_name = actor_name_from_heading(heading)
+    name = clean_text(actor_name) or parsed_name
+
+    age = int_or_zero(first_match([r"생년월일\s*[:：][^\n\r(]*\((\d{1,3})\s*세\)"], text))
+    height_cm = int_or_zero(first_match([r"신장\s*[:：]\s*(\d{2,3})\s*cm"], text))
+    body_size = build_body_size(text)
+    debut_raw = first_match([r"데뷔\s*[:：]\s*(\d{2,4})\s*년"], text)
+    debut_year = int_or_zero(debut_raw)
+    if 0 < debut_year < 100:
+        debut_year += 2000 if debut_year < 70 else 1900
+
+    images = []
+    for image in extract_image_candidates(html, url):
+        lower = image.lower()
+        if "/actor/" not in lower and "og:image" not in lower:
+            continue
+        if image not in images:
+            images.append(image)
+    representative = meta_content(html, "og:image") or (images[0] if images else None)
+    if representative and representative not in images:
+        images.insert(0, representative)
+
+    return {
+        "name": name,
+        "age": age,
+        "height_cm": height_cm,
+        "body_size": body_size,
+        "debut_year": debut_year,
+        "representative_image_url": representative,
+        "image_urls": images[:5],
+        "source_url": url,
+        "aliases": aliases,
+    }
+
+
+def build_actor_import(actor_name, url):
+    if not url:
+        raise ValueError("배우 참고 URL이 필요합니다")
+    host = urlparse(url).netloc.lower()
+    if "avdbs.com" in host:
+        return build_avdbs_actor_import(url, actor_name)
+    raise ValueError("현재 배우 URL 조회는 AVDBS 배우 페이지를 지원합니다")
 
 
 def tmdb_image_url(path, size):
@@ -96,12 +712,30 @@ def fetch_tmdb_json(movie_id, language="ko-KR"):
 
 
 def fetch_remote_text(url):
+    if "avdbs.com" in urlparse(url).netloc.lower():
+        return fetch_avdbs_text(url)
     req = Request(url, headers={
-        "User-Agent": "Mozilla/5.0 CineTube Local Importer",
+        "User-Agent": "CineTube Local Importer",
         "Accept": "text/html,application/xhtml+xml",
         "Accept-Language": "ko-KR,ko;q=0.9,en;q=0.8",
     })
     with urlopen(req, timeout=20) as response:
+        return response.read().decode("utf-8", errors="replace")
+
+
+def fetch_avdbs_text(url):
+    parsed = urlparse(url)
+    opener = build_opener(HTTPCookieProcessor(CookieJar()))
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml",
+        "Accept-Language": "ko-KR,ko;q=0.9,en;q=0.8",
+    }
+    check_url = f"{parsed.scheme}://{parsed.netloc}/check_cookie.php?cb_url={parsed.path}"
+    if parsed.query:
+        check_url += "%3F" + parsed.query.replace("&", "%26")
+    opener.open(Request(check_url, headers=headers), timeout=20).read()
+    with opener.open(Request(url, headers=headers), timeout=20) as response:
         return response.read().decode("utf-8", errors="replace")
 
 
@@ -294,7 +928,7 @@ def build_tmdb_import(url):
 
 def run_sql(sql):
     proc = subprocess.run(
-        [PSQL, "-X", "-q", "-t", "-A"],
+        [PSQL, "-X", "-q", "-t", "-A", "-v", "ON_ERROR_STOP=1"],
         env=ENV,
         input=sql,
         capture_output=True,
@@ -304,6 +938,21 @@ def run_sql(sql):
     if proc.returncode != 0:
         raise RuntimeError(proc.stderr.strip() or proc.stdout.strip())
     return proc.stdout.strip()
+
+
+@lru_cache(maxsize=None)
+def table_columns(table):
+    output = run_sql(
+        "select column_name "
+        "from information_schema.columns "
+        f"where table_schema = 'public' and table_name = {sql_literal(table)};"
+    )
+    return {line.strip() for line in output.splitlines() if line.strip()}
+
+
+def existing_columns(table, names):
+    columns = table_columns(table)
+    return [name for name in names if name in columns]
 
 
 def sql_literal(value):
@@ -349,12 +998,21 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         try:
             parsed = urlparse(self.path)
-            if parsed.path.strip("/") == "tmdb/import":
+            if parsed.path.strip("/") in {"tmdb/import", "metadata/import"}:
                 query = parse_qs(parsed.query)
-                url = query.get("url", [""])[0]
-                if not url:
-                    raise ValueError("url 파라미터가 필요합니다")
-                self.send_json(build_tmdb_import(url))
+                value = query.get("url", [""])[0] or query.get("q", [""])[0]
+                site = query.get("site", ["auto"])[0]
+                if not value:
+                    raise ValueError("url 또는 q 파라미터가 필요합니다")
+                self.send_json(build_movie_import(value, site))
+                return
+            if parsed.path.strip("/") in {"metadata/actor", "actor/import"}:
+                query = parse_qs(parsed.query)
+                actor_name = query.get("name", [""])[0]
+                value = query.get("url", [""])[0] or query.get("q", [""])[0]
+                if not value:
+                    raise ValueError("url 또는 q 파라미터가 필요합니다")
+                self.send_json(build_actor_import(actor_name, value))
                 return
             table, query = self.parse_table()
             order = query.get("order", ["created_at.desc"])[0]
@@ -414,7 +1072,7 @@ class Handler(BaseHTTPRequestHandler):
         return json.loads(self.rfile.read(length).decode("utf-8"))
 
     def insert_row(self, table, payload):
-        columns = [c for c in TABLES[table]["insert"] if c in payload]
+        columns = existing_columns(table, [c for c in TABLES[table]["insert"] if c in payload])
         if not columns:
             raise ValueError("empty insert payload")
         values = [f"(json_populate_record(null::public.{table}, {json_literal(payload)}::json)).{c}" for c in columns]
@@ -422,7 +1080,7 @@ class Handler(BaseHTTPRequestHandler):
         return row_json(table, sql, mutable=True)
 
     def update_row(self, table, payload, where):
-        columns = [c for c in TABLES[table]["update"] if c in payload]
+        columns = existing_columns(table, [c for c in TABLES[table]["update"] if c in payload])
         if not columns:
             raise ValueError("empty update payload")
         sets = [f"{c} = (json_populate_record(null::public.{table}, {json_literal(payload)}::json)).{c}" for c in columns]

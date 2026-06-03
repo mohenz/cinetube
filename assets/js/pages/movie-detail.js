@@ -2,6 +2,7 @@
   const UI = window.CineTubeUI;
   const Store = window.CineTubeStore;
   UI.setupChrome();
+  const isAdminDetail = document.body.dataset.adminDetail === "true";
 
   const data = await Store.load();
   UI.setDbStatus(Store.getStatus());
@@ -22,7 +23,7 @@
     return;
   }
 
-  document.title = `CineTube | ${movie.title}`;
+  document.title = `${isAdminDetail ? "CineTube Admin" : "CineTube"} | ${movie.title}`;
   if (codeDisplay) codeDisplay.value = movie.movie_code || "";
 
   const posterUrl = UI.movieImageUrl(movie, "../assets/img/favicon.svg");
@@ -31,6 +32,7 @@
   const keywords = Array.isArray(movie.keywords) ? movie.keywords : [];
   const movieAssets = [movie.poster_asset, movie.capture_asset, movie.snapshot_asset].filter(Boolean);
   const rottenTomatoesScore = movie.rotten_tomatoes_score;
+  const isMainMovie = movie.is_main === true;
 
   detail.innerHTML = `
     <section class="movie-detail">
@@ -44,6 +46,7 @@
           <span class="rating">${UI.escapeHtml(movie.rating_grade || "-")}</span>
           <span>${UI.escapeHtml(movie.movie_code || "-")}</span>
           <span>${UI.escapeHtml(movie.category_name || "-")}</span>
+          ${isAdminDetail ? `<span class="main-display-badge" id="mainDisplayBadge"${isMainMovie ? "" : " hidden"}><span class="material-symbols-outlined">star</span>메인전시</span>` : ""}
         </div>
         <p class="movie-description">${UI.escapeHtml(movie.description || "등록된 주요내용이 없습니다.")}</p>
         <div class="detail-list movie-detail-list">
@@ -53,6 +56,7 @@
           <div><span>제작사</span><strong>${UI.escapeHtml(movie.production_company || "-")}</strong></div>
           <div><span>추천점수</span><strong>${UI.escapeHtml(movie.recommendation_score || 0)}</strong></div>
           <div><span>루튼 토마토</span><strong>${UI.escapeHtml(rottenTomatoesScore === null || rottenTomatoesScore === undefined ? "-" : `${rottenTomatoesScore}%`)}</strong></div>
+          ${isAdminDetail ? `<div><span>메인전시</span><strong id="mainDisplayStatus">${isMainMovie ? "등록됨" : "미등록"}</strong></div>` : ""}
         </div>
         <div class="keyword-row">
           ${keywords.length ? keywords.map((keyword) => `<span>${UI.escapeHtml(keyword)}</span>`).join("") : `<span>키워드 없음</span>`}
@@ -60,6 +64,7 @@
         <div class="hero-actions">
           ${movie.video_url ? `<a class="primary-button" href="${UI.escapeHtml(movie.video_url)}" target="_blank" rel="noreferrer"><span class="material-symbols-outlined">open_in_new</span>영상 링크</a>` : ""}
           ${movie.source_url ? `<a class="ghost-button" href="${UI.escapeHtml(movie.source_url)}" target="_blank" rel="noreferrer"><span class="material-symbols-outlined">source</span>정보출처</a>` : ""}
+          ${isAdminDetail ? `<button class="ghost-button main-action${isMainMovie ? " active" : ""}" type="button" id="toggleMainMovie"><span class="material-symbols-outlined">${isMainMovie ? "star" : "star_border"}</span>${isMainMovie ? "메인전시 해제" : "메인전시 등록"}</button>` : ""}
           <a class="ghost-button" href="../admin/movies.html?code=${UI.escapeHtml(movie.movie_code)}"><span class="material-symbols-outlined">edit</span>영화 관리</a>
           <button class="ghost-button danger-action" type="button" id="deleteMovie"><span class="material-symbols-outlined">delete</span>영화정보 삭제</button>
         </div>
@@ -69,6 +74,32 @@
       ${captureUrl ? `<img src="${UI.escapeHtml(captureUrl)}" alt="${UI.escapeHtml(movie.title)} 캡쳐">` : ""}
       ${snapshotUrl ? `<img src="${UI.escapeHtml(snapshotUrl)}" alt="${UI.escapeHtml(movie.title)} 스냅샷">` : ""}
     </section>`;
+
+  const mainButton = document.getElementById("toggleMainMovie");
+  const mainStatus = document.getElementById("mainDisplayStatus");
+  const mainBadge = document.getElementById("mainDisplayBadge");
+  if (mainButton) {
+    mainButton.addEventListener("click", async () => {
+      const nextIsMain = movie.is_main !== true;
+      mainButton.disabled = true;
+      mainButton.innerHTML = `<span class="material-symbols-outlined">hourglass_empty</span>저장 중`;
+
+      try {
+        if (nextIsMain) await Store.clearMainMovies(movie.id);
+        await Store.update("movies", movie.id, { is_main: nextIsMain });
+        movie.is_main = nextIsMain;
+        mainButton.disabled = false;
+        mainButton.classList.toggle("active", nextIsMain);
+        mainButton.innerHTML = `<span class="material-symbols-outlined">${nextIsMain ? "star" : "star_border"}</span>${nextIsMain ? "메인전시 해제" : "메인전시 등록"}`;
+        if (mainStatus) mainStatus.textContent = nextIsMain ? "등록됨" : "미등록";
+        if (mainBadge) mainBadge.hidden = !nextIsMain;
+      } catch (error) {
+        mainButton.disabled = false;
+        mainButton.innerHTML = `<span class="material-symbols-outlined">${movie.is_main === true ? "star" : "star_border"}</span>${movie.is_main === true ? "메인전시 해제" : "메인전시 등록"}`;
+        alert(`메인전시 저장 실패: ${error.message}`);
+      }
+    });
+  }
 
   const deleteButton = document.getElementById("deleteMovie");
   if (deleteButton) {
@@ -89,7 +120,7 @@
       try {
         await Store.remove("movies", movie.id);
         for (const asset of movieAssets) await Store.deleteMedia(asset);
-        window.location.href = "../index.html";
+        window.location.href = isAdminDetail ? "movies.html" : "../index.html";
       } catch (error) {
         deleteButton.disabled = false;
         deleteButton.innerHTML = `<span class="material-symbols-outlined">delete</span>영화정보 삭제`;

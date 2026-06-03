@@ -275,9 +275,11 @@
       const table = tableNames[kind];
       const { data, error } = await state.client.from(table).insert(payload).select().single();
       if (error) throw error;
+      if (!data) throw new Error(`${table} 등록 결과가 없습니다.`);
       state.data[kind].unshift(data);
     } else if (state.mode === "local") {
       const data = await insertLocal(kind, payload);
+      if (!data) throw new Error(`${tableNames[kind]} 등록 결과가 없습니다.`);
       state.data[kind].unshift(data);
     } else {
       const next = { ...payload };
@@ -295,9 +297,11 @@
       const table = tableNames[kind];
       const { data, error } = await state.client.from(table).update(payload).eq(primaryKey, keyValue).select().single();
       if (error) throw error;
+      if (!data) throw new Error(`${table} 수정 결과가 없습니다.`);
       state.data[kind] = state.data[kind].map((item) => String(item[primaryKey]) === String(keyValue) ? data : item);
     } else if (state.mode === "local") {
       const data = await updateLocal(kind, keyValue, payload);
+      if (!data) throw new Error(`${tableNames[kind]} 수정 결과가 없습니다.`);
       state.data[kind] = state.data[kind].map((item) => String(item[primaryKey]) === String(keyValue) ? data : item);
     } else {
       state.data[kind] = state.data[kind].map((item) => String(item[primaryKey]) === String(keyValue) ? { ...item, ...payload } : item);
@@ -312,7 +316,7 @@
     const othersMain = state.data.movies.filter(
       (m) => m.is_main === true && String(m.id) !== String(exceptMovieId)
     );
-    if (!othersMain.length) return;
+    if (!othersMain.length) return state.data;
 
     if (state.client) {
       const ids = othersMain.map((m) => m.id);

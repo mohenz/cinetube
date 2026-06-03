@@ -13,6 +13,8 @@
   const searchInput = document.getElementById("searchInput");
   let page = 1;
 
+  if (pageSize) pageSize.value = "20";
+
   function movieDateValue(movie) {
     const month = String(movie.release_month || "").trim();
     if (/^\d{4}-\d{2}$/.test(month)) return `${month}-01`;

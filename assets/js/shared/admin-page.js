@@ -53,9 +53,13 @@
     let pageSize = "20";
 
     const searchInput = document.getElementById("searchInput");
-    if (searchInput && kind === "movies") {
+    if (searchInput && (kind === "movies" || kind === "actors")) {
       searchInput.addEventListener("input", () => {
         currentPage = 1;
+        const actorTableSearch = document.getElementById("actorTableSearch");
+        if (kind === "actors" && actorTableSearch && actorTableSearch.value !== searchInput.value) {
+          actorTableSearch.value = searchInput.value;
+        }
         renderTable();
       });
     }
@@ -164,24 +168,75 @@
       `).join("");
     }
 
-    function renderTmdbImportPanel() {
+    function renderMovieImportPanel() {
       if (kind !== "movies") return "";
-      const value = editingItem?.source_url && String(editingItem.source_url).includes("themoviedb.org")
-        ? editingItem.source_url
-        : "";
+      const value = editingItem?.source_url || "";
       return `
         <fieldset class="image-fieldset tmdb-import-panel">
-          <legend>TMDB URL 가져오기</legend>
-          <label>TMDB 영화 URL
-            <input class="input-control" id="tmdbImportUrl" type="url" value="${UI.escapeHtml(value)}" placeholder="https://www.themoviedb.org/movie/...">
+          <legend>URL / 작품번호 가져오기</legend>
+          <label>URL 또는 작품번호
+            <input class="input-control" id="movieImportInput" type="text" value="${UI.escapeHtml(value)}" placeholder="TMDB URL, Javtiful URL, Supjav URL, 작품번호">
           </label>
+          <div class="import-site-field">
+            <span class="import-site-label">가져오기 대상</span>
+            <input type="hidden" id="movieImportSite" value="auto">
+            <div class="import-site-buttons" role="group" aria-label="가져오기 대상">
+              <button class="import-site-button active" type="button" data-import-site="auto" aria-pressed="true">자동 인식</button>
+              <button class="import-site-button" type="button" data-import-site="tmdb" aria-pressed="false">TMDB</button>
+              <button class="import-site-button" type="button" data-import-site="javtiful" aria-pressed="false">Javtiful</button>
+              <button class="import-site-button" type="button" data-import-site="supjav" aria-pressed="false">Supjav</button>
+              <button class="import-site-button" type="button" data-import-site="missav" aria-pressed="false">MissAV</button>
+            </div>
+          </div>
           <div class="form-actions">
-            <button class="ghost-button" id="tmdbImportButton" type="button">
+            <button class="ghost-button" id="movieImportButton" type="button">
               <span class="material-symbols-outlined">download</span>가져오기
             </button>
-            <span class="tmdb-import-status" id="tmdbImportStatus"></span>
+            <span class="tmdb-import-status" id="movieImportStatus"></span>
           </div>
         </fieldset>`;
+    }
+
+    function renderActorImportPanel() {
+      if (kind !== "actors") return "";
+      const nameValue = editingItem?.name || "";
+      return `
+        <fieldset class="image-fieldset tmdb-import-panel">
+          <legend>배우 URL 가져오기</legend>
+          <label>배우명
+            <input class="input-control" id="actorImportName" type="text" value="${UI.escapeHtml(nameValue)}" placeholder="예: Honjou Suzu">
+          </label>
+          <label>참고 URL
+            <input class="input-control" id="actorImportUrl" type="url" placeholder="https://www.avdbs.com/menu/actor.php?actor_idx=4004">
+          </label>
+          <div class="form-actions">
+            <button class="ghost-button" id="actorImportButton" type="button">
+              <span class="material-symbols-outlined">person_search</span>배우정보 조회
+            </button>
+            <span class="tmdb-import-status" id="actorImportStatus"></span>
+          </div>
+        </fieldset>`;
+    }
+
+    function bindMovieImportSiteButtons(form) {
+      if (kind !== "movies") return;
+      const valueInput = form.querySelector("#movieImportSite");
+      const buttons = Array.from(form.querySelectorAll(".import-site-button"));
+      if (!valueInput || !buttons.length) return;
+
+      function setActiveSite(site) {
+        valueInput.value = site;
+        buttons.forEach((button) => {
+          const isActive = button.dataset.importSite === site;
+          button.classList.toggle("active", isActive);
+          button.setAttribute("aria-pressed", String(isActive));
+        });
+      }
+
+      buttons.forEach((button) => {
+        button.addEventListener("click", () => setActiveSite(button.dataset.importSite || "auto"));
+      });
+      setActiveSite(valueInput.value || "auto");
     }
 
     function normalize(formData) {
@@ -365,7 +420,7 @@
       }
     }
 
-    async function ensureTmdbCategory(imported, form) {
+    async function ensureImportCategory(imported, form) {
       const code = imported.category_code;
       if (!code) return "";
       let category = data.categories.find((item) => String(item.category_code) === String(code));
@@ -384,7 +439,7 @@
       return category?.category_code || code;
     }
 
-    async function ensureTmdbActors(imported, form) {
+    async function ensureImportActors(imported, form) {
       const profiles = (imported.actor_profiles || []).slice(0, 4);
       const selectedIds = [];
       for (const profile of profiles) {
@@ -415,20 +470,33 @@
       return selectedIds;
     }
 
-    async function fetchTmdbImport(url) {
+    async function fetchMovieImport(value, site) {
       const base = localApiBase();
       if (!base) throw new Error("로컬 API 설정이 필요합니다");
-      const response = await fetch(`${base}/tmdb/import?url=${encodeURIComponent(url)}`);
+      const params = new URLSearchParams({ url: value, site: site || "auto" });
+      const response = await fetch(`${base}/metadata/import?${params.toString()}`);
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(errorText || `TMDB 조회 실패: HTTP ${response.status}`);
+        throw new Error(errorText || `가져오기 실패: HTTP ${response.status}`);
       }
       return await response.json();
     }
 
-    async function applyTmdbImport(form, imported) {
-      const categoryCode = await ensureTmdbCategory(imported, form);
-      await ensureTmdbActors(imported, form);
+    async function fetchActorImport(name, url) {
+      const base = localApiBase();
+      if (!base) throw new Error("로컬 API 설정이 필요합니다");
+      const params = new URLSearchParams({ name: name || "", url });
+      const response = await fetch(`${base}/metadata/actor?${params.toString()}`);
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || `조회 실패: HTTP ${response.status}`);
+      }
+      return await response.json();
+    }
+
+    async function applyMovieImport(form, imported) {
+      const categoryCode = await ensureImportCategory(imported, form);
+      await ensureImportActors(imported, form);
 
       setFieldValue(form, "title", imported.title);
       setFieldValue(form, "movie_code", imported.movie_code);
@@ -452,29 +520,75 @@
       setImageSlotUrl(form, "snapshot", imported.snapshot_url, "스냅샷");
     }
 
-    function bindTmdbImport(form) {
+    function bindMovieImport(form) {
       if (kind !== "movies") return;
-      const input = document.getElementById("tmdbImportUrl");
-      const button = document.getElementById("tmdbImportButton");
-      const status = document.getElementById("tmdbImportStatus");
+      const input = document.getElementById("movieImportInput");
+      const siteSelect = document.getElementById("movieImportSite");
+      const button = document.getElementById("movieImportButton");
+      const status = document.getElementById("movieImportStatus");
       if (!input || !button) return;
 
       button.addEventListener("click", async () => {
-        const url = input.value.trim();
-        if (!url) {
-          alert("TMDB 영화 URL을 입력해 주세요.");
+        const value = input.value.trim();
+        if (!value) {
+          alert("URL 또는 작품번호를 입력해 주세요.");
           return;
         }
         button.disabled = true;
         if (status) status.textContent = "조회 중...";
         try {
-          const imported = await fetchTmdbImport(url);
-          await applyTmdbImport(form, imported);
+          const imported = await fetchMovieImport(value, siteSelect?.value || "auto");
+          await applyMovieImport(form, imported);
           UI.setDbStatus(Store.getStatus());
           if (status) status.textContent = "가져오기 완료";
         } catch (error) {
           if (status) status.textContent = "가져오기 실패";
-          alert(`TMDB 가져오기 실패: ${error.message}`);
+          alert(`가져오기 실패: ${error.message}`);
+        } finally {
+          button.disabled = false;
+        }
+      });
+    }
+
+    function applyActorImport(form, imported) {
+      setFieldValue(form, "name", imported.name || "");
+      setFieldValue(form, "age", imported.age || "");
+      setFieldValue(form, "height_cm", imported.height_cm || "");
+      setFieldValue(form, "body_size", imported.body_size || "");
+      setFieldValue(form, "debut_year", imported.debut_year || "");
+
+      const imageUrls = Array.isArray(imported.image_urls) ? imported.image_urls.filter(Boolean) : [];
+      const representative = imported.representative_image_url || imageUrls[0] || "";
+      setImageSlotUrl(form, "representative", representative, "대표이미지");
+      [0, 1, 2, 3].forEach((index) => {
+        setImageSlotUrl(form, `gallery_${index + 1}`, imageUrls[index + 1] || "", `일반이미지 ${index + 1}`);
+      });
+    }
+
+    function bindActorImport(form) {
+      if (kind !== "actors") return;
+      const nameInput = document.getElementById("actorImportName");
+      const urlInput = document.getElementById("actorImportUrl");
+      const button = document.getElementById("actorImportButton");
+      const status = document.getElementById("actorImportStatus");
+      if (!nameInput || !urlInput || !button) return;
+
+      button.addEventListener("click", async () => {
+        const name = nameInput.value.trim();
+        const url = urlInput.value.trim();
+        if (!name || !url) {
+          alert("배우명과 참고 URL을 입력해 주세요.");
+          return;
+        }
+        button.disabled = true;
+        if (status) status.textContent = "조회 중...";
+        try {
+          const imported = await fetchActorImport(name, url);
+          applyActorImport(form, imported);
+          if (status) status.textContent = "조회 완료";
+        } catch (error) {
+          if (status) status.textContent = "조회 실패";
+          alert(`배우정보 조회 실패: ${error.message}`);
         } finally {
           button.disabled = false;
         }
@@ -621,9 +735,13 @@
       removedAssets = [];
       const isEdit = Boolean(editingItem);
       formHost.innerHTML = `
-        <h2>${isEdit ? "정보 수정" : "신규 등록"}</h2>
+        <div class="form-title-row">
+          <h2>${isEdit ? "정보 수정" : "신규 등록"}</h2>
+          ${isEdit ? `<button class="primary-button form-title-submit" type="button"><span class="material-symbols-outlined">save</span>수정 저장</button>` : ""}
+        </div>
         <form class="form-grid" id="entryForm">
-          ${renderTmdbImportPanel()}
+          ${renderMovieImportPanel()}
+          ${renderActorImportPanel()}
           ${fieldSets[kind].map(inputFor).join("")}
           ${renderImageFields()}
           <div class="form-actions">
@@ -634,49 +752,24 @@
         </form>`;
 
       const form = document.getElementById("entryForm");
+      const titleSubmit = formHost.querySelector(".form-title-submit");
+      if (titleSubmit) {
+        titleSubmit.addEventListener("click", () => {
+          if (form.requestSubmit) form.requestSubmit();
+          else form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+        });
+      }
       setSelectValues(form);
       bindImageFields();
-      bindMainExhibitionAutoCover(form);
-      bindTmdbImport(form);
-
-      const cancel = document.getElementById("cancelEdit");
-      if (cancel) cancel.addEventListener("click", () => {
-        editingItem = null;
-        renderForm();
-      });
-
+      bindMovieImportSiteButtons(form);
+      bindMovieImport(form);
+      bindActorImport(form);
       form.addEventListener("submit", async (event) => {
         event.preventDefault();
         try {
           const payload = normalize(new FormData(form));
           const uploadedAssetIds = await applyImagePayload(payload, form);
           compactActorImages(payload);
-
-          // 메인전시 시 projectjav 커버 URL 강제 적용
-          if (kind === "movies" && payload.is_main) {
-            let cleanCode = (payload.movie_code || "").trim();
-            cleanCode = cleanCode.replace(/-DECENSORED/i, "");
-            cleanCode = cleanCode.replace(/-REDUCING-MOSAIC/i, "");
-            cleanCode = cleanCode.replace(/-REDUCING/i, "");
-            cleanCode = cleanCode.toLowerCase();
-
-            // 이미지 슬롯에 이미 올바른 URL이 들어 있는 경우 그대로 사용,
-            // 슬롯 값이 없거나 잘못된 경우 다시 조회
-            const captureSlot = form.querySelector('[data-image-field="capture"]');
-            const existingCover = captureSlot ? (captureSlot.querySelector('input[name="url_capture"]') || {}).value : "";
-            const isValidCover = existingCover && existingCover.includes("images.projectjav.com/data/covers/") && /\/\d+\.jpg/.test(existingCover);
-
-            if (!isValidCover) {
-              const fetchedCover = await fetchProjectJavCoverUrl(cleanCode);
-              if (fetchedCover) {
-                payload.capture_url = fetchedCover;
-                payload.snapshot_url = fetchedCover;
-              }
-            } else {
-              payload.capture_url = existingCover;
-              payload.snapshot_url = existingCover;
-            }
-          }
 
           if (isEdit) {
             // 메인전시로 설정하는 경우, 기존 메인전시 영화(본인 제외)를 미전시로 일괄 해제
@@ -715,8 +808,12 @@
 
     function rowActions(item) {
       const key = UI.escapeHtml(item[primaryKey]);
+      const detailLink = kind === "movies"
+        ? `<a class="link-button" href="movie-detail.html?code=${UI.escapeHtml(item.movie_code || item[primaryKey])}">상세</a>`
+        : "";
       return `
         <div class="table-actions">
+          ${detailLink}
           <button class="link-button table-edit" type="button" data-key="${key}">수정</button>
           <button class="link-button danger-link table-delete" type="button" data-key="${key}">삭제</button>
         </div>`;
@@ -750,7 +847,8 @@
       if (kind === "actors") {
         return items.map((item) => {
           const key = UI.escapeHtml(item[primaryKey]);
-          return `<tr><td class="table-record-trigger" data-key="${key}" style="cursor:pointer;" title="클릭 시 조회 및 수정">${thumb(item.representative_image_url, item.name)}</td><td class="table-record-trigger" data-key="${key}" style="cursor:pointer;color:var(--accent-soft);font-weight:600;text-decoration:underline;" title="클릭 시 조회 및 수정">${UI.escapeHtml(item.name)}</td><td>${UI.escapeHtml(item.age)}</td><td>${UI.escapeHtml(item.height_cm)}cm</td><td>${UI.escapeHtml(item.body_size)}</td><td>${UI.escapeHtml(item.debut_year)}</td><td>${rowActions(item)}</td></tr>`;
+          const movieCount = data.movies.filter((movie) => (movie.actor_ids || [movie.actor_id]).some((id) => String(id) === String(item.id))).length;
+          return `<tr><td class="table-record-trigger" data-key="${key}" style="cursor:pointer;" title="클릭 시 조회 및 수정">${thumb(item.representative_image_url, item.name)}</td><td class="table-record-trigger" data-key="${key}" style="cursor:pointer;color:var(--accent-soft);font-weight:600;text-decoration:underline;" title="클릭 시 조회 및 수정">${UI.escapeHtml(item.name)}</td><td>${UI.escapeHtml(movieCount)}</td><td>${UI.escapeHtml(item.debut_year)}</td><td>${rowActions(item)}</td></tr>`;
         }).join("");
       }
       return items.map((item) => `<tr><td><span class="rating">${UI.escapeHtml(item.grade)}</span></td><td>${UI.escapeHtml(item.display_order)}</td><td>${rowActions(item)}</td></tr>`).join("");
@@ -759,8 +857,17 @@
     function headerRow() {
       if (kind === "movies") return "<tr><th>포스터</th><th>영화코드</th><th>카테고리</th><th>주연배우</th><th>감독</th><th>평가등급</th><th>메인전시</th><th>클릭수</th><th>랭킹</th><th>관리</th></tr>";
       if (kind === "categories") return "<tr><th>대표이미지</th><th>코드</th><th>카테고리명</th><th>전시여부</th><th>관리</th></tr>";
-      if (kind === "actors") return "<tr><th>대표이미지</th><th>배우명</th><th>나이</th><th>신장</th><th>신체사이즈</th><th>데뷔년도</th><th>관리</th></tr>";
+      if (kind === "actors") return "<tr><th>대표이미지</th><th>배우명</th><th>작품수</th><th>데뷔년도</th><th>관리</th></tr>";
       return "<tr><th>평가등급</th><th>정렬순서</th><th>관리</th></tr>";
+    }
+
+    function focusTableTop() {
+      requestAnimationFrame(() => {
+        const top = tableHost.getBoundingClientRect().top + window.scrollY - 80;
+        tableHost.setAttribute("tabindex", "-1");
+        tableHost.focus({ preventScroll: true });
+        window.scrollTo({ top: Math.max(top, 0), behavior: "smooth" });
+      });
     }
 
     function renderTable() {
@@ -770,6 +877,13 @@
       if (kind === "movies" && searchInput && searchInput.value.trim()) {
         const term = searchInput.value.trim();
         filteredItems = allItems.filter(movie => UI.matchesSearch(movie, term));
+      }
+      if (kind === "actors") {
+        const actorTableSearch = document.getElementById("actorTableSearch");
+        const term = (actorTableSearch?.value || searchInput?.value || "").trim().toLowerCase();
+        if (term) {
+          filteredItems = allItems.filter((actor) => String(actor.name || "").toLowerCase().includes(term));
+        }
       }
 
       let paginatedItems = filteredItems;
@@ -784,10 +898,31 @@
 
       tableHost.innerHTML = `
         <h2>등록 목록</h2>
+        ${kind === "actors" ? `
+          <div class="toolbar table-search-toolbar">
+            <label>배우명 조회
+              <input class="input-control" id="actorTableSearch" type="search" value="${UI.escapeHtml(searchInput?.value || "")}" placeholder="배우명 입력">
+            </label>
+            <span class="muted-text">${UI.escapeHtml(filteredItems.length)}건</span>
+          </div>
+        ` : ""}
         <table>
           <thead>${headerRow()}</thead>
           <tbody>${tableRows(paginatedItems)}</tbody>
         </table>`;
+
+      if (kind === "actors") {
+        const actorTableSearch = document.getElementById("actorTableSearch");
+        if (actorTableSearch) {
+          actorTableSearch.addEventListener("input", () => {
+            if (searchInput && searchInput.value !== actorTableSearch.value) {
+              searchInput.value = actorTableSearch.value;
+            }
+            currentPage = 1;
+            renderTable();
+          });
+        }
+      }
 
       if (kind === "movies") {
         const controlsDiv = document.createElement("div");
@@ -822,6 +957,7 @@
             pageSize = e.target.value;
             currentPage = 1;
             renderTable();
+            focusTableTop();
           });
         }
         
@@ -829,6 +965,7 @@
         UI.renderPagination(paginationContainer, totalPages, currentPage, (nextPage) => {
           currentPage = nextPage;
           renderTable();
+          focusTableTop();
         });
       }
 
