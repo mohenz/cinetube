@@ -1,4 +1,4 @@
-(function () {
+﻿(function () {
   const fieldSets = {
     movies: [
       ["title", "영화제목"], ["movie_code", "영화코드"], ["category_code", "카테고리", "category"], ["actor_ids", "주연배우", "actors"], ["director_names", "영화감독", "directors"],
@@ -17,6 +17,16 @@
     ],
     commonCodes: [
       ["code_group", "코드그룹"], ["code_value", "코드값"], ["code_label", "표시명"], ["display_order", "정렬순서", "number"], ["is_enabled", "사용여부", "boolean"], ["extra", "부가정보 JSON", "textarea"]
+    ],
+    webtoons: [
+      ["webtoon_id", "Webtoon ID"], ["title", "Title"], ["rating", "Rating"], ["alternative", "Alternative"], ["artist", "Artist"], ["genre", "Genre"], ["type", "Type"],
+      ["tage", "Tage(쉼표 구분)"], ["url", "URL"], ["regdate", "등록일", "readonly"]
+    ],
+    webtoonChapters: [
+      ["webtoon_chapter_id", "Webtoon Chapter ID"], ["webtoon_id", "Webtoon ID", "webtoon"], ["chapter_number", "Chapter Number", "number"], ["chapter_url", "Chapter URL"], ["regdate", "등록일", "readonly"]
+    ],
+    galleryImages: [
+      ["gallery_image_id", "Gallery ID"], ["title", "제목"], ["description", "설명", "textarea"], ["source", "출처"], ["tags", "태그(쉼표 구분)"], ["is_visible", "전시여부", "boolean"], ["regdate", "등록일", "readonly"]
     ]
   };
 
@@ -35,10 +45,26 @@
       { field: "gallery_2", label: "일반이미지 2", arrayUrlKey: "image_urls", arrayAssetKey: "image_asset_ids", index: 1 },
       { field: "gallery_3", label: "일반이미지 3", arrayUrlKey: "image_urls", arrayAssetKey: "image_asset_ids", index: 2 },
       { field: "gallery_4", label: "일반이미지 4", arrayUrlKey: "image_urls", arrayAssetKey: "image_asset_ids", index: 3 }
+    ],
+    webtoons: [
+      { field: "poster", label: "Poster Image", urlKey: "poster_image", assetKey: "poster_image_asset_id" },
+      { field: "webtoon_image_1", label: "Webtoon Image 1", arrayUrlKey: "webtoon_images", arrayAssetKey: "webtoon_image_asset_ids", index: 0 },
+      { field: "webtoon_image_2", label: "Webtoon Image 2", arrayUrlKey: "webtoon_images", arrayAssetKey: "webtoon_image_asset_ids", index: 1 },
+      { field: "webtoon_image_3", label: "Webtoon Image 3", arrayUrlKey: "webtoon_images", arrayAssetKey: "webtoon_image_asset_ids", index: 2 },
+      { field: "webtoon_image_4", label: "Webtoon Image 4", arrayUrlKey: "webtoon_images", arrayAssetKey: "webtoon_image_asset_ids", index: 3 },
+      { field: "webtoon_image_5", label: "Webtoon Image 5", arrayUrlKey: "webtoon_images", arrayAssetKey: "webtoon_image_asset_ids", index: 4 },
+      { field: "webtoon_image_6", label: "Webtoon Image 6", arrayUrlKey: "webtoon_images", arrayAssetKey: "webtoon_image_asset_ids", index: 5 }
+    ],
+    webtoonChapters: [
+      { field: "chapter_poster", label: "Chapter Poster", urlKey: "chapter_poster", assetKey: "chapter_poster_asset_id" }
+    ],
+    galleryImages: [
+      { field: "image", label: "갤러리 이미지", urlKey: "image_url", assetKey: "image_asset_id" }
     ]
   };
 
   async function init(kind) {
+  try {
     const UI = window.CineTubeUI;
     const Store = window.CineTubeStore;
     UI.setupChrome();
@@ -51,12 +77,13 @@
     const primaryKey = Store.primaryKeys[kind];
     let editingItem = null;
     let removedAssets = [];
+    let pendingWebtoonChapters = [];
 
     let currentPage = 1;
     let pageSize = "20";
 
     const searchInput = document.getElementById("searchInput");
-    if (searchInput && (kind === "movies" || kind === "actors" || kind === "commonCodes")) {
+    if (searchInput && (kind === "movies" || kind === "actors" || kind === "commonCodes" || kind === "webtoons" || kind === "webtoonChapters" || kind === "galleryImages")) {
       searchInput.addEventListener("input", () => {
         currentPage = 1;
         const actorTableSearch = document.getElementById("actorTableSearch");
@@ -71,6 +98,7 @@
       if (type === "category") return data.categories.map((item) => `<option value="${UI.escapeHtml(item.category_code)}">${UI.escapeHtml(item.name)}</option>`).join("");
       if (type === "actor") return data.actors.map((item) => `<option value="${UI.escapeHtml(item.id)}">${UI.escapeHtml(item.name)}</option>`).join("");
       if (type === "rating") return data.ratings.map((item) => `<option value="${UI.escapeHtml(item.grade)}">${UI.escapeHtml(item.grade)}</option>`).join("");
+      if (type === "webtoon") return (data.webtoons || []).map((item) => `<option value="${UI.escapeHtml(item.webtoon_id)}">${UI.escapeHtml(item.webtoon_id)} · ${UI.escapeHtml(item.title)}</option>`).join("");
       return "";
     }
 
@@ -94,13 +122,14 @@
       const disabled = editingItem && name === primaryKey ? "disabled" : "";
       const value = UI.escapeHtml(valueFor(name));
       if (type === "textarea") return `<label>${label}<textarea class="input-control" name="${name}" rows="4">${value}</textarea></label>`;
+      if (type === "readonly") return `<label>${label}<input class="input-control" name="${name}" type="text" value="${value}" readonly></label>`;
       if (type === "boolean") {
         const current = String(valueFor(name) === false ? "false" : "true");
         const trueLabel = name === "is_enabled" ? "사용" : "전시";
         const falseLabel = name === "is_enabled" ? "미사용" : "미전시";
         return `<label>${label}<select class="select-control" name="${name}"><option value="true" ${current === "true" ? "selected" : ""}>${trueLabel}</option><option value="false" ${current === "false" ? "selected" : ""}>${falseLabel}</option></select></label>`;
       }
-      if (type === "category" || type === "actor" || type === "rating") {
+      if (type === "category" || type === "actor" || type === "rating" || type === "webtoon") {
         return `<label>${label}<select class="select-control" name="${name}">${optionList(type)}</select></label>`;
       }
       if (type === "actors") {
@@ -150,6 +179,7 @@
             ${value.url ? `<img src="${UI.escapeHtml(value.url)}" alt="${UI.escapeHtml(config.label)} 미리보기">` : `<span>이미지 없음</span>`}
           </div>
           <input class="image-input" type="file" name="file_${UI.escapeHtml(name)}" accept="image/*">
+          ${kind === "galleryImages" && name === "image" ? `<p class="form-note">이 영역을 선택한 뒤 Ctrl+V로 클립보드 이미지를 붙여넣을 수 있습니다.</p>` : ""}
           <input type="hidden" name="url_${UI.escapeHtml(name)}" value="${UI.escapeHtml(value.url)}">
           <input type="hidden" name="asset_${UI.escapeHtml(name)}" value="${UI.escapeHtml(value.assetId)}">
         </div>`;
@@ -217,6 +247,19 @@
       ];
     }
 
+    function webtoonImportSiteCodes() {
+      const sites = (data.commonCodes || [])
+        .filter((item) => item.code_group === "webtoon_import_site" && item.is_enabled !== false)
+        .sort((a, b) => Number(a.display_order ?? 99) - Number(b.display_order ?? 99));
+      if (sites.length) return sites;
+      return [
+        { code_value: "auto", code_label: "자동 인식", display_order: 0 },
+        { code_value: "mangadistrict", code_label: "MangaDistrict", display_order: 10 },
+        { code_value: "hentai18", code_label: "Hentai18", display_order: 20 },
+        { code_value: "imhentai", code_label: "IMHentai", display_order: 30 }
+      ];
+    }
+
     function renderActorImportPanel() {
       if (kind !== "actors") return "";
       const nameValue = editingItem?.name || "";
@@ -238,9 +281,59 @@
         </fieldset>`;
     }
 
+    function renderWebtoonImportPanel() {
+      if (kind !== "webtoons") return "";
+      const value = editingItem?.url || "";
+      const sites = webtoonImportSiteCodes();
+      const defaultSite = sites[0]?.code_value || "auto";
+      return `
+        <fieldset class="image-fieldset tmdb-import-panel">
+          <legend>Webtoon URL 가져오기</legend>
+          <label>참조사이트 URL
+            <input class="input-control" id="webtoonImportInput" type="url" value="${UI.escapeHtml(value)}" placeholder="https://mangadistrict.com/series/... 또는 https://hentai18.net/read-hentai/... 또는 https://imhentai.xxx/gallery/...">
+          </label>
+          <div class="import-site-field">
+            <span class="import-site-label">가져오기 대상</span>
+            <input type="hidden" id="webtoonImportSite" value="${UI.escapeHtml(defaultSite)}">
+            <div class="import-site-buttons" role="group" aria-label="Webtoon 가져오기 대상">
+              ${sites.map((site, index) => `
+                <button class="import-site-button ${index === 0 ? "active" : ""}" type="button" data-import-site="${UI.escapeHtml(site.code_value)}" aria-pressed="${index === 0 ? "true" : "false"}">${UI.escapeHtml(site.code_label)}</button>
+              `).join("")}
+            </div>
+          </div>
+          <div class="form-actions">
+            <button class="ghost-button" id="webtoonImportButton" type="button">
+              <span class="material-symbols-outlined">download</span>가져오기
+            </button>
+            <span class="tmdb-import-status" id="webtoonImportStatus"></span>
+          </div>
+        </fieldset>`;
+    }
+
     function bindMovieImportSiteButtons(form) {
       if (kind !== "movies") return;
       const valueInput = form.querySelector("#movieImportSite");
+      const buttons = Array.from(form.querySelectorAll(".import-site-button"));
+      if (!valueInput || !buttons.length) return;
+
+      function setActiveSite(site) {
+        valueInput.value = site;
+        buttons.forEach((button) => {
+          const isActive = button.dataset.importSite === site;
+          button.classList.toggle("active", isActive);
+          button.setAttribute("aria-pressed", String(isActive));
+        });
+      }
+
+      buttons.forEach((button) => {
+        button.addEventListener("click", () => setActiveSite(button.dataset.importSite || "auto"));
+      });
+      setActiveSite(valueInput.value || "auto");
+    }
+
+    function bindWebtoonImportSiteButtons(form) {
+      if (kind !== "webtoons") return;
+      const valueInput = form.querySelector("#webtoonImportSite");
       const buttons = Array.from(form.querySelectorAll(".import-site-button"));
       if (!valueInput || !buttons.length) return;
 
@@ -305,11 +398,119 @@
           throw new Error("부가정보 JSON 형식이 올바르지 않습니다.");
         }
       }
+      if (kind === "webtoons") {
+        payload.tage = payload.tage ? payload.tage.split(",").map((item) => item.trim()).filter(Boolean) : [];
+        payload.webtoon_images = [];
+        payload.webtoon_image_asset_ids = [];
+        delete payload.regdate;
+      }
+      if (kind === "webtoonChapters") {
+        payload.chapter_number = Number(payload.chapter_number || 0);
+        delete payload.regdate;
+      }
+      if (kind === "galleryImages") {
+        payload.tags = payload.tags ? payload.tags.split(",").map((item) => item.trim()).filter(Boolean) : [];
+        payload.is_visible = payload.is_visible === "true";
+        delete payload.regdate;
+      }
       return payload;
     }
 
+    function compactSlug(value) {
+      return String(value || "")
+        .replace(/\.[^.]+$/, "")
+        .normalize("NFKD")
+        .replace(/[^a-zA-Z0-9가-힣]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .toLowerCase();
+    }
+
+    function galleryAutoId(seed = "") {
+      const now = new Date();
+      const stamp = [
+        now.getFullYear(),
+        String(now.getMonth() + 1).padStart(2, "0"),
+        String(now.getDate()).padStart(2, "0"),
+        String(now.getHours()).padStart(2, "0"),
+        String(now.getMinutes()).padStart(2, "0"),
+        String(now.getSeconds()).padStart(2, "0")
+      ].join("");
+      const suffix = compactSlug(seed).slice(0, 28) || Math.random().toString(36).slice(2, 8);
+      return `GAL-${stamp}-${suffix}`.toUpperCase();
+    }
+
+    function galleryTitleFromFile(fileName = "") {
+      const base = String(fileName || "").replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim();
+      return base || `Gallery ${new Date().toISOString().slice(0, 10)}`;
+    }
+
+    function galleryImageInput(form) {
+      return form?.querySelector('[data-image-field="image"] .image-input') || null;
+    }
+
+    function imageFileFromClipboard(event) {
+      const items = event.clipboardData?.items || [];
+      for (let index = 0; index < items.length; index += 1) {
+        const item = items[index];
+        if (item.kind === "file" && item.type.startsWith("image/")) {
+          return item.getAsFile();
+        }
+      }
+      return null;
+    }
+
+    function setFileInputFile(input, file, source = "file-upload") {
+      if (!input || !file) return false;
+      const transfer = new DataTransfer();
+      const fileName = file.name && file.name !== "image.png"
+        ? file.name
+        : `clipboard-gallery-${Date.now()}.${(file.type.split("/")[1] || "png").replace("jpeg", "jpg")}`;
+      const normalizedFile = new File([file], fileName, { type: file.type || "image/png" });
+      transfer.items.add(normalizedFile);
+      input.dataset.galleryInputSource = source;
+      input.files = transfer.files;
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+      return true;
+    }
+
+    function galleryHasImage(form) {
+      const input = galleryImageInput(form);
+      const slot = form?.querySelector('[data-image-field="image"]');
+      const urlValue = slot?.querySelector('[name="url_image"]')?.value;
+      const assetValue = slot?.querySelector('[name="asset_image"]')?.value;
+      return Boolean(input?.files?.[0] || urlValue || assetValue);
+    }
+
+    function autofillGalleryFields(form, file) {
+      if (kind !== "galleryImages" || !form || editingItem) return;
+      const fileName = file?.name || "";
+      const values = {
+        gallery_image_id: galleryAutoId(fileName),
+        title: galleryTitleFromFile(fileName),
+        source: galleryImageInput(form)?.dataset.galleryInputSource || (fileName ? "file-upload" : "clipboard"),
+        tags: "gallery",
+        description: fileName ? `이미지 파일 ${fileName}` : "클립보드에서 붙여넣은 이미지"
+      };
+      Object.entries(values).forEach(([name, value]) => {
+        const field = form.querySelector(`[name="${name}"]`);
+        if (field && !field.value.trim()) field.value = value;
+      });
+    }
+
+    function applyGalleryDefaults(payload, form) {
+      if (kind !== "galleryImages") return;
+      const file = galleryImageInput(form)?.files?.[0] || null;
+      if (!galleryHasImage(form)) throw new Error("갤러리 이미지를 선택하거나 붙여넣어 주세요.");
+      if (!payload.gallery_image_id) payload.gallery_image_id = galleryAutoId(file?.name || payload.title);
+      if (!payload.title) payload.title = galleryTitleFromFile(file?.name);
+      if (!payload.source) payload.source = file?.name ? "file-upload" : "clipboard";
+      if (!payload.description) payload.description = file?.name ? `이미지 파일 ${file.name}` : "클립보드에서 붙여넣은 이미지";
+      if (!payload.tags || !payload.tags.length) payload.tags = ["gallery"];
+      payload.is_visible = payload.is_visible !== false;
+    }
+
     function ownerField(config) {
-      return config.arrayUrlKey ? `actor_${config.field}` : config.field;
+      return config.arrayUrlKey ? `${kind}_${config.field}` : config.field;
     }
 
     async function applyImagePayload(payload, form) {
@@ -359,52 +560,28 @@
       payload.image_asset_ids = compacted.map((item) => item.assetId).filter(Boolean);
     }
 
-    function addRemovedAssetFromSlot(slot) {
-      const assetId = slot.dataset.originalAssetId;
-      if (!assetId || removedAssets.some((asset) => String(asset.id) === String(assetId))) return;
-      removedAssets.push({
-        id: assetId,
-        bucket_id: slot.dataset.originalBucketId,
-        object_path: slot.dataset.originalObjectPath
-      });
+    function compactWebtoonImages(payload) {
+      if (kind !== "webtoons") return;
+      const compacted = payload.webtoon_images
+        .map((url, index) => ({ url, assetId: payload.webtoon_image_asset_ids[index] }))
+        .filter((item) => item.url || item.assetId);
+      payload.webtoon_images = compacted.map((item) => item.url);
+      payload.webtoon_image_asset_ids = compacted.map((item) => item.assetId).filter(Boolean);
     }
 
-    function bindImageFields() {
-      function clearSlot(slot) {
-        const fileInput = slot.querySelector(".image-input");
-        const preview = slot.querySelector(".image-preview");
-        const urlInput = slot.querySelector('input[name^="url_"]');
-        const assetInput = slot.querySelector('input[name^="asset_"]');
-        addRemovedAssetFromSlot(slot);
-        fileInput.value = "";
-        urlInput.value = "";
-        assetInput.value = "";
-        preview.classList.remove("has-image");
-        preview.innerHTML = "<span>이미지 없음</span>";
+    async function syncPendingWebtoonChapters(webtoonId) {
+      if (kind !== "webtoons" || !pendingWebtoonChapters.length || !webtoonId) return;
+      const existing = data.webtoonChapters || [];
+      for (const chapter of pendingWebtoonChapters) {
+        const payload = { ...chapter, webtoon_id: webtoonId };
+        const matched = existing.find((item) => String(item.webtoon_chapter_id) === String(payload.webtoon_chapter_id));
+        if (matched) {
+          data = await Store.update("webtoonChapters", matched.id, payload);
+        } else {
+          data = await Store.create("webtoonChapters", payload);
+        }
       }
-
-      formHost.querySelectorAll(".image-field").forEach((slot) => {
-        const fileInput = slot.querySelector(".image-input");
-        const preview = slot.querySelector(".image-preview");
-        const urlInput = slot.querySelector('input[name^="url_"]');
-        const assetInput = slot.querySelector('input[name^="asset_"]');
-
-        fileInput.addEventListener("change", () => {
-          const file = fileInput.files[0];
-          if (!file) return;
-          preview.classList.add("has-image");
-          preview.innerHTML = `<img src="${URL.createObjectURL(file)}" alt="선택 이미지 미리보기">`;
-          urlInput.value = "";
-          assetInput.value = "";
-        });
-      });
-
-      formHost.querySelectorAll(".image-clear-form").forEach((button) => {
-        button.addEventListener("click", () => {
-          const slot = formHost.querySelector(`[data-image-field="${button.dataset.targetImageField}"]`);
-          if (slot) clearSlot(slot);
-        });
-      });
+      pendingWebtoonChapters = [];
     }
 
     function localApiBase() {
@@ -523,6 +700,18 @@
       return await response.json();
     }
 
+    async function fetchWebtoonImport(url, site) {
+      const base = localApiBase();
+      if (!base) throw new Error("로컬 API 설정이 필요합니다");
+      const params = new URLSearchParams({ url, site: site || "auto" });
+      const response = await fetch(`${base}/metadata/webtoon?${params.toString()}`);
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || `가져오기 실패: HTTP ${response.status}`);
+      }
+      return await response.json();
+    }
+
     async function applyMovieImport(form, imported) {
       const categoryCode = await ensureImportCategory(imported, form);
       await ensureImportActors(imported, form);
@@ -573,6 +762,58 @@
         } catch (error) {
           if (status) status.textContent = "가져오기 실패";
           alert(`가져오기 실패: ${error.message}`);
+        } finally {
+          button.disabled = false;
+        }
+      });
+    }
+
+    function applyWebtoonImport(form, imported) {
+      setFieldValue(form, "webtoon_id", imported.webtoon_id);
+      setFieldValue(form, "title", imported.title);
+      setFieldValue(form, "rating", imported.rating);
+      setFieldValue(form, "alternative", imported.alternative || imported.summary || "");
+      setFieldValue(form, "artist", imported.artist);
+      setFieldValue(form, "genre", imported.genre);
+      setFieldValue(form, "type", imported.type);
+      setFieldValue(form, "tage", (imported.tage || []).join(", "));
+      setFieldValue(form, "url", imported.url);
+      setImageSlotUrl(form, "poster", imported.poster_image, "Poster Image");
+      (imported.webtoon_images || []).slice(0, 6).forEach((image, index) => {
+        setImageSlotUrl(form, `webtoon_image_${index + 1}`, image, `Webtoon Image ${index + 1}`);
+      });
+      pendingWebtoonChapters = (imported.chapters || []).map((chapter) => ({
+        webtoon_chapter_id: chapter.webtoon_chapter_id,
+        webtoon_id: imported.webtoon_id,
+        chapter_number: Number(chapter.chapter_number || 0),
+        chapter_url: chapter.chapter_url || "",
+        chapter_poster: chapter.chapter_poster || imported.poster_image || null
+      }));
+    }
+
+    function bindWebtoonImport(form) {
+      if (kind !== "webtoons") return;
+      const input = document.getElementById("webtoonImportInput");
+      const siteInput = document.getElementById("webtoonImportSite");
+      const button = document.getElementById("webtoonImportButton");
+      const status = document.getElementById("webtoonImportStatus");
+      if (!input || !button) return;
+
+      button.addEventListener("click", async () => {
+        const value = input.value.trim();
+        if (!value) {
+          alert("Webtoon 참조사이트 URL을 입력해 주세요.");
+          return;
+        }
+        button.disabled = true;
+        if (status) status.textContent = "조회 중...";
+        try {
+          const imported = await fetchWebtoonImport(value, siteInput?.value || "auto");
+          applyWebtoonImport(form, imported);
+          if (status) status.textContent = `가져오기 완료${pendingWebtoonChapters.length ? ` · Chapter ${pendingWebtoonChapters.length}건` : ""}`;
+        } catch (error) {
+          if (status) status.textContent = "가져오기 실패";
+          alert(`Webtoon 가져오기 실패: ${error.message}`);
         } finally {
           button.disabled = false;
         }
@@ -771,6 +1012,7 @@
         <form class="form-grid" id="entryForm">
           ${renderMovieImportPanel()}
           ${renderActorImportPanel()}
+          ${renderWebtoonImportPanel()}
           ${fieldSets[kind].map(inputFor).join("")}
           ${renderImageFields()}
           <div class="form-actions">
@@ -791,14 +1033,18 @@
       setSelectValues(form);
       bindImageFields();
       bindMovieImportSiteButtons(form);
+      bindWebtoonImportSiteButtons(form);
       bindMovieImport(form);
       bindActorImport(form);
+      bindWebtoonImport(form);
       form.addEventListener("submit", async (event) => {
         event.preventDefault();
         try {
           const payload = normalize(new FormData(form));
+          applyGalleryDefaults(payload, form);
           const uploadedAssetIds = await applyImagePayload(payload, form);
           compactActorImages(payload);
+          compactWebtoonImages(payload);
 
           if (isEdit) {
             // 메인전시로 설정하는 경우, 기존 메인전시 영화(본인 제외)를 미전시로 일괄 해제
@@ -807,11 +1053,27 @@
             }
             data = await Store.update(kind, editingItem[primaryKey], payload);
             await Store.updateMediaOwner(uploadedAssetIds, editingItem[primaryKey]);
+            await syncPendingWebtoonChapters(payload.webtoon_id || editingItem.webtoon_id);
             editingItem = data[kind].find((item) => String(item[primaryKey]) === String(editingItem[primaryKey])) || null;
           } else {
-            data = await Store.create(kind, payload);
-            const created = data[kind][0];
+            const existingWebtoon = kind === "webtoons"
+              ? (data.webtoons || []).find((item) => String(item.webtoon_id) === String(payload.webtoon_id))
+              : null;
+            if (existingWebtoon) {
+              data = await Store.update(kind, existingWebtoon[primaryKey], payload);
+            } else {
+              data = await Store.create(kind, payload);
+            }
+            const created = (data[kind] || []).find((item) => {
+              if (kind === "webtoons") return String(item.webtoon_id) === String(payload.webtoon_id);
+              if (kind === "galleryImages") return String(item.gallery_image_id) === String(payload.gallery_image_id);
+              return Object.entries(payload).every(([key, value]) => {
+                if (Array.isArray(value) || value === null || value === undefined) return true;
+                return String(item[key] ?? "") === String(value);
+              });
+            }) || existingWebtoon || data[kind][0];
             if (created && primaryKey) await Store.updateMediaOwner(uploadedAssetIds, created[primaryKey]);
+            await syncPendingWebtoonChapters(created?.webtoon_id || payload.webtoon_id);
             // 신규 등록 시에도 메인전시라면 기존 것 해제
             if (kind === "movies" && payload.is_main && created) {
               await Store.clearMainMovies(created[primaryKey]);
@@ -830,6 +1092,109 @@
       });
     }
 
+    function addRemovedAssetFromSlot(slot) {
+      const originalAssetId = slot?.getAttribute("data-original-asset-id");
+      if (originalAssetId && !removedAssets.includes(originalAssetId)) {
+        removedAssets.push(originalAssetId);
+      }
+    }
+
+    function clearSlot(slot) {
+      if (!slot) return;
+      const preview = slot.querySelector(".image-preview");
+      const urlInput = slot.querySelector('input[name^="url_"]');
+      const assetInput = slot.querySelector('input[name^="asset_"]');
+      const fileInput = slot.querySelector(".image-input");
+
+      addRemovedAssetFromSlot(slot);
+      if (fileInput) fileInput.value = "";
+      if (urlInput) urlInput.value = "";
+      if (assetInput) assetInput.value = "";
+      if (preview) {
+        preview.classList.remove("has-image");
+        preview.innerHTML = "<span>이미지 없음</span>";
+      }
+    }
+
+    function bindImageFields() {
+      const form = document.getElementById("entryForm");
+      if (!form) return;
+
+      form.querySelectorAll(".image-input").forEach((input) => {
+        const slot = input.closest(".image-field");
+        const label = slot?.querySelector("strong")?.textContent.trim() || "";
+
+        input.addEventListener("change", () => {
+          const preview = slot?.querySelector(".image-preview");
+          if (!input.files || !input.files[0]) {
+            if (preview) {
+              preview.classList.remove("has-image");
+              preview.innerHTML = "<span>이미지 없음</span>";
+            }
+            return;
+          }
+
+          const url = URL.createObjectURL(input.files[0]);
+          if (preview) {
+            preview.classList.add("has-image");
+            preview.innerHTML = `<img src="${UI.escapeHtml(url)}" alt="${UI.escapeHtml(label)} 미리보기">`;
+          }
+          autofillGalleryFields(form, input.files[0]);
+
+          addRemovedAssetFromSlot(slot);
+          const urlInput = slot?.querySelector('input[name^="url_"]');
+          const assetInput = slot?.querySelector('input[name^="asset_"]');
+          if (urlInput) urlInput.value = "";
+          if (assetInput) assetInput.value = "";
+        });
+
+        const pasteTarget = slot || input;
+        if (pasteTarget) {
+          pasteTarget.setAttribute("tabindex", "0");
+          pasteTarget.addEventListener("paste", (event) => {
+            const file = imageFileFromClipboard(event);
+            if (!file) return;
+            event.preventDefault();
+            setFileInputFile(input, file);
+          });
+        }
+      });
+
+      if (kind === "galleryImages" && form.dataset.boundGalleryPaste !== "true") {
+        form.dataset.boundGalleryPaste = "true";
+        form.addEventListener("paste", (event) => {
+          const target = event.target;
+          if (target && ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName) && target.type !== "file") return;
+          const file = imageFileFromClipboard(event);
+          if (!file) return;
+          const input = galleryImageInput(form);
+          if (setFileInputFile(input, file, "clipboard")) event.preventDefault();
+        });
+      }
+
+      if (kind === "galleryImages" && document.body.dataset.boundGalleryDocumentPaste !== "true") {
+        document.body.dataset.boundGalleryDocumentPaste = "true";
+        document.addEventListener("paste", (event) => {
+          const target = event.target;
+          if (target?.closest?.("#entryForm")) return;
+          if (target && ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName) && target.type !== "file") return;
+          const file = imageFileFromClipboard(event);
+          if (!file) return;
+          const currentForm = document.getElementById("entryForm");
+          const input = galleryImageInput(currentForm);
+          if (setFileInputFile(input, file, "clipboard")) event.preventDefault();
+        });
+      }
+
+      formHost.querySelectorAll(".image-clear-form").forEach((button) => {
+        button.addEventListener("click", () => {
+          const slot = formHost.querySelector(`[data-image-field="${button.dataset.targetImageField}"]`);
+          clearSlot(slot);
+        });
+      });
+    }
+
+
     function thumb(url, label) {
       if (!url) return `<span class="muted-text">없음</span>`;
       return `<img class="table-thumb" src="${UI.escapeHtml(url)}" alt="${UI.escapeHtml(label)}">`;
@@ -839,6 +1204,10 @@
       const key = UI.escapeHtml(item[primaryKey]);
       const detailLink = kind === "movies"
         ? `<a class="link-button" href="movie-detail.html?code=${UI.escapeHtml(item.movie_code || item[primaryKey])}">상세</a>`
+        : kind === "webtoons"
+          ? `<a class="link-button" href="../pages/webtoon.html?id=${UI.escapeHtml(item.webtoon_id || item[primaryKey])}">상세</a>`
+        : kind === "galleryImages"
+          ? `<a class="link-button" href="../pages/gallery.html?id=${UI.escapeHtml(item.gallery_image_id || item[primaryKey])}">상세</a>`
         : "";
       return `
         <div class="table-actions">
@@ -870,6 +1239,23 @@
           return `<tr><td class="table-movie-trigger" data-key="${key}" style="cursor:pointer;" title="클릭 시 조회 및 수정">${thumb(UI.movieImageUrl(item, ""), item.title)}</td><td class="table-movie-trigger" data-key="${key}" style="cursor:pointer;color:var(--accent-soft);font-weight:600;text-decoration:underline;" title="클릭 시 조회 및 수정">${UI.escapeHtml(item.movie_code)}</td><td>${UI.escapeHtml(item.category_name)}</td><td>${UI.escapeHtml(item.actor_names || item.actor_name)}</td><td>${UI.escapeHtml((item.director_names || []).join(", ") || "-")}</td><td><span class="rating">${UI.escapeHtml(item.rating_grade)}</span></td><td>${item.is_main ? '<span class="summary-pill" style="min-height:24px;background:var(--accent);color:#fff;border-color:var(--accent);font-weight:700;">전시</span>' : '<span class="summary-pill" style="min-height:24px;">미전시</span>'}</td><td>${UI.escapeHtml(Store.effectiveClickCount(item))}</td><td>${UI.escapeHtml(item.ranking_score || 0)}</td><td>${rowActions(item)}</td></tr>`;
         }).join("");
       }
+      if (kind === "webtoons") {
+        return items.map((item) => {
+          const key = UI.escapeHtml(item[primaryKey]);
+          const episodeCount = (data.webtoonChapters || []).filter((chapter) => String(chapter.webtoon_id) === String(item.webtoon_id)).length;
+          return `<tr><td class="table-record-trigger" data-key="${key}" style="cursor:pointer;" title="클릭 시 조회 및 수정">${thumb(item.poster_image, item.title)}</td><td class="table-record-trigger" data-key="${key}" style="cursor:pointer;color:var(--accent-soft);font-weight:600;text-decoration:underline;" title="클릭 시 조회 및 수정">${UI.escapeHtml(item.webtoon_id)}</td><td>${UI.escapeHtml(item.title)}</td><td>${UI.escapeHtml(item.artist || "-")}</td><td>${UI.escapeHtml(item.genre || "-")}</td><td>${UI.escapeHtml(episodeCount)}</td><td>${rowActions(item)}</td></tr>`;
+        }).join("");
+      }
+      if (kind === "webtoonChapters") {
+        return items.map((item) => `<tr><td>${thumb(item.chapter_poster, item.webtoon_chapter_id)}</td><td>${UI.escapeHtml(item.webtoon_chapter_id)}</td><td>${UI.escapeHtml(item.webtoon_id)}</td><td>${UI.escapeHtml(item.chapter_number)}</td><td>${item.chapter_url ? `<a class="link-button" href="${UI.escapeHtml(item.chapter_url)}" target="_blank" rel="noreferrer">열기</a>` : `<span class="muted-text">없음</span>`}</td><td>${rowActions(item)}</td></tr>`).join("");
+      }
+      if (kind === "galleryImages") {
+        return items.map((item) => {
+          const key = UI.escapeHtml(item[primaryKey]);
+          const tags = Array.isArray(item.tags) ? item.tags.join(", ") : item.tags || "";
+          return `<tr><td class="table-record-trigger" data-key="${key}" style="cursor:pointer;" title="클릭 시 조회 및 수정">${thumb(item.image_url || item.image_asset?.public_url, item.title)}</td><td class="table-record-trigger" data-key="${key}" style="cursor:pointer;color:var(--accent-soft);font-weight:600;text-decoration:underline;" title="클릭 시 조회 및 수정">${UI.escapeHtml(item.gallery_image_id)}</td><td>${UI.escapeHtml(item.title)}</td><td>${UI.escapeHtml(tags || "-")}</td><td>${item.is_visible === false ? "미전시" : "전시"}</td><td>${rowActions(item)}</td></tr>`;
+        }).join("");
+      }
       if (kind === "categories") {
         return items.map((item) => `<tr><td>${thumb(item.representative_image_url, item.name)}</td><td>${UI.escapeHtml(item.category_code)}</td><td>${UI.escapeHtml(item.name)}</td><td>${item.is_visible === false ? "미전시" : "전시"}</td><td>${rowActions(item)}</td></tr>`).join("");
       }
@@ -888,6 +1274,9 @@
 
     function headerRow() {
       if (kind === "movies") return "<tr><th>포스터</th><th>영화코드</th><th>카테고리</th><th>주연배우</th><th>감독</th><th>평가등급</th><th>메인전시</th><th>클릭수</th><th>랭킹</th><th>관리</th></tr>";
+      if (kind === "webtoons") return "<tr><th>포스터</th><th>Webtoon ID</th><th>Title</th><th>Artist</th><th>Genre</th><th>에피소드 개수</th><th>관리</th></tr>";
+      if (kind === "webtoonChapters") return "<tr><th>포스터</th><th>Chapter ID</th><th>Webtoon ID</th><th>Chapter</th><th>URL</th><th>관리</th></tr>";
+      if (kind === "galleryImages") return "<tr><th>이미지</th><th>Gallery ID</th><th>제목</th><th>태그</th><th>전시여부</th><th>관리</th></tr>";
       if (kind === "categories") return "<tr><th>대표이미지</th><th>코드</th><th>카테고리명</th><th>전시여부</th><th>관리</th></tr>";
       if (kind === "actors") return "<tr><th>대표이미지</th><th>배우명</th><th>작품수</th><th>데뷔년도</th><th>관리</th></tr>";
       if (kind === "commonCodes") return "<tr><th>코드그룹</th><th>코드값</th><th>표시명</th><th>정렬</th><th>사용여부</th><th>관리</th></tr>";
@@ -926,11 +1315,19 @@
           item.code_label
         ].some((value) => String(value || "").toLowerCase().includes(term)));
       }
+      if ((kind === "webtoons" || kind === "webtoonChapters" || kind === "galleryImages") && searchInput && searchInput.value.trim()) {
+        const term = searchInput.value.trim().toLowerCase();
+        filteredItems = allItems.filter((item) => Object.values(item).some((value) => {
+          if (Array.isArray(value)) return value.join(" ").toLowerCase().includes(term);
+          if (value && typeof value === "object") return false;
+          return String(value || "").toLowerCase().includes(term);
+        }));
+      }
 
       let paginatedItems = filteredItems;
       let totalPages = 1;
       
-      if (kind === "movies") {
+      if (kind === "movies" || kind === "webtoons" || kind === "webtoonChapters" || kind === "galleryImages") {
         const paginated = UI.paginate(filteredItems, currentPage, pageSize);
         paginatedItems = paginated.items;
         totalPages = paginated.totalPages;
@@ -965,7 +1362,7 @@
         }
       }
 
-      if (kind === "movies") {
+      if (kind === "movies" || kind === "webtoons" || kind === "webtoonChapters" || kind === "galleryImages") {
         const controlsDiv = document.createElement("div");
         controlsDiv.className = "toolbar";
         controlsDiv.style.marginTop = "16px";
@@ -1091,7 +1488,56 @@
         }
       }
     }
+    if (kind === "webtoons") {
+      const urlParams = new URLSearchParams(window.location.search);
+      const preloadId = urlParams.get("id");
+      if (preloadId) {
+        const matched = data.webtoons.find(
+          (item) => String(item.webtoon_id).toLowerCase() === String(preloadId).toLowerCase()
+        );
+        if (matched) {
+          editingItem = matched;
+          renderForm();
+          renderTable();
+          setTimeout(() => {
+            if (formHost) formHost.scrollIntoView({ behavior: "smooth", block: "start" });
+          }, 100);
+        }
+      }
+    }
+    if (kind === "galleryImages") {
+      const urlParams = new URLSearchParams(window.location.search);
+      const preloadId = urlParams.get("id");
+      if (preloadId) {
+        const matched = data.galleryImages.find(
+          (item) => String(item.gallery_image_id).toLowerCase() === String(preloadId).toLowerCase()
+        );
+        if (matched) {
+          editingItem = matched;
+          renderForm();
+          renderTable();
+          setTimeout(() => {
+            if (formHost) formHost.scrollIntoView({ behavior: "smooth", block: "start" });
+          }, 100);
+        }
+      }
+    }
+    } catch (err) {
+      UI.showError(err.message);
+      console.error(err);
+    }
   }
 
   window.CineTubeAdminPage = { init };
 })();
+
+
+
+
+
+
+
+
+
+
+

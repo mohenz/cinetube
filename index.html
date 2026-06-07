@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="ko">
   <head>
     <meta charset="utf-8">
@@ -20,12 +20,18 @@
       <nav class="side-nav">
         <a class="nav-item active" href="index.html"><span class="material-symbols-outlined">home</span>Home</a>
         <a class="nav-item" href="pages/movies.html"><span class="material-symbols-outlined">movie</span>영화목록</a>
+        <a class="nav-item" href="pages/favorites.html"><span class="material-symbols-outlined">favorite</span>관심작품</a>
         <a class="nav-item" href="pages/actors.html"><span class="material-symbols-outlined">movie_filter</span>주연배우</a>
         <a class="nav-item" href="pages/categories.html"><span class="material-symbols-outlined">category</span>카테고리</a>
         <a class="nav-item" href="pages/ratings.html"><span class="material-symbols-outlined">grade</span>평가등급</a>
-        <a class="nav-item" href="admin/index.html"><span class="material-symbols-outlined">admin_panel_settings</span>관리</a>
+        <span class="nav-divider" aria-hidden="true"></span>
+        <a class="nav-item" href="pages/webtoons.html"><span class="material-symbols-outlined">auto_stories</span>웹툰목록</a>
+        <a class="nav-item" href="pages/gallery.html"><span class="material-symbols-outlined">photo_library</span>갤러리</a>
       </nav>
-      <div class="db-status" id="dbStatus">Bloom Universe</div>
+      <div class="db-status" id="dbStatus">
+        <a class="db-admin-link" href="admin/index.html"><span class="material-symbols-outlined">admin_panel_settings</span>관리</a>
+        <span class="db-status-label">Bloom Universe</span>
+      </div>
     </aside>
 
     <header class="topbar">
@@ -34,7 +40,7 @@
         <span class="material-symbols-outlined">search</span>
         <input id="searchInput" type="search" placeholder="영화제목, 영화코드, 배우, 태그 검색">
       </div>
-      <a class="primary-button" href="admin/movies.html"><span class="material-symbols-outlined">add</span>신규 등록</a>
+      <button class="primary-button" id="homeSearchButton" type="button"><span class="material-symbols-outlined">keyboard_return</span>검색하기</button>
     </header>
 
     <main class="app-shell">
@@ -48,8 +54,19 @@
     <script src="assets/js/supabase-config.js"></script>
     <script src="assets/js/local-db-config.js"></script>
     <script src="assets/js/shared/sample-data.js"></script>
-    <script src="assets/js/shared/store.js"></script>
-    <script src="assets/js/shared/ui.js"></script>
-    <script src="assets/js/pages/home.js"></script>
+    <script src="assets/js/shared/store.js?v=favorites-db"></script>
+    <script src="assets/js/shared/ui.js?v=favorites"></script>
+    <script src="assets/js/pages/home.js?v=movie-count-10"></script>
   </body>
 </html>
+
+
+
+
+
+
+
+
+
+
+

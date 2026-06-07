@@ -1,4 +1,4 @@
-(function () {
+﻿(function () {
   const imageBucket = "cinetube-images";
   const tableNames = {
     movies: "movies",
@@ -6,6 +6,10 @@
     actors: "actors",
     ratings: "rating_grades",
     commonCodes: "common_codes",
+    favoriteMovies: "favorite_movies",
+    galleryImages: "gallery_images",
+    webtoons: "webtoons",
+    webtoonChapters: "webtoon_chapters",
     mediaAssets: "media_assets"
   };
 
@@ -14,7 +18,11 @@
     categories: "category_code",
     actors: "id",
     ratings: "grade",
-    commonCodes: "id"
+    commonCodes: "id",
+    favoriteMovies: "id",
+    galleryImages: "id",
+    webtoons: "id",
+    webtoonChapters: "id"
   };
 
   const state = {
@@ -26,8 +34,24 @@
     status: { connected: false, message: "샘플 데이터 사용 중" }
   };
 
+  const favoriteUserKeyStorageKey = "cinetube_favorite_user_key";
+  const legacyFavoriteMoviesStorageKey = "cinetube_favorite_movies";
+
   function clone(value) {
     return JSON.parse(JSON.stringify(value));
+  }
+
+  function favoriteUserKey() {
+    try {
+      let key = localStorage.getItem(favoriteUserKeyStorageKey);
+      if (!key) {
+        key = `browser-${crypto.randomUUID ? crypto.randomUUID() : Date.now()}`;
+        localStorage.setItem(favoriteUserKeyStorageKey, key);
+      }
+      return key;
+    } catch (error) {
+      return "local";
+    }
   }
 
   function defaultCommonCodes() {
@@ -72,6 +96,12 @@
     const actorsById = new Map(data.actors.map((item) => [String(item.id), item]));
     const mediaById = new Map((data.mediaAssets || []).map((item) => [String(item.id), item]));
     const ratingOrder = new Map(data.ratings.map((item) => [item.grade, Number(item.display_order || 99)]));
+    const webtoonChaptersByWebtoon = new Map();
+    (data.webtoonChapters || []).forEach((chapter) => {
+      const key = String(chapter.webtoon_id || "");
+      if (!webtoonChaptersByWebtoon.has(key)) webtoonChaptersByWebtoon.set(key, []);
+      webtoonChaptersByWebtoon.get(key).push(chapter);
+    });
     const movies = data.movies.map((movie) => {
       const category = categoriesByCode.get(movie.category_code) || {};
       const actorIds = (Array.isArray(movie.actor_ids) && movie.actor_ids.length ? movie.actor_ids : [movie.actor_id])
@@ -106,7 +136,74 @@
       representative_image_asset: mediaById.get(String(actor.representative_image_asset_id)) || null,
       image_assets: Array.isArray(actor.image_asset_ids) ? actor.image_asset_ids.map((id) => mediaById.get(String(id))).filter(Boolean) : []
     }));
-    return { ...data, categories, actors, movies, commonCodes: data.commonCodes || defaultCommonCodes() };
+    const webtoonChapters = (data.webtoonChapters || []).map((chapter) => ({
+      ...chapter,
+      chapter_poster_asset: mediaById.get(String(chapter.chapter_poster_asset_id)) || null
+    })).sort((a, b) => Number(a.chapter_number || 0) - Number(b.chapter_number || 0));
+    const webtoons = (data.webtoons || []).map((webtoon) => ({
+      ...webtoon,
+      poster_image_asset: mediaById.get(String(webtoon.poster_image_asset_id)) || null,
+      webtoon_image_assets: Array.isArray(webtoon.webtoon_image_asset_ids) ? webtoon.webtoon_image_asset_ids.map((id) => mediaById.get(String(id))).filter(Boolean) : [],
+      webtoon_images: Array.isArray(webtoon.webtoon_images) ? webtoon.webtoon_images : [],
+      tags: Array.isArray(webtoon.tage) ? webtoon.tage : String(webtoon.tage || "").split(",").map((item) => item.trim()).filter(Boolean),
+      chapters: (webtoonChaptersByWebtoon.get(String(webtoon.webtoon_id || "")) || []).sort((a, b) => Number(a.chapter_number || 0) - Number(b.chapter_number || 0))
+    }));
+    const galleryImages = (data.galleryImages || []).map((image) => ({
+      ...image,
+      image_asset: mediaById.get(String(image.image_asset_id)) || null,
+      tags: Array.isArray(image.tags) ? image.tags : String(image.tags || "").split(",").map((item) => item.trim()).filter(Boolean)
+    }));
+    return { ...data, categories, actors, movies, webtoons, webtoonChapters, galleryImages, commonCodes: data.commonCodes || defaultCommonCodes(), favoriteMovies: data.favoriteMovies || [] };
+  }
+
+  function legacyFavoriteMovieCodes() {
+    try {
+      const codes = JSON.parse(localStorage.getItem(legacyFavoriteMoviesStorageKey) || "[]");
+      return Array.isArray(codes) ? codes.map(String).filter(Boolean) : [];
+    } catch (error) {
+      return [];
+    }
+  }
+
+  function clearLegacyFavoriteMovieCodes() {
+    try {
+      localStorage.removeItem(legacyFavoriteMoviesStorageKey);
+    } catch (error) {
+      console.warn("기존 관심작품 로컬 캐시 삭제를 건너뜁니다.", error);
+    }
+  }
+
+  async function migrateLegacyFavorites() {
+    const codes = legacyFavoriteMovieCodes();
+    if (!codes.length || !state.data || state.mode === "sample") return;
+    const userKey = favoriteUserKey();
+    const existing = new Set((state.data.favoriteMovies || [])
+      .filter((item) => item.user_key === userKey && item.content_type === "movie")
+      .map((item) => String(item.content_id)));
+    const payloads = codes
+      .filter((code) => !existing.has(String(code)))
+      .map((code) => ({ user_key: userKey, content_type: "movie", content_id: String(code), metadata: { migrated_from: "localStorage" } }));
+    if (!payloads.length) {
+      clearLegacyFavoriteMovieCodes();
+      return;
+    }
+
+    try {
+      if (state.mode === "local") {
+        for (const payload of payloads) {
+          const inserted = await insertLocal("favoriteMovies", payload);
+          if (inserted) state.data.favoriteMovies.unshift(inserted);
+        }
+      } else if (state.client) {
+        const { data, error } = await state.client.from(tableNames.favoriteMovies).insert(payloads).select("*");
+        if (error) throw error;
+        state.data.favoriteMovies.unshift(...(data || []));
+      }
+      clearLegacyFavoriteMovieCodes();
+      resetData(state.data);
+    } catch (error) {
+      console.warn("기존 관심작품 DB 이전을 건너뜁니다.", error);
+    }
   }
 
   async function fetchTable(client, kind) {
@@ -210,20 +307,25 @@
       state.mode = "local";
       state.client = null;
       try {
-        const [movies, categories, actors, ratings, commonCodes, mediaAssets] = await Promise.all([
+        const [movies, categories, actors, ratings, commonCodes, favoriteMovies, webtoons, webtoonChapters, galleryImages, mediaAssets] = await Promise.all([
           fetchTable(null, "movies"),
           fetchTable(null, "categories"),
           fetchTable(null, "actors"),
           fetchTable(null, "ratings"),
           fetchOptionalTable(null, "commonCodes"),
+          fetchOptionalTable(null, "favoriteMovies"),
+          fetchOptionalTable(null, "webtoons"),
+          fetchOptionalTable(null, "webtoonChapters"),
+          fetchOptionalTable(null, "galleryImages"),
           fetchOptionalTable(null, "mediaAssets")
         ]);
-        state.data = enrich({ movies, categories, actors, ratings, commonCodes, mediaAssets });
+        state.data = enrich({ movies, categories, actors, ratings, commonCodes, favoriteMovies, webtoons, webtoonChapters, galleryImages, mediaAssets });
+        await migrateLegacyFavorites();
         state.status = { connected: true, message: "Local PostgreSQL 연결됨" };
         return state.data;
       } catch (error) {
         console.error(error);
-        state.data = enrich({ ...clone(window.CineTubeSampleData), commonCodes: defaultCommonCodes(), mediaAssets: [] });
+        state.data = enrich({ ...clone(window.CineTubeSampleData), commonCodes: defaultCommonCodes(), favoriteMovies: [], webtoons: [], webtoonChapters: [], galleryImages: [], mediaAssets: [] });
         state.status = { connected: false, message: "Local DB 오류: 샘플 데이터" };
         return state.data;
       }
@@ -233,26 +335,31 @@
     state.client = createClient();
     if (!state.client) {
       state.mediaAssetsReady = true;
-      state.data = enrich({ ...clone(window.CineTubeSampleData), commonCodes: defaultCommonCodes(), mediaAssets: [] });
+      state.data = enrich({ ...clone(window.CineTubeSampleData), commonCodes: defaultCommonCodes(), favoriteMovies: legacyFavoriteMovieCodes().map((code, index) => ({ id: -index - 1, user_key: favoriteUserKey(), content_type: "movie", content_id: code })), webtoons: [], webtoonChapters: [], galleryImages: [], mediaAssets: [] });
       state.status = { connected: false, message: "DB 미설정: 샘플 데이터" };
       return state.data;
     }
 
     try {
-      const [movies, categories, actors, ratings, commonCodes, mediaAssets] = await Promise.all([
+      const [movies, categories, actors, ratings, commonCodes, favoriteMovies, webtoons, webtoonChapters, galleryImages, mediaAssets] = await Promise.all([
         fetchTable(state.client, "movies"),
         fetchTable(state.client, "categories"),
         fetchTable(state.client, "actors"),
         fetchTable(state.client, "ratings"),
         fetchOptionalTable(state.client, "commonCodes"),
+        fetchOptionalTable(state.client, "favoriteMovies"),
+        fetchOptionalTable(state.client, "webtoons"),
+        fetchOptionalTable(state.client, "webtoonChapters"),
+        fetchOptionalTable(state.client, "galleryImages"),
         fetchOptionalTable(state.client, "mediaAssets")
       ]);
-      state.data = enrich({ movies, categories, actors, ratings, commonCodes, mediaAssets });
+      state.data = enrich({ movies, categories, actors, ratings, commonCodes, favoriteMovies, webtoons, webtoonChapters, galleryImages, mediaAssets });
+      await migrateLegacyFavorites();
       state.status = { connected: true, message: "Supabase 연결됨" };
       return state.data;
     } catch (error) {
       console.error(error);
-      state.data = enrich({ ...clone(window.CineTubeSampleData), commonCodes: defaultCommonCodes(), mediaAssets: [] });
+      state.data = enrich({ ...clone(window.CineTubeSampleData), commonCodes: defaultCommonCodes(), favoriteMovies: legacyFavoriteMovieCodes().map((code, index) => ({ id: -index - 1, user_key: favoriteUserKey(), content_type: "movie", content_id: code })), webtoons: [], webtoonChapters: [], galleryImages: [], mediaAssets: [] });
       state.status = { connected: false, message: "Supabase 오류: 샘플 데이터" };
       return state.data;
     }
@@ -297,7 +404,7 @@
       state.data[kind].unshift(data);
     } else {
       const next = { ...payload };
-      if (kind === "movies" || kind === "actors") next.id = Date.now();
+      if (kind === "movies" || kind === "actors" || kind === "webtoons" || kind === "webtoonChapters" || kind === "galleryImages" || kind === "favoriteMovies") next.id = Date.now();
       if (kind !== "ratings") next.created_at = new Date().toISOString();
       state.data[kind].unshift(next);
     }
@@ -363,6 +470,64 @@
     }
     state.data[kind] = state.data[kind].filter((item) => String(item[primaryKey]) !== String(keyValue));
     return resetData(state.data);
+  }
+
+  function favoriteContentId(contentOrId, contentType = "movie") {
+    if (typeof contentOrId === "object") {
+      if (contentType === "webtoon") return String(contentOrId?.webtoon_id || contentOrId?.id || "");
+      if (contentType === "gallery") return String(contentOrId?.gallery_image_id || contentOrId?.id || "");
+      return String(contentOrId?.movie_code || contentOrId?.id || "");
+    }
+    return String(contentOrId || "");
+  }
+
+  function favoriteItems(contentType = "movie") {
+    const userKey = favoriteUserKey();
+    return (state.data?.favoriteMovies || []).filter((item) => (
+      item.user_key === userKey
+      && item.content_type === contentType
+    ));
+  }
+
+  function favoriteIds(contentType = "movie") {
+    return favoriteItems(contentType).map((item) => String(item.content_id));
+  }
+
+  function isFavoriteItem(contentType, contentOrId) {
+    const contentId = favoriteContentId(contentOrId, contentType);
+    return Boolean(contentId) && favoriteIds(contentType).includes(contentId);
+  }
+
+  async function toggleFavoriteItem(contentType, contentOrId) {
+    await load();
+    const contentId = favoriteContentId(contentOrId, contentType);
+    if (!contentId) return false;
+    const userKey = favoriteUserKey();
+    const existing = (state.data.favoriteMovies || []).find((item) => (
+      item.user_key === userKey
+      && item.content_type === contentType
+      && String(item.content_id) === contentId
+    ));
+    if (existing) {
+      if (state.mode === "sample") {
+        const nextCodes = legacyFavoriteMovieCodes().filter((code) => code !== contentId);
+        localStorage.setItem(legacyFavoriteMoviesStorageKey, JSON.stringify(nextCodes));
+      }
+      await remove("favoriteMovies", existing.id);
+      return false;
+    }
+
+    const payload = {
+      user_key: userKey,
+      content_type: contentType,
+      content_id: contentId,
+      metadata: {}
+    };
+    if (state.mode === "sample" && contentType === "movie") {
+      localStorage.setItem(legacyFavoriteMoviesStorageKey, JSON.stringify([...new Set([...legacyFavoriteMovieCodes(), contentId])]));
+    }
+    await create("favoriteMovies", payload);
+    return true;
   }
 
   async function recordMovieClick(movieCode) {
@@ -540,6 +705,11 @@
     remove,
     recordMovieClick,
     effectiveClickCount,
+    favoriteUserKey,
+    favoriteIds,
+    favoriteItems,
+    isFavoriteItem,
+    toggleFavoriteItem,
     uploadMedia,
     updateMediaOwner,
     deleteMedia,
@@ -551,3 +721,14 @@
     primaryKeys
   };
 })();
+
+
+
+
+
+
+
+
+
+
+
