@@ -1,4 +1,4 @@
-# CineTube
+﻿# CineTube
 
 PC 웹 우선, 모바일 반응형 영화정보 관리 사이트입니다. 화면은 단일 앱 파일에 모으지 않고 HTML과 화면 진입 JS를 화면별로 분리했습니다.
 
@@ -65,7 +65,13 @@ cd D:\workspace\cinetube
 python -m http.server 8080
 ```
 
-브라우저에서 `http://localhost:8080`으로 접속합니다. 기본 설정은 `assets/js/local-db-config.js`의 `http://localhost:3001` 로컬 API를 우선 사용합니다. 로그인은 필요하지 않습니다.
+브라우저에서 `http://localhost:8080`으로 접속합니다. 기본 설정은 `assets/js/local-db-config.js`의 도메인 기반 API 선택을 사용합니다. `localhost`/`127.0.0.1` 접속은 `http://127.0.0.1:3001` 로컬 API를 사용하고, Vercel 배포 도메인은 같은 프로젝트의 `/api` Function을 사용합니다. 로그인은 필요하지 않습니다.
+
+## 배포 API 설정
+
+배포본은 브라우저 도메인에 따라 API를 선택합니다. `assets/js/local-db-config.js`의 `cloudUrl`은 기본 `/api`이며, `cinetube-gray.vercel.app` 접속 시 Vercel Python Function을 호출합니다.
+
+배포 API가 Supabase PostgreSQL을 보도록 하려면 API 서버 환경변수에 `DATABASE_URL`을 지정하거나, `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE`, `PGSSLMODE=require`를 설정합니다.
 
 ## 클라우드 DB 데이터 마이그레이션
 
@@ -93,3 +99,14 @@ python -m http.server 8080
 ```
 
 설정이 비어 있으면 샘플 데이터로 화면이 동작합니다.
+
+
+
+
+
+
+
+
+
+
+

@@ -4,6 +4,10 @@
   UI.setupChrome();
 
   let data = await Store.load();
+  if (Store.loadGalleryImagesWithUrls) {
+    await Store.loadGalleryImagesWithUrls();
+    data = await Store.load();
+  }
   UI.setDbStatus(Store.getStatus());
 
   const params = new URLSearchParams(window.location.search);

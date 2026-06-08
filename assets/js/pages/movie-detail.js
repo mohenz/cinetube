@@ -1,16 +1,20 @@
-(async function () {
+﻿(async function () {
   const UI = window.CineTubeUI;
   const Store = window.CineTubeStore;
   UI.setupChrome();
   const isAdminDetail = document.body.dataset.adminDetail === "true";
 
-  const data = await Store.load();
+  let data = await Store.load();
   UI.setDbStatus(Store.getStatus());
 
   const params = new URLSearchParams(window.location.search);
   const code = params.get("code") || "";
   const detail = document.getElementById("movieDetail");
   const codeDisplay = document.getElementById("movieCodeDisplay");
+  if (code && Store.loadMovieWithUrls) {
+    await Store.loadMovieWithUrls(code);
+    data = await Store.load();
+  }
   const movie = data.movies.find((item) => String(item.movie_code) === String(code) || String(item.id) === String(code));
 
   if (codeDisplay) codeDisplay.value = code || "영화정보";
@@ -33,6 +37,7 @@
   const movieAssets = [movie.poster_asset, movie.capture_asset, movie.snapshot_asset].filter(Boolean);
   const rottenTomatoesScore = movie.rotten_tomatoes_score;
   const isMainMovie = movie.is_main === true;
+  const isFavoriteMovie = UI.isFavoriteMovie(movie);
 
   detail.innerHTML = `
     <section class="movie-detail">
@@ -50,8 +55,8 @@
         </div>
         <p class="movie-description">${UI.escapeHtml(movie.description || "등록된 주요내용이 없습니다.")}</p>
         <div class="detail-list movie-detail-list">
-          <div><span>주연배우</span><strong>${UI.escapeHtml(movie.actor_names || movie.actor_name || "-")}</strong></div>
-          <div><span>영화감독</span><strong>${UI.escapeHtml((movie.director_names || []).join(", ") || "-")}</strong></div>
+          <div><span>주연배우</span><a href="actor.html?id=${encodeURIComponent(movie.actor_ids?.[0] || movie.actor_id || '')}"><strong>${UI.escapeHtml(movie.actor_names || movie.actor_name || "-")}</strong></a></div>
+          <div><span>영화감독</span><strong>${UI.escapeHtml((movie.director_names || []).join(", ") || "-")}</strong></span></div>
           <div><span>출시년월</span><strong>${UI.escapeHtml(movie.release_month || "-")}</strong></div>
           <div><span>제작사</span><strong>${UI.escapeHtml(movie.production_company || "-")}</strong></div>
           <div><span>추천점수</span><strong>${UI.escapeHtml(movie.recommendation_score || 0)}</strong></div>
@@ -62,6 +67,7 @@
           ${keywords.length ? keywords.map((keyword) => `<span>${UI.escapeHtml(keyword)}</span>`).join("") : `<span>키워드 없음</span>`}
         </div>
         <div class="hero-actions">
+          <button class="ghost-button favorite-toggle detail-favorite-toggle ${isFavoriteMovie ? "active" : ""}" type="button" id="toggleFavoriteMovie" data-favorite-code="${UI.escapeHtml(movie.movie_code || movie.id || "")}" aria-pressed="${isFavoriteMovie ? "true" : "false"}"><span class="material-symbols-outlined">${isFavoriteMovie ? "favorite" : "favorite_border"}</span><span class="favorite-label">관심작품</span></button>
           ${movie.video_url ? `<a class="primary-button" href="${UI.escapeHtml(movie.video_url)}" target="_blank" rel="noreferrer"><span class="material-symbols-outlined">open_in_new</span>영상 링크</a>` : ""}
           ${movie.source_url ? `<a class="ghost-button" href="${UI.escapeHtml(movie.source_url)}" target="_blank" rel="noreferrer"><span class="material-symbols-outlined">source</span>정보출처</a>` : ""}
           ${isAdminDetail ? `<button class="ghost-button main-action${isMainMovie ? " active" : ""}" type="button" id="toggleMainMovie"><span class="material-symbols-outlined">${isMainMovie ? "star" : "star_border"}</span>${isMainMovie ? "메인전시 해제" : "메인전시 등록"}</button>` : ""}
@@ -72,8 +78,70 @@
     </section>
     <section class="movie-image-strip">
       ${captureUrl ? `<img src="${UI.escapeHtml(captureUrl)}" alt="${UI.escapeHtml(movie.title)} 캡쳐">` : ""}
-      ${snapshotUrl ? `<img src="${UI.escapeHtml(snapshotUrl)}" alt="${UI.escapeHtml(movie.title)} 스냅샷">` : ""}
+      ${snapshotUrl ? `<img class="snapshot-preview-image" id="openSnapshotPreview" src="${UI.escapeHtml(snapshotUrl)}" alt="${UI.escapeHtml(movie.title)} 스냅샷" role="button" tabindex="0" data-snapshot-preview="true" aria-label="${UI.escapeHtml(movie.title)} 스냅샷 전체보기">` : ""}
     </section>`;
+
+  // Generate related movies (up to 10) based on actor, category, or production company
+  const relatedCandidates = data.movies.filter(m => m.id !== movie.id);
+  const related = [];
+  while (related.length < 10 && relatedCandidates.length) {
+    const mode = Math.random();
+    let pool;
+    if (mode < 0.33) {
+      pool = relatedCandidates.filter(m => m.actor_ids?.some(id => movie.actor_ids?.includes(id)));
+    } else if (mode < 0.66) {
+      pool = relatedCandidates.filter(m => m.category_code === movie.category_code);
+    } else {
+      pool = relatedCandidates.filter(m => m.production_company === movie.production_company);
+    }
+    if (!pool.length) pool = relatedCandidates;
+    const idx = Math.floor(Math.random() * pool.length);
+    const sel = pool[idx];
+    related.push(sel);
+    const globalIdx = relatedCandidates.findIndex(m => m.id === sel.id);
+    relatedCandidates.splice(globalIdx, 1);
+  }
+  const relatedHtml = UI.movieSection('연관 영화', '', related);
+  detail.insertAdjacentHTML('beforeend', relatedHtml);
+  UI.setupMovieCards(detail);
+  UI.setupFavoriteButtons(detail);
+
+  const snapshotImage = document.getElementById("openSnapshotPreview");
+  if (snapshotImage) {
+    const openSnapshotModal = () => {
+      const existing = document.getElementById("snapshotModal");
+      if (existing) existing.remove();
+      const modal = document.createElement("div");
+      modal.className = "image-modal";
+      modal.id = "snapshotModal";
+      modal.setAttribute("role", "dialog");
+      modal.setAttribute("aria-modal", "true");
+      modal.setAttribute("aria-label", "스냅샷 전체보기");
+      modal.innerHTML = `
+        <button class="image-modal-close" type="button" aria-label="닫기"><span class="material-symbols-outlined">close</span></button>
+        <img src="${UI.escapeHtml(snapshotUrl)}" alt="${UI.escapeHtml(movie.title)} 스냅샷 전체 이미지">
+      `;
+      document.body.appendChild(modal);
+      const closeButton = modal.querySelector(".image-modal-close");
+      const close = () => modal.remove();
+      closeButton.addEventListener("click", close);
+      modal.addEventListener("click", (event) => {
+        if (event.target === modal) close();
+      });
+      document.addEventListener("keydown", function onEscape(event) {
+        if (event.key !== "Escape") return;
+        close();
+        document.removeEventListener("keydown", onEscape);
+      });
+      closeButton.focus();
+    };
+    snapshotImage.addEventListener("click", openSnapshotModal);
+    snapshotImage.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      openSnapshotModal();
+    });
+  }
 
   const mainButton = document.getElementById("toggleMainMovie");
   const mainStatus = document.getElementById("mainDisplayStatus");
@@ -129,3 +197,14 @@
     });
   }
 })();
+
+
+
+
+
+
+
+
+
+
+

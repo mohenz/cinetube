@@ -13,6 +13,44 @@
     mediaAssets: "media_assets"
   };
 
+  const localTableColumns = {
+    movies: [
+      "id", "title", "movie_code", "category_code", "actor_id", "actor_ids", "director_names",
+      "source_url", "keywords", "rating_grade", "video_url", "description", "poster_url",
+      "poster_asset_id", "capture_url", "capture_asset_id", "snapshot_asset_id", "release_month",
+      "production_company", "recommendation_score", "rotten_tomatoes_score", "ranking_score",
+      "click_count", "is_main", "created_at"
+    ],
+    categories: [
+      "category_code", "name", "representative_image_url", "representative_image_asset_id",
+      "is_visible", "created_at"
+    ],
+    actors: [
+      "id", "name", "age", "height_cm", "body_size", "debut_year", "representative_image_url",
+      "representative_image_asset_id", "image_urls", "image_asset_ids", "created_at"
+    ],
+    ratings: ["grade", "display_order"],
+    commonCodes: ["id", "code_group", "code_value", "code_label", "display_order", "is_enabled", "extra", "created_at"],
+    favoriteMovies: ["id", "user_key", "content_type", "content_id", "note", "metadata", "created_at"],
+    galleryImages: [
+      "id", "gallery_image_id", "title", "description", "image_asset_id",
+      "source", "tags", "is_visible", "regdate", "created_at"
+    ],
+    webtoons: [
+      "id", "webtoon_id", "title", "rating", "alternative", "artist", "genre", "type",
+      "tage", "poster_image", "poster_image_asset_id", "url", "webtoon_images",
+      "webtoon_image_asset_ids", "created_at"
+    ],
+    webtoonChapters: [
+      "id", "webtoon_chapter_id", "webtoon_id", "chapter_number", "chapter_url",
+      "chapter_poster", "chapter_poster_asset_id", "created_at"
+    ],
+    mediaAssets: [
+      "id", "bucket_id", "object_path", "original_name", "mime_type", "size_bytes",
+      "owner_table", "owner_field", "owner_id", "sort_order", "created_at"
+    ]
+  };
+
   const primaryKeys = {
     movies: "id",
     categories: "category_code",
@@ -70,13 +108,13 @@
   }
 
   function hasLocalApiConfig() {
-    const config = window.CINETUBE_LOCAL_API || {};
-    return Boolean(config.url);
+    return Boolean(createLocalApiBase());
   }
 
   function createLocalApiBase() {
     const config = window.CINETUBE_LOCAL_API || {};
-    return String(config.url || "").replace(/\/$/, "");
+    const url = typeof config.url === "function" ? config.url() : config.url;
+    return String(url || "").replace(/\/$/, "");
   }
 
   function createClient() {
@@ -247,7 +285,8 @@
     const table = tableNames[kind];
     const orderColumn = kind === "ratings" || kind === "commonCodes" ? "display_order" : "created_at";
     const direction = kind === "ratings" || kind === "commonCodes" ? "asc" : "desc";
-    return await requestLocal(`/${table}?select=*&order=${orderColumn}.${direction}`) || [];
+    const columns = localTableColumns[kind]?.join(",") || "*";
+    return await requestLocal(`/${table}?select=${encodeURIComponent(columns)}&order=${orderColumn}.${direction}`) || [];
   }
 
   async function insertLocal(kind, payload) {
@@ -321,12 +360,12 @@
         ]);
         state.data = enrich({ movies, categories, actors, ratings, commonCodes, favoriteMovies, webtoons, webtoonChapters, galleryImages, mediaAssets });
         await migrateLegacyFavorites();
-        state.status = { connected: true, message: "Local PostgreSQL 연결됨" };
+        state.status = { connected: true, message: "CineTube API 연결됨" };
         return state.data;
       } catch (error) {
         console.error(error);
         state.data = enrich({ ...clone(window.CineTubeSampleData), commonCodes: defaultCommonCodes(), favoriteMovies: [], webtoons: [], webtoonChapters: [], galleryImages: [], mediaAssets: [] });
-        state.status = { connected: false, message: "Local DB 오류: 샘플 데이터" };
+        state.status = { connected: false, message: "CineTube API 오류: 샘플 데이터" };
         return state.data;
       }
     }
@@ -470,6 +509,37 @@
     }
     state.data[kind] = state.data[kind].filter((item) => String(item[primaryKey]) !== String(keyValue));
     return resetData(state.data);
+  }
+
+  async function loadGalleryImagesWithUrls() {
+    await load();
+    if (state.mode !== "local") return state.data.galleryImages || [];
+    const galleryImages = await requestLocal(`/${tableNames.galleryImages}?select=*&order=created_at.desc`) || [];
+    resetData({ ...state.data, galleryImages });
+    return state.data.galleryImages || [];
+  }
+
+  async function loadMovieWithUrls(codeOrId) {
+    await load();
+    const key = String(codeOrId || "");
+    if (!key) return null;
+    if (state.mode !== "local") {
+      return state.data.movies.find((item) => String(item.movie_code) === key || String(item.id) === key) || null;
+    }
+    let rows = await requestLocal(`/${tableNames.movies}?select=*&movie_code=eq.${encodeFilterValue(key)}&order=created_at.desc`) || [];
+    if (!rows.length) rows = await requestLocal(`/${tableNames.movies}?select=*&id=eq.${encodeFilterValue(key)}&order=created_at.desc`) || [];
+    const movie = rows[0] || null;
+    if (!movie) return null;
+    const movies = state.data.movies.map((item) => String(item.id) === String(movie.id) ? movie : item);
+    if (!movies.some((item) => String(item.id) === String(movie.id))) movies.unshift(movie);
+    resetData({ ...state.data, movies });
+    return state.data.movies.find((item) => String(item.id) === String(movie.id)) || null;
+  }
+
+  async function databaseMetadata() {
+    await load();
+    if (state.mode !== "local") return null;
+    return await requestLocal("/metadata/database");
   }
 
   function favoriteContentId(contentOrId, contentType = "movie") {
@@ -714,6 +784,9 @@
     updateMediaOwner,
     deleteMedia,
     clearMainMovies,
+    loadGalleryImagesWithUrls,
+    loadMovieWithUrls,
+    databaseMetadata,
     signIn,
     signOut,
     isAuthenticated,

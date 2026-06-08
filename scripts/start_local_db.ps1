@@ -1,4 +1,4 @@
-param(
+﻿param(
   [switch]$Reset
 )
 
@@ -18,9 +18,15 @@ $MarkerPath = Join-Path $ProjectRoot "local\.schema_applied"
 $ApiScript = Join-Path $ProjectRoot "scripts\local_api.py"
 $ApiOutLog = Join-Path $ProjectRoot "local\api.out.log"
 $ApiErrLog = Join-Path $ProjectRoot "local\api.err.log"
+$RequirementsPath = Join-Path $ProjectRoot "requirements.txt"
 
 if (-not (Test-Path (Join-Path $PgBin "initdb.exe"))) {
   throw "PostgreSQL binaries were not found at $PgRoot"
+}
+
+python -c "import psycopg" 2>$null
+if ($LASTEXITCODE -ne 0) {
+  throw "Python package 'psycopg' is required. Run: python -m pip install --user -r `"$RequirementsPath`""
 }
 
 New-Item -ItemType Directory -Force (Join-Path $ProjectRoot "local") | Out-Null
@@ -35,19 +41,42 @@ if (-not (Test-Path $DataDir)) {
   & (Join-Path $PgBin "initdb.exe") -D $DataDir -U postgres --auth=trust --encoding=UTF8 --locale=C
 }
 
-$serverReady = & (Join-Path $PgBin "pg_isready.exe") -h localhost -p 54322 2>$null
-if ($LASTEXITCODE -ne 0) {
-  & (Join-Path $PgBin "pg_ctl.exe") -D $DataDir -o "-p 54322" -l $LogPath start
+$ConfigPaths = @(
+  (Join-Path $DataDir "PG_VERSION"),
+  (Join-Path $DataDir "postgresql.conf"),
+  (Join-Path $DataDir "postgresql.auto.conf")
+)
+foreach ($ConfigPath in $ConfigPaths) {
+  if (Test-Path $ConfigPath) {
+    $bytes = [System.IO.File]::ReadAllBytes($ConfigPath)
+    if ($bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF) {
+      [System.IO.File]::WriteAllBytes($ConfigPath, $bytes[3..($bytes.Length - 1)])
+    }
+  }
 }
 
-$env:PGHOST = "localhost"
+$serverReady = & (Join-Path $PgBin "pg_isready.exe") -h 127.0.0.1 -p 54322 2>$null
+if ($LASTEXITCODE -ne 0) {
+  & (Join-Path $PgBin "pg_ctl.exe") -D $DataDir -o "-p 54322" -l $LogPath start
+  if ($LASTEXITCODE -ne 0) {
+    throw "PostgreSQL start failed. Check $LogPath"
+  }
+}
+
+$env:PGHOST = "127.0.0.1"
 $env:PGPORT = "54322"
 $env:PGUSER = "postgres"
 $env:PGDATABASE = "postgres"
 
 $dbExists = & (Join-Path $PgBin "psql.exe") -tAc "select 1 from pg_database where datname='cinetube';"
+if ($LASTEXITCODE -ne 0) {
+  throw "PostgreSQL connection check failed."
+}
 if (-not ($dbExists -match "1")) {
   & (Join-Path $PgBin "createdb.exe") cinetube
+  if ($LASTEXITCODE -ne 0) {
+    throw "Local database creation failed."
+  }
 }
 
 if (-not (Test-Path $MarkerPath)) {
@@ -60,9 +89,11 @@ if (-not (Test-Path $MarkerPath)) {
 
 $runningApi = Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like "*local_api.py*" }
 if (-not $runningApi) {
+  $env:PGDATABASE = $DbName
   Start-Process -FilePath "python" -ArgumentList @($ApiScript) -WorkingDirectory $ProjectRoot -WindowStyle Hidden -RedirectStandardOutput $ApiOutLog -RedirectStandardError $ApiErrLog
 }
 
 Write-Host "CineTube local DB is running."
-Write-Host "Local API: http://localhost:3001"
-Write-Host "PostgreSQL: localhost:54322 / db=cinetube / user=postgres / auth=trust"
+Write-Host "Local API: http://127.0.0.1:3001"
+Write-Host "PostgreSQL: 127.0.0.1:54322 / db=cinetube / user=postgres / auth=trust"
+

@@ -3,7 +3,11 @@
   const Store = window.CineTubeStore;
   UI.setupChrome();
 
-  const data = await Store.load();
+  let data = await Store.load();
+  if (Store.favoriteIds("gallery").length && Store.loadGalleryImagesWithUrls) {
+    await Store.loadGalleryImagesWithUrls();
+    data = await Store.load();
+  }
   UI.setDbStatus(Store.getStatus());
 
   const movieGrid = document.getElementById("movieGrid");
@@ -11,7 +15,9 @@
   const pagination = document.getElementById("pagination");
   const pageSize = document.getElementById("pageSizeSelect");
   const searchInput = document.getElementById("searchInput");
+  const favoriteTabs = document.getElementById("favoriteTabs");
   let page = 1;
+  let activeTab = "movie";
 
   if (pageSize) pageSize.value = "20";
 
@@ -142,24 +148,38 @@
     const galleryImages = (data.galleryImages || [])
       .filter((item) => favoriteGalleryIds.includes(String(item.gallery_image_id || item.id || "")))
       .filter((item) => matchesGallery(item, term));
-    const items = [
-      ...movies.map((item) => ({ type: "movie", item, date: item.created_at || "" })),
-      ...webtoons.map((item) => ({ type: "webtoon", item, date: item.regdate || item.created_at || "" })),
-      ...galleryImages.map((item) => ({ type: "gallery", item, date: item.regdate || item.created_at || "" }))
-    ].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+    const tabItems = {
+      movie: movies.map((item) => ({ type: "movie", item, date: item.created_at || "" })),
+      webtoon: webtoons.map((item) => ({ type: "webtoon", item, date: item.regdate || item.created_at || "" })),
+      gallery: galleryImages.map((item) => ({ type: "gallery", item, date: item.regdate || item.created_at || "" }))
+    };
+    const items = (tabItems[activeTab] || tabItems.movie).sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+    const emptyLabels = {
+      movie: "관심작품으로 선택한 영화가 없습니다.",
+      webtoon: "관심작품으로 선택한 웹툰이 없습니다.",
+      gallery: "관심작품으로 선택한 갤러리 이미지가 없습니다."
+    };
 
     movieSummary.innerHTML = `
-      <span class="summary-pill"><strong>${UI.escapeHtml(items.length)}</strong> 관심작품</span>
+      <span class="summary-pill"><strong>${UI.escapeHtml(movies.length + webtoons.length + galleryImages.length)}</strong> 관심작품</span>
       <span class="summary-pill">영화 ${UI.escapeHtml(movies.length)}개</span>
       <span class="summary-pill">웹툰 ${UI.escapeHtml(webtoons.length)}개</span>
       <span class="summary-pill">갤러리 ${UI.escapeHtml(galleryImages.length)}개</span>
       <span class="summary-pill">선택/해제 가능</span>`;
 
+    if (favoriteTabs) {
+      favoriteTabs.querySelectorAll("[data-favorite-tab]").forEach((button) => {
+        const isActive = button.dataset.favoriteTab === activeTab;
+        button.classList.toggle("active", isActive);
+        button.setAttribute("aria-selected", isActive ? "true" : "false");
+      });
+    }
+
     const result = UI.paginate(items, page, pageSize.value);
     page = result.page || 1;
     movieGrid.innerHTML = result.items.length
       ? result.items.map((entry) => entry.type === "movie" ? UI.movieCard(entry.item) : entry.type === "webtoon" ? webtoonCard(entry.item) : galleryCard(entry.item)).join("")
-      : `<div class="empty">관심작품으로 선택한 콘텐츠가 없습니다.</div>`;
+      : `<div class="empty">${UI.escapeHtml(emptyLabels[activeTab] || "관심작품으로 선택한 콘텐츠가 없습니다.")}</div>`;
     UI.setupMovieCards(movieGrid, () => {
       page = 1;
       render();
@@ -182,5 +202,14 @@
 
   if (pageSize) pageSize.addEventListener("change", () => { page = 1; render(); });
   if (searchInput) searchInput.addEventListener("input", () => { page = 1; render(); });
+  if (favoriteTabs) {
+    favoriteTabs.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-favorite-tab]");
+      if (!button) return;
+      activeTab = button.dataset.favoriteTab || "movie";
+      page = 1;
+      render();
+    });
+  }
   render();
 })();

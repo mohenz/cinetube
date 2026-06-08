@@ -50,6 +50,11 @@
             </select>
           </label>
         </div>
+        <div class="content-tabs" id="favoriteTabs" role="tablist" aria-label="관심작품 유형">
+          <button class="content-tab active" type="button" role="tab" aria-selected="true" data-favorite-tab="movie"><span class="material-symbols-outlined">movie</span>영화</button>
+          <button class="content-tab" type="button" role="tab" aria-selected="false" data-favorite-tab="webtoon"><span class="material-symbols-outlined">auto_stories</span>웹툰</button>
+          <button class="content-tab" type="button" role="tab" aria-selected="false" data-favorite-tab="gallery"><span class="material-symbols-outlined">photo_library</span>갤러리</button>
+        </div>
         <section class="poster-grid" id="movieGrid"></section>
         <nav class="pagination" id="pagination" aria-label="페이지"></nav>
       </section>
@@ -57,10 +62,10 @@
     <div class="drawer-backdrop" id="drawerBackdrop"></div>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="../assets/js/supabase-config.js"></script>
-    <script src="../assets/js/local-db-config.js"></script>
+    <script src="../assets/js/local-db-config.js?v=domain-api"></script>
     <script src="../assets/js/shared/sample-data.js"></script>
-    <script src="../assets/js/shared/store.js?v=favorites-db"></script>
+    <script src="../assets/js/shared/store.js?v=perf-light3"></script>
     <script src="../assets/js/shared/ui.js?v=favorites-webtoon"></script>
-    <script src="../assets/js/pages/favorites.js?v=webtoon"></script>
+    <script src="../assets/js/pages/favorites.js?v=favorite-tabs"></script>
   </body>
 </html>

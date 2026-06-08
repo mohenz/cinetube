@@ -5,28 +5,27 @@ from http.cookiejar import CookieJar
 from html import unescape
 import json
 import os
+import queue
 import re
 import ssl
-import subprocess
+import threading
 from functools import lru_cache
 
-POSTGRES_ROOT = r"C:\Program Files\PostgreSQL"
-versions = []
-if os.path.isdir(POSTGRES_ROOT):
-    versions = [
-        os.path.join(POSTGRES_ROOT, name)
-        for name in os.listdir(POSTGRES_ROOT)
-        if name.isdigit() and os.path.isdir(os.path.join(POSTGRES_ROOT, name))
-    ]
-PG_BIN = os.path.join(sorted(versions, key=lambda path: int(os.path.basename(path)), reverse=True)[0], "bin") if versions else ""
-PSQL = os.path.join(PG_BIN, "psql.exe")
+import psycopg
+
 ENV = {
-    **os.environ,
-    "PGHOST": "localhost",
-    "PGPORT": "54322",
-    "PGUSER": "postgres",
-    "PGDATABASE": "cinetube",
+    "DATABASE_URL": os.getenv("DATABASE_URL", ""),
+    "PGHOST": os.getenv("PGHOST", "127.0.0.1"),
+    "PGPORT": os.getenv("PGPORT", "54322"),
+    "PGUSER": os.getenv("PGUSER", "postgres"),
+    "PGPASSWORD": os.getenv("PGPASSWORD", ""),
+    "PGDATABASE": os.getenv("PGDATABASE", "cinetube"),
+    "PGSSLMODE": os.getenv("PGSSLMODE", ""),
 }
+DB_POOL_MAX_SIZE = 8
+DB_POOL = queue.LifoQueue(maxsize=DB_POOL_MAX_SIZE)
+DB_POOL_LOCK = threading.Lock()
+DB_POOL_SIZE = 0
 
 TABLES = {
     "media_assets": {
@@ -1306,21 +1305,87 @@ def build_tmdb_import(url):
     }
 
 
-def run_sql(sql):
-    proc = subprocess.run(
-        [PSQL, "-X", "-q", "-t", "-A", "-v", "ON_ERROR_STOP=1"],
-        env=ENV,
-        input=sql,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
+def create_db_connection():
+    if ENV["DATABASE_URL"]:
+        return psycopg.connect(ENV["DATABASE_URL"], autocommit=True)
+    kwargs = {
+        "host": ENV["PGHOST"],
+        "port": ENV["PGPORT"],
+        "user": ENV["PGUSER"],
+        "dbname": ENV["PGDATABASE"],
+        "autocommit": True,
+    }
+    if ENV["PGPASSWORD"]:
+        kwargs["password"] = ENV["PGPASSWORD"]
+    if ENV["PGSSLMODE"]:
+        kwargs["sslmode"] = ENV["PGSSLMODE"]
+    return psycopg.connect(
+        **kwargs
     )
-    if proc.returncode != 0:
-        stderr = (proc.stderr or "").strip()
-        stdout = (proc.stdout or "").strip()
-        raise RuntimeError(stderr or stdout or f"psql failed with exit code {proc.returncode}")
-    return (proc.stdout or "").strip()
+
+
+def acquire_db_connection():
+    global DB_POOL_SIZE
+    try:
+        return DB_POOL.get_nowait()
+    except queue.Empty:
+        with DB_POOL_LOCK:
+            if DB_POOL_SIZE < DB_POOL_MAX_SIZE:
+                DB_POOL_SIZE += 1
+                return create_db_connection()
+        return DB_POOL.get()
+
+
+def release_db_connection(conn):
+    if conn is None or conn.closed:
+        return
+    try:
+        DB_POOL.put_nowait(conn)
+    except queue.Full:
+        conn.close()
+
+
+def close_broken_connection(conn):
+    global DB_POOL_SIZE
+    if conn is not None:
+        try:
+            conn.close()
+        except Exception:
+            pass
+    with DB_POOL_LOCK:
+        DB_POOL_SIZE = max(0, DB_POOL_SIZE - 1)
+
+
+def format_sql_value(value):
+    if value is None:
+        return ""
+    if isinstance(value, (dict, list)):
+        return json.dumps(value, ensure_ascii=False)
+    return str(value)
+
+
+def run_sql(sql):
+    conn = acquire_db_connection()
+    broken = False
+    try:
+        with conn.cursor() as cur:
+            cur.execute(sql)
+            if cur.description is None:
+                output = ""
+            else:
+                rows = cur.fetchall()
+                output = "\n".join(
+                    "\t".join(format_sql_value(value) for value in row)
+                    for row in rows
+                ).strip()
+    except Exception:
+        broken = True
+        close_broken_connection(conn)
+        raise
+    finally:
+        if not broken:
+            release_db_connection(conn)
+    return output
 
 
 @lru_cache(maxsize=None)
@@ -1357,6 +1422,36 @@ def filter_clause(table, query):
     return f"{pk} = {sql_literal(raw[3:])}"
 
 
+def read_filter_clauses(table, query):
+    columns = table_columns(table)
+    clauses = []
+    for key, values in query.items():
+        if key in {"select", "order"} or key not in columns:
+            continue
+        raw = values[0] if values else ""
+        if raw.startswith("eq."):
+            clauses.append(f"{key} = {sql_literal(raw[3:])}")
+    return clauses
+
+
+def select_clause(table, query):
+    raw = query.get("select", ["*"])[0]
+    if raw == "*":
+        return "*"
+    columns = table_columns(table)
+    selected = []
+    for name in raw.split(","):
+        name = name.strip()
+        if not name:
+            continue
+        if name not in columns:
+            raise ValueError(f"unknown column: {name}")
+        selected.append(name)
+    if not selected:
+        return "*"
+    return ", ".join(selected)
+
+
 def row_json(table, sql, mutable=False):
     inner_sql = sql.strip().rstrip(";")
     statement = inner_sql.lower()
@@ -1365,6 +1460,16 @@ def row_json(table, sql, mutable=False):
     else:
         output = run_sql(f"select coalesce(json_agg(row_to_json(q)), '[]'::json) from ({inner_sql}) q;")
     return json.loads(output or "[]")
+
+
+def database_metadata():
+    rows = row_json(
+        "",
+        "select current_database() as database_name, "
+        "pg_database_size(current_database()) as size_bytes, "
+        "pg_size_pretty(pg_database_size(current_database())) as size_pretty"
+    )
+    return rows[0] if rows else {"database_name": ENV["PGDATABASE"], "size_bytes": 0, "size_pretty": "0 bytes"}
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -1381,6 +1486,12 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         try:
             parsed = urlparse(self.path)
+            if parsed.path.strip("/") in {"", "health"}:
+                self.send_json({"ok": True, "service": "cinetube-api"})
+                return
+            if parsed.path.strip("/") in {"metadata/database", "database/stats"}:
+                self.send_json(database_metadata())
+                return
             if parsed.path.strip("/") in {"tmdb/import", "metadata/import"}:
                 query = parse_qs(parsed.query)
                 value = query.get("url", [""])[0] or query.get("q", [""])[0]
@@ -1410,8 +1521,13 @@ class Handler(BaseHTTPRequestHandler):
             column, _, direction = order.partition(".")
             direction = "asc" if direction.lower() == "asc" else "desc"
             if not column.replace("_", "").isalnum():
-                raise ValueError("invalid order column")
-            rows = row_json(table, f"select * from public.{table} order by {column} {direction}")
+                raise ValueError(f"invalid order column: {column}")
+            if column not in table_columns(table):
+                raise ValueError(f"invalid order column: {column}")
+            select_sql = select_clause(table, query)
+            where = read_filter_clauses(table, query)
+            where_sql = f" where {' and '.join(where)}" if where else ""
+            rows = row_json(table, f"select {select_sql} from public.{table}{where_sql} order by {column} {direction}")
             self.send_json(rows)
         except Exception as exc:
             self.send_error_json(exc)
