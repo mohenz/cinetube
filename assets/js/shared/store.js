@@ -536,6 +536,14 @@
     return state.data.movies.find((item) => String(item.id) === String(movie.id)) || null;
   }
 
+  async function loadMediaAssetsWithUrls() {
+    await load();
+    if (state.mode !== "local") return state.data.mediaAssets || [];
+    const mediaAssets = await requestLocal(`/${tableNames.mediaAssets}?select=*&order=created_at.desc`) || [];
+    resetData({ ...state.data, mediaAssets });
+    return state.data.mediaAssets || [];
+  }
+
   async function databaseMetadata() {
     await load();
     if (state.mode !== "local") return null;
@@ -786,6 +794,7 @@
     clearMainMovies,
     loadGalleryImagesWithUrls,
     loadMovieWithUrls,
+    loadMediaAssetsWithUrls,
     databaseMetadata,
     signIn,
     signOut,

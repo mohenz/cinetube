@@ -227,7 +227,7 @@ button { cursor: pointer; }
   align-items: end;
   padding: 80px 48px 48px;
   background: linear-gradient(0deg, #000 0%, rgba(0,0,0,.5) 45%, rgba(0,0,0,.1) 100%), var(--hero-image);
-  background-position: center;
+  background-position: center top;
   background-size: cover;
 }
 

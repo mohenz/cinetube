@@ -70,6 +70,14 @@
     UI.setupChrome();
 
     let data = await Store.load();
+    if (kind === "galleryImages" && Store.loadGalleryImagesWithUrls) {
+      await Store.loadGalleryImagesWithUrls();
+      data = await Store.load();
+    }
+    if (["movies", "categories", "actors", "webtoons", "webtoonChapters"].includes(kind) && Store.loadMediaAssetsWithUrls) {
+      await Store.loadMediaAssetsWithUrls();
+      data = await Store.load();
+    }
     UI.setDbStatus(Store.getStatus());
 
     const formHost = document.getElementById("adminForm");
@@ -155,7 +163,7 @@
       const assetId = config.arrayAssetKey ? (item[config.arrayAssetKey] || [])[config.index] : item[config.assetKey];
       const asset = getAsset(assetId);
       return {
-        url: url || "",
+        url: url || asset?.public_url || "",
         assetId: assetId || "",
         objectPath: asset?.object_path || "",
         bucketId: asset?.bucket_id || ""
