@@ -1,9 +1,9 @@
-(async function () {
+﻿(async function () {
   const UI = window.CineTubeUI;
   const Store = window.CineTubeStore;
   UI.setupChrome();
 
-  const data = await Store.load();
+  await Store.list("movies", { page: 1, pageSize: 20, order: "release_month.desc" });
   UI.setDbStatus(Store.getStatus());
 
   const movieGrid = document.getElementById("movieGrid");
@@ -15,35 +15,29 @@
 
   if (pageSize) pageSize.value = "20";
 
-  function movieDateValue(movie) {
-    const month = String(movie.release_month || "").trim();
-    if (/^\d{4}-\d{2}$/.test(month)) return `${month}-01`;
-    if (/^\d{4}$/.test(month)) return `${month}-01-01`;
-    return movie.created_at || "";
+  function totalPages(total, size) {
+    if (String(size).toLowerCase() === "all") return 1;
+    return Math.max(1, Math.ceil(Number(total || 0) / Number(size || 20)));
   }
 
-  function latestMovieFirst(a, b) {
-    const dateCompare = new Date(movieDateValue(b) || 0) - new Date(movieDateValue(a) || 0);
-    if (dateCompare) return dateCompare;
-    return new Date(b.created_at || 0) - new Date(a.created_at || 0);
-  }
-
-  function render() {
+  async function render() {
     const term = searchInput ? searchInput.value.trim() : "";
-    const movies = data.movies
-      .slice()
-      .filter((movie) => UI.matchesSearch(movie, term))
-      .sort(latestMovieFirst);
+    const result = await Store.list("movies", {
+      page,
+      pageSize: pageSize.value,
+      search: term,
+      order: "release_month.desc"
+    });
+    const movies = result.items || [];
 
     movieSummary.innerHTML = `
-      <span class="summary-pill"><strong>${UI.escapeHtml(movies.length)}</strong> 영화</span>
+      <span class="summary-pill"><strong>${UI.escapeHtml(result.total)}</strong> 영화</span>
       <span class="summary-pill">최신영화 순</span>`;
 
-    const result = UI.paginate(movies, page, pageSize.value);
     page = result.page || 1;
-    movieGrid.innerHTML = result.items.length ? result.items.map(UI.movieCard).join("") : `<div class="empty">조건에 맞는 영화정보가 없습니다.</div>`;
+    movieGrid.innerHTML = movies.length ? movies.map(UI.movieCard).join("") : `<div class="empty">조건에 맞는 영화정보가 없습니다.</div>`;
     UI.setupMovieCards(movieGrid);
-    UI.renderPagination(pagination, result.totalPages, page, (nextPage) => {
+    UI.renderPagination(pagination, totalPages(result.total, pageSize.value), page, (nextPage) => {
       page = nextPage;
       render();
     });
@@ -53,3 +47,14 @@
   if (searchInput) searchInput.addEventListener("input", () => { page = 1; render(); });
   render();
 })();
+
+
+
+
+
+
+
+
+
+
+

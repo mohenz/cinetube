@@ -1,4 +1,4 @@
--- CineTube import: Toujou Natsu reducing-only works
+﻿-- CineTube import: Toujou Natsu reducing-only works
 -- Source URL requested by owner: https://javtiful.com/kr/actress/toujou-natsu
 -- Import rule: only Javtiful reducing-mosaic video cards are included.
 -- Representative image source:
@@ -274,3 +274,13 @@ on conflict (movie_code) do update set
   ranking_score = excluded.ranking_score,
   click_count = excluded.click_count,
   is_main = excluded.is_main;
+
+
+
+
+
+
+
+
+
+

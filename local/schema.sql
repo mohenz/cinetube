@@ -159,17 +159,30 @@ create index idx_movies_created_at on public.movies(created_at desc);
 create index idx_movies_recommendation_score on public.movies(recommendation_score desc);
 create index idx_movies_ranking_score on public.movies(ranking_score desc);
 create index idx_movies_click_count on public.movies(click_count desc);
+create index idx_movies_category_created_at on public.movies(category_code, created_at desc);
+create index idx_movies_category_ranking on public.movies(category_code, ranking_score desc, created_at desc);
+create index idx_movies_release_created_at on public.movies(release_month desc, created_at desc);
+create index idx_movies_ranking_recommendation on public.movies(ranking_score desc, recommendation_score desc, created_at desc);
+create index idx_movies_click_created_at on public.movies(click_count desc, created_at desc);
+create index idx_movies_main_created_at on public.movies(is_main, created_at desc) where is_main = true;
 create index idx_media_assets_owner on public.media_assets(owner_table, owner_id, owner_field);
+create index idx_media_assets_owner_sort on public.media_assets(owner_table, owner_id, owner_field, sort_order);
 create index idx_common_codes_group_order on public.common_codes(code_group, display_order, code_label);
+create index idx_common_codes_enabled_order on public.common_codes(code_group, is_enabled, display_order, code_label);
+create index idx_actors_name on public.actors(name);
+create index idx_categories_visible_created_at on public.categories(is_visible, created_at desc);
 create index idx_webtoons_webtoon_id on public.webtoons(webtoon_id);
 create index idx_webtoons_created_at on public.webtoons(created_at desc);
+create index idx_webtoons_regdate_created_at on public.webtoons(regdate desc, created_at desc);
 create index idx_webtoon_chapters_webtoon_id on public.webtoon_chapters(webtoon_id);
 create index idx_webtoon_chapters_number on public.webtoon_chapters(webtoon_id, chapter_number);
 create index idx_gallery_images_gallery_image_id on public.gallery_images(gallery_image_id);
 create index idx_gallery_images_created_at on public.gallery_images(created_at desc);
 create index idx_gallery_images_visible on public.gallery_images(is_visible, created_at desc);
+create index idx_gallery_images_visible_regdate on public.gallery_images(is_visible, regdate desc, created_at desc);
 create index idx_favorite_movies_user_content on public.favorite_movies(user_key, content_type, created_at desc);
 create index idx_favorite_movies_content on public.favorite_movies(content_type, content_id);
+create index idx_favorite_movies_content_created_at on public.favorite_movies(content_type, content_id, created_at desc);
 
 insert into public.rating_grades (grade, display_order)
 values ('A+', 1), ('A', 2), ('B+', 3), ('B', 4), ('C', 5)

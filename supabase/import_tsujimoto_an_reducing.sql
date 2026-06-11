@@ -1,4 +1,4 @@
--- CineTube import: Tsujimoto An reducing-only works
+﻿-- CineTube import: Tsujimoto An reducing-only works
 -- Source URL requested by owner: https://javtiful.com/kr/actress/tsujimoto-an
 -- Import rule: only Javtiful reducing-mosaic video cards are included.
 -- Actor profile reference: https://www.avdbs.com/menu/actor.php?actor_idx=1298
@@ -183,3 +183,13 @@ on conflict (movie_code) do update set
   recommendation_score = excluded.recommendation_score,
   ranking_score = excluded.ranking_score,
   click_count = excluded.click_count;
+
+
+
+
+
+
+
+
+
+

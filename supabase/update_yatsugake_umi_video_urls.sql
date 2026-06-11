@@ -1,4 +1,4 @@
--- Fix CineTube Javtiful metadata for imported Yatsugake Umi movies.
+﻿-- Fix CineTube Javtiful metadata for imported Yatsugake Umi movies.
 -- These are confirmed Javtiful per-video pages from:
 -- https://javtiful.com/kr/actress/yatsugake-umi?q=<movie_code>
 
@@ -18,3 +18,13 @@ from (
     ('ABF-109', 'ABF-109 작은 악마 미소녀에게 이성이 망가질수록 농락당한다.', 'https://javtiful.com/kr/video/60279/abf-109', 'Javtiful 개별 영상 페이지 기준으로 등록한 Yatsugake Umi 작품입니다.', 'https://javtiful.com/uploads/uploads/videos/thumbs/2024/05/30/1aa1744757655a72e6c73fe1c176ad9a.jpg')
 ) as values_table(movie_code, title, video_url, description, poster_url)
 where public.movies.movie_code = values_table.movie_code;
+
+
+
+
+
+
+
+
+
+

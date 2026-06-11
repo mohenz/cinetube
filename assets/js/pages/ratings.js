@@ -1,1 +1,12 @@
-window.CineTubeCatalogPage.init("ratings");
+﻿window.CineTubeCatalogPage.init("ratings");
+
+
+
+
+
+
+
+
+
+
+

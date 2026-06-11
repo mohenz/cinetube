@@ -1,4 +1,4 @@
--- CineTube import: Kaede Karen reducing-only works
+﻿-- CineTube import: Kaede Karen reducing-only works
 -- Source URL requested by owner: https://javtiful.com/kr/actress/kaede-karen
 -- Import rule: only Javtiful reducing-mosaic video cards are included.
 -- Actor profile reference: https://www.avdbs.com/menu/actor.php?actor_idx=4981
@@ -159,3 +159,13 @@ on conflict (movie_code) do update set
   recommendation_score = excluded.recommendation_score,
   ranking_score = excluded.ranking_score,
   click_count = excluded.click_count;
+
+
+
+
+
+
+
+
+
+

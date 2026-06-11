@@ -1,4 +1,4 @@
--- CineTube import: Hatsumi Nanoka reducing-only works
+﻿-- CineTube import: Hatsumi Nanoka reducing-only works
 -- Source URL requested by owner: https://javtiful.com/kr/actress/hatsumi-nanoka
 -- Import rule: only Javtiful reducing-mosaic video cards are included.
 -- Actor profile references:
@@ -189,3 +189,13 @@ on conflict (movie_code) do update set
   release_month = excluded.release_month,
   production_company = excluded.production_company,
   recommendation_score = excluded.recommendation_score;
+
+
+
+
+
+
+
+
+
+

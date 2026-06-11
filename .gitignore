@@ -1,7 +1,9 @@
 stitch_cinetube_movie_hub/
 docs/reference/stitch_cinetube_movie_hub/
 local/postgres-data/
+local/postgres-data.corrupt*/
 local/backups/
 local/*.log
 local/.schema_applied
 scripts/__pycache__/
+

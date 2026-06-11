@@ -1,4 +1,4 @@
--- CineTube import: Aoi Tsukasa requested reducing-mosaic works
+﻿-- CineTube import: Aoi Tsukasa requested reducing-mosaic works
 -- Source URLs requested by owner:
 -- - https://javtiful.com/kr/video/72258/ssni-987-reducing-mosaic
 -- - https://javtiful.com/kr/video/100262/ssni-346-reducing-mosaic
@@ -162,3 +162,13 @@ on conflict (movie_code) do update set
   recommendation_score = excluded.recommendation_score,
   ranking_score = excluded.ranking_score,
   click_count = excluded.click_count;
+
+
+
+
+
+
+
+
+
+

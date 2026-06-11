@@ -1,4 +1,4 @@
--- CineTube image management migration.
+﻿-- CineTube image management migration.
 -- Creates image metadata storage and links movie/category/actor records to uploaded images.
 
 create table if not exists public.media_assets (
@@ -53,3 +53,13 @@ for update to authenticated using (bucket_id = 'cinetube-images') with check (bu
 
 create policy "authenticated delete cinetube images" on storage.objects
 for delete to authenticated using (bucket_id = 'cinetube-images');
+
+
+
+
+
+
+
+
+
+

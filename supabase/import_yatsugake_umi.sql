@@ -1,4 +1,4 @@
--- CineTube import: Yatsugake Umi
+﻿-- CineTube import: Yatsugake Umi
 -- Source URL requested by owner: https://javtiful.com/kr/actress/yatsugake-umi
 -- Supplemental public references used for profile/movie metadata:
 -- - https://www.gravurefit.com/en/profile/yatsugake-umi/
@@ -148,3 +148,13 @@ on conflict (movie_code) do update set
   release_month = excluded.release_month,
   production_company = excluded.production_company,
   recommendation_score = excluded.recommendation_score;
+
+
+
+
+
+
+
+
+
+

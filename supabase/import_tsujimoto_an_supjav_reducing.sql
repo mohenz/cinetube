@@ -1,4 +1,4 @@
--- CineTube import: Tsujimoto An Supjav reducing-only works
+﻿-- CineTube import: Tsujimoto An Supjav reducing-only works
 -- Source URL requested by owner: https://supjav.com/?s=Tsujimoto+An
 -- Import rule: only Supjav search results with the [Reducing Mosaic] label are included.
 -- Actor profile reference: https://www.avdbs.com/menu/actor.php?actor_idx=1298
@@ -157,3 +157,13 @@ on conflict (movie_code) do update set
   recommendation_score = excluded.recommendation_score,
   ranking_score = excluded.ranking_score,
   click_count = excluded.click_count;
+
+
+
+
+
+
+
+
+
+

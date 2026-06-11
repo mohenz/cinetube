@@ -62,10 +62,14 @@ cd D:\workspace\cinetube
 ```powershell
 cd D:\workspace\cinetube
 .\scripts\start_local_db.ps1
-python -m http.server 8080
+python -m http.server 8080 --bind 0.0.0.0
 ```
 
-브라우저에서 `http://localhost:8080`으로 접속합니다. 기본 설정은 `assets/js/local-db-config.js`의 도메인 기반 API 선택을 사용합니다. `localhost`/`127.0.0.1` 접속은 `http://127.0.0.1:3001` 로컬 API를 사용하고, Vercel 배포 도메인은 같은 프로젝트의 `/api` Function을 사용합니다. 로그인은 필요하지 않습니다.
+브라우저에서 `http://localhost:8080`으로 접속합니다. 같은 네트워크의 다른 PC에서는 호스트 PC의 사설 IP를 사용해 `http://<호스트IP>:8080`으로 접속합니다. 예: `http://192.168.0.10:8080`.
+
+기본 설정은 `assets/js/local-db-config.js`의 도메인 기반 API 선택을 사용합니다. `localhost`, `127.0.0.1`, 사설 IP(`192.168.x.x`, `10.x.x.x`, `172.16.x.x`~`172.31.x.x`) 또는 로컬 PC 이름으로 접속하면 같은 호스트의 `:3001` 로컬 API를 사용합니다. Vercel 배포 도메인은 같은 프로젝트의 `/api` Function을 사용합니다. 로그인은 필요하지 않습니다.
+
+다른 PC에서 접속하려면 Windows 방화벽에서 호스트 PC의 TCP `8080`과 `3001` 인바운드를 허용해야 할 수 있습니다. PostgreSQL `54322`는 외부에 열 필요가 없습니다.
 
 ## 배포 API 설정
 
@@ -95,7 +99,7 @@ cd D:\workspace\cinetube
 ## 정적 실행
 ```powershell
 cd D:\workspace\cinetube
-python -m http.server 8080
+python -m http.server 8080 --bind 0.0.0.0
 ```
 
 설정이 비어 있으면 샘플 데이터로 화면이 동작합니다.

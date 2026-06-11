@@ -1,9 +1,9 @@
-(async function () {
+﻿(async function () {
   const UI = window.CineTubeUI;
   const Store = window.CineTubeStore;
   UI.setupChrome();
 
-  const data = await Store.load();
+  await Store.list("actors", { page: 1, pageSize: 20, order: "name.asc" });
   UI.setDbStatus(Store.getStatus());
 
   const actorGrid = document.getElementById("actorGrid");
@@ -18,13 +18,7 @@
   }
 
   function movieCount(actor) {
-    return data.movies.filter((movie) => (movie.actor_ids || [movie.actor_id]).some((id) => String(id) === String(actor.id))).length;
-  }
-
-  function matchesActor(actor, term) {
-    if (!term) return true;
-    const haystack = [actor.name, actor.body_size, actor.debut_year, actor.age, actor.height_cm].join(" ").toLowerCase();
-    return haystack.includes(term.toLowerCase());
+    return actor.movie_count ?? "-";
   }
 
   function actorCard(actor) {
@@ -46,21 +40,28 @@
       </a>`;
   }
 
-  function render() {
+  function totalPages(total, size) {
+    if (String(size).toLowerCase() === "all") return 1;
+    return Math.max(1, Math.ceil(Number(total || 0) / Number(size || 20)));
+  }
+
+  async function render() {
     const term = searchInput ? searchInput.value.trim() : "";
-    const actors = data.actors
-      .slice()
-      .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")))
-      .filter((actor) => matchesActor(actor, term));
+    const result = await Store.list("actors", {
+      page,
+      pageSize: pageSize.value,
+      search: term,
+      order: "name.asc"
+    });
+    const actors = result.items || [];
 
     actorSummary.innerHTML = `
-      <span class="summary-pill"><strong>${UI.escapeHtml(actors.length)}</strong> 배우</span>
-      <span class="summary-pill"><strong>${UI.escapeHtml(data.movies.length)}</strong> 영화</span>`;
+      <span class="summary-pill"><strong>${UI.escapeHtml(result.total)}</strong> 배우</span>
+      <span class="summary-pill">페이지 단위 로딩</span>`;
 
-    const result = UI.paginate(actors, page, pageSize.value);
     page = result.page || 1;
-    actorGrid.innerHTML = result.items.length ? result.items.map(actorCard).join("") : `<div class="empty">조건에 맞는 배우정보가 없습니다.</div>`;
-    UI.renderPagination(pagination, result.totalPages, page, (nextPage) => {
+    actorGrid.innerHTML = actors.length ? actors.map(actorCard).join("") : `<div class="empty">조건에 맞는 배우정보가 없습니다.</div>`;
+    UI.renderPagination(pagination, totalPages(result.total, pageSize.value), page, (nextPage) => {
       page = nextPage;
       render();
     });
@@ -70,3 +71,14 @@
   if (searchInput) searchInput.addEventListener("input", () => { page = 1; render(); });
   render();
 })();
+
+
+
+
+
+
+
+
+
+
+

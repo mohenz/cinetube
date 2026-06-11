@@ -1,4 +1,4 @@
-$ErrorActionPreference = "Stop"
+﻿$ErrorActionPreference = "Stop"
 
 $projectRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $configPath = Join-Path $projectRoot "assets/js/supabase-config.js"
@@ -197,3 +197,4 @@ foreach ($movie in $movies) {
   movies_updated = $updated
   source_url = "https://javtiful.com/kr/actress/yatsugake-umi"
 } | ConvertTo-Json
+

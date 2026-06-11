@@ -3,13 +3,7 @@
   const Store = window.CineTubeStore;
   UI.setupChrome();
 
-  let data = await Store.load();
-  if (Store.loadGalleryImagesWithUrls) {
-    await Store.loadGalleryImagesWithUrls();
-    data = await Store.load();
-  }
-  UI.setDbStatus(Store.getStatus());
-
+  let data = { galleryImages: [] };
   const params = new URLSearchParams(window.location.search);
   const detailId = params.get("id") || "";
   const root = document.getElementById("galleryView");
@@ -18,6 +12,7 @@
   let page = 1;
   let slideIndex = 0;
   let pageSize = "20";
+  let totalItems = 0;
 
   function imageUrl(item) {
     return item.image_url || item.image_asset?.public_url || "../assets/img/favicon.svg";
@@ -31,21 +26,25 @@
     return Array.isArray(item.tags) ? item.tags : String(item.tags || "").split(",").map((tag) => tag.trim()).filter(Boolean);
   }
 
-  function visibleItems() {
-    const term = (searchInput?.value || "").trim().toLowerCase();
-    return (data.galleryImages || [])
-      .filter((item) => item.is_visible !== false)
-      .filter((item) => {
-        if (!term) return true;
-        return [
-          item.gallery_image_id,
-          item.title,
-          item.description,
-          item.source,
-          itemTags(item).join(" ")
-        ].join(" ").toLowerCase().includes(term);
-      })
-      .sort((a, b) => new Date(b.regdate || b.created_at || 0) - new Date(a.regdate || a.created_at || 0));
+  async function loadPage() {
+    const result = await Store.list("galleryImages", {
+      page,
+      pageSize,
+      search: searchInput?.value || "",
+      order: "regdate.desc",
+      includeUrls: true,
+      filters: { is_visible: true }
+    });
+    UI.setDbStatus(Store.getStatus());
+    data = { galleryImages: result.items || [] };
+    totalItems = result.total || 0;
+    page = result.page || 1;
+    return result;
+  }
+
+  function totalPages(total, size) {
+    if (String(size).toLowerCase() === "all") return 1;
+    return Math.max(1, Math.ceil(Number(total || 0) / Number(size || 20)));
   }
 
   function favoriteButton(item) {
@@ -92,12 +91,12 @@
     UI.setupFavoriteButtons(root, null, "gallery");
   }
 
-  function toolbar(items) {
+  function toolbar(items, total) {
     return `
       <div class="section-head"><div><p class="eyebrow">Gallery Board</p><h1>갤러리</h1><p>등록된 이미지를 목록, 바둑판, 슬라이드 방식으로 확인합니다.</p></div></div>
       <div class="toolbar">
         <div class="filter-pills">
-          <span class="summary-pill"><strong>${UI.escapeHtml(items.length)}</strong> 이미지</span>
+          <span class="summary-pill"><strong>${UI.escapeHtml(total)}</strong> 이미지</span>
           <button class="pill ${mode === "list" ? "active" : ""}" type="button" data-view-mode="list">목록</button>
           <button class="pill ${mode === "grid" ? "active" : ""}" type="button" data-view-mode="grid">바둑판</button>
           <button class="pill ${mode === "slide" ? "active" : ""}" type="button" data-view-mode="slide">슬라이드</button>
@@ -150,13 +149,12 @@
       </section>`;
   }
 
-  function renderIndex() {
-    const all = visibleItems();
-    const paginated = mode === "slide" ? { items: all, totalPages: 1, page: 1 } : UI.paginate(all, page, pageSize);
-    page = paginated.page || 1;
+  async function renderIndex() {
+    const result = await loadPage();
+    const all = data.galleryImages || [];
     root.innerHTML = `
-      ${toolbar(all)}
-      ${mode === "list" ? renderList(paginated.items) : mode === "slide" ? renderSlide(all) : `<section class="poster-grid">${paginated.items.length ? paginated.items.map(card).join("") : `<div class="empty">등록된 갤러리 이미지가 없습니다.</div>`}</section>`}
+      ${toolbar(all, totalItems)}
+      ${mode === "list" ? renderList(all) : mode === "slide" ? renderSlide(all) : `<section class="poster-grid">${all.length ? all.map(card).join("") : `<div class="empty">등록된 갤러리 이미지가 없습니다.</div>`}</section>`}
       <nav class="pagination" id="pagination" aria-label="페이지"></nav>`;
 
     root.querySelectorAll("[data-view-mode]").forEach((button) => {
@@ -174,16 +172,19 @@
     if (prev) prev.addEventListener("click", () => { slideIndex = (slideIndex - 1 + all.length) % all.length; renderIndex(); });
     if (next) next.addEventListener("click", () => { slideIndex = (slideIndex + 1) % all.length; renderIndex(); });
     bindCards();
-    UI.renderPagination(document.getElementById("pagination"), paginated.totalPages, page, (nextPage) => { page = nextPage; renderIndex(); });
+    UI.renderPagination(document.getElementById("pagination"), totalPages(result.total, pageSize), page, (nextPage) => { page = nextPage; renderIndex(); });
   }
 
   async function renderDetail(item) {
     document.title = `CineTube | ${item.title}`;
     const code = itemId(item);
+    const fullImageUrl = imageUrl(item);
     const favorite = UI.isFavoriteContent("gallery", code);
     root.innerHTML = `
       <section class="movie-detail gallery-detail">
-        <div class="movie-detail-media"><img src="${UI.escapeHtml(imageUrl(item))}" alt="${UI.escapeHtml(item.title)}"></div>
+        <div class="movie-detail-media">
+          <img class="gallery-detail-preview-image" id="openGalleryImagePreview" src="${UI.escapeHtml(fullImageUrl)}" alt="${UI.escapeHtml(item.title)}" role="button" tabindex="0" aria-label="${UI.escapeHtml(item.title)} 전체 이미지 보기">
+        </div>
         <div class="movie-detail-body">
           <p class="eyebrow">Gallery Detail</p>
           <h1>${UI.escapeHtml(item.title)}</h1>
@@ -203,6 +204,42 @@
         </div>
       </section>`;
     UI.setupFavoriteButtons(root, null, "gallery");
+    const previewImage = document.getElementById("openGalleryImagePreview");
+    if (previewImage) {
+      const openImageModal = () => {
+        const existing = document.getElementById("galleryImageModal");
+        if (existing) existing.remove();
+        const modal = document.createElement("div");
+        modal.className = "image-modal";
+        modal.id = "galleryImageModal";
+        modal.setAttribute("role", "dialog");
+        modal.setAttribute("aria-modal", "true");
+        modal.setAttribute("aria-label", "갤러리 이미지 전체보기");
+        modal.innerHTML = `
+          <button class="image-modal-close" type="button" aria-label="닫기"><span class="material-symbols-outlined">close</span></button>
+          <img src="${UI.escapeHtml(fullImageUrl)}" alt="${UI.escapeHtml(item.title)} 전체 이미지">
+        `;
+        document.body.appendChild(modal);
+        const closeButton = modal.querySelector(".image-modal-close");
+        const close = () => modal.remove();
+        closeButton.addEventListener("click", close);
+        modal.addEventListener("click", (event) => {
+          if (event.target === modal) close();
+        });
+        document.addEventListener("keydown", function onEscape(event) {
+          if (event.key !== "Escape") return;
+          close();
+          document.removeEventListener("keydown", onEscape);
+        });
+        closeButton.focus();
+      };
+      previewImage.addEventListener("click", openImageModal);
+      previewImage.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        openImageModal();
+      });
+    }
     const deleteButton = document.getElementById("deleteGalleryImage");
     if (deleteButton) {
       deleteButton.addEventListener("click", async () => {
@@ -223,6 +260,15 @@
   if (searchInput) searchInput.addEventListener("input", () => { page = 1; renderIndex(); });
 
   if (detailId) {
+    const result = await Store.list("galleryImages", {
+      page: 1,
+      pageSize: 20,
+      search: detailId,
+      order: "regdate.desc",
+      includeUrls: true
+    });
+    UI.setDbStatus(Store.getStatus());
+    data = { galleryImages: result.items || [] };
     const item = (data.galleryImages || []).find((entry) => itemId(entry) === detailId || String(entry.id) === detailId);
     if (item) {
       await renderDetail(item);

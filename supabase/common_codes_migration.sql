@@ -1,4 +1,4 @@
-create table if not exists public.common_codes (
+﻿create table if not exists public.common_codes (
   id bigint generated always as identity primary key,
   code_group text not null,
   code_value text not null,
@@ -36,3 +36,13 @@ for select using (true);
 
 create policy "write common codes" on public.common_codes
 for all using (true) with check (true);
+
+
+
+
+
+
+
+
+
+

@@ -74,6 +74,7 @@
 
   const favoriteUserKeyStorageKey = "cinetube_favorite_user_key";
   const legacyFavoriteMoviesStorageKey = "cinetube_favorite_movies";
+  const sharedFavoriteUserKey = "cinetube-shared";
 
   function clone(value) {
     return JSON.parse(JSON.stringify(value));
@@ -81,15 +82,14 @@
 
   function favoriteUserKey() {
     try {
-      let key = localStorage.getItem(favoriteUserKeyStorageKey);
-      if (!key) {
-        key = `browser-${crypto.randomUUID ? crypto.randomUUID() : Date.now()}`;
-        localStorage.setItem(favoriteUserKeyStorageKey, key);
-      }
-      return key;
+      return localStorage.getItem(favoriteUserKeyStorageKey) || sharedFavoriteUserKey;
     } catch (error) {
-      return "local";
+      return sharedFavoriteUserKey;
     }
+  }
+
+  function favoriteWriteUserKey() {
+    return sharedFavoriteUserKey;
   }
 
   function defaultCommonCodes() {
@@ -214,7 +214,7 @@
   async function migrateLegacyFavorites() {
     const codes = legacyFavoriteMovieCodes();
     if (!codes.length || !state.data || state.mode === "sample") return;
-    const userKey = favoriteUserKey();
+    const userKey = favoriteWriteUserKey();
     const existing = new Set((state.data.favoriteMovies || [])
       .filter((item) => item.user_key === userKey && item.content_type === "movie")
       .map((item) => String(item.content_id)));
@@ -287,6 +287,155 @@
     const direction = kind === "ratings" || kind === "commonCodes" ? "asc" : "desc";
     const columns = localTableColumns[kind]?.join(",") || "*";
     return await requestLocal(`/${table}?select=${encodeURIComponent(columns)}&order=${orderColumn}.${direction}`) || [];
+  }
+
+  function listPageSize(value, fallback = 20) {
+    if (String(value).toLowerCase() === "all") return "all";
+    const number = Number(value || fallback);
+    if (!Number.isFinite(number) || number <= 0) return fallback;
+    return Math.min(Math.max(Math.floor(number), 1), 200);
+  }
+
+  function listOffset(page, pageSize) {
+    if (pageSize === "all") return 0;
+    return Math.max(0, (Math.max(1, Number(page || 1)) - 1) * Number(pageSize || 20));
+  }
+
+  function mergeByPrimaryKey(kind, items) {
+    const primaryKey = primaryKeys[kind];
+    const existing = new Map((state.data?.[kind] || []).map((item) => [String(item[primaryKey]), item]));
+    (items || []).forEach((item) => existing.set(String(item[primaryKey]), item));
+    return Array.from(existing.values());
+  }
+
+  async function ensureListContext(options = {}) {
+    if (state.data) return state.data;
+    state.localApiBase = createLocalApiBase();
+    if (hasLocalApiConfig()) {
+      state.mode = "local";
+      state.client = null;
+      try {
+        const includeActors = options.includeActors !== false;
+        const [categories, actors, ratings, commonCodes, favoriteMovies, mediaAssets] = await Promise.all([
+          fetchTable(null, "categories"),
+          includeActors ? fetchTable(null, "actors") : Promise.resolve([]),
+          fetchTable(null, "ratings"),
+          fetchOptionalTable(null, "commonCodes"),
+          fetchOptionalTable(null, "favoriteMovies"),
+          fetchOptionalTable(null, "mediaAssets")
+        ]);
+        state.data = enrich({ movies: [], categories, actors, ratings, commonCodes, favoriteMovies, webtoons: [], webtoonChapters: [], galleryImages: [], mediaAssets });
+        await migrateLegacyFavorites();
+        state.status = { connected: true, message: "CineTube API 연결됨" };
+        return state.data;
+      } catch (error) {
+        console.error(error);
+        state.data = enrich({ ...clone(window.CineTubeSampleData), commonCodes: defaultCommonCodes(), favoriteMovies: [], webtoons: [], webtoonChapters: [], galleryImages: [], mediaAssets: [] });
+        state.status = { connected: false, message: "CineTube API 오류: 샘플 데이터" };
+        return state.data;
+      }
+    }
+
+    return await load();
+  }
+
+  function listOrder(kind, requestedOrder) {
+    if (requestedOrder) return requestedOrder;
+    if (kind === "actors") return "name.asc";
+    if (kind === "galleryImages") return "regdate.desc";
+    return "created_at.desc";
+  }
+
+  function localListColumns(kind, includeUrls = false) {
+    if (includeUrls && kind === "galleryImages") return "*";
+    return localTableColumns[kind]?.join(",") || "*";
+  }
+
+  async function listLocal(kind, options = {}) {
+    const table = tableNames[kind];
+    const page = Math.max(1, Number(options.page || 1));
+    const pageSize = listPageSize(options.pageSize, 20);
+    const order = listOrder(kind, options.order);
+    const params = new URLSearchParams({
+      select: localListColumns(kind, options.includeUrls),
+      order,
+      count: "exact",
+      search: String(options.search || "")
+    });
+    Object.entries(options.filters || {}).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== "") params.set(key, `eq.${value}`);
+    });
+    if (pageSize !== "all") {
+      params.set("limit", String(pageSize));
+      params.set("offset", String(listOffset(page, pageSize)));
+    }
+    const result = await requestLocal(`/${table}?${params.toString()}`) || {};
+    return {
+      items: Array.isArray(result.items) ? result.items : [],
+      total: Number(result.total || 0),
+      page,
+      pageSize
+    };
+  }
+
+  async function listSupabase(kind, options = {}) {
+    const table = tableNames[kind];
+    const page = Math.max(1, Number(options.page || 1));
+    const pageSize = listPageSize(options.pageSize, 20);
+    const [column, direction = "desc"] = listOrder(kind, options.order).split(".");
+    let query = state.client.from(table).select("*", { count: "exact" }).order(column, { ascending: direction === "asc" });
+    Object.entries(options.filters || {}).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== "") query = query.eq(key, value);
+    });
+    const term = String(options.search || "").trim();
+    if (term) {
+      if (kind === "movies") query = query.or(`title.ilike.%${term}%,movie_code.ilike.%${term}%,description.ilike.%${term}%,category_code.ilike.%${term}%`);
+      if (kind === "galleryImages") query = query.or(`title.ilike.%${term}%,gallery_image_id.ilike.%${term}%,description.ilike.%${term}%,source.ilike.%${term}%`);
+      if (kind === "actors") query = query.or(`name.ilike.%${term}%,body_size.ilike.%${term}%`);
+    }
+    if (pageSize !== "all") {
+      const from = listOffset(page, pageSize);
+      query = query.range(from, from + Number(pageSize) - 1);
+    }
+    const { data, error, count } = await query;
+    if (error) throw error;
+    return { items: data || [], total: Number(count || 0), page, pageSize };
+  }
+
+  function listSample(kind, options = {}) {
+    const page = Math.max(1, Number(options.page || 1));
+    const pageSize = listPageSize(options.pageSize, 20);
+    const term = String(options.search || "").trim();
+    let items = (state.data?.[kind] || []).slice();
+    if (term) {
+      if (kind === "movies") items = items.filter((movie) => [movie.title, movie.movie_code, movie.description, movie.category_code].join(" ").toLowerCase().includes(term.toLowerCase()));
+      if (kind === "galleryImages") items = items.filter((item) => [item.title, item.gallery_image_id, item.description, item.source].join(" ").toLowerCase().includes(term.toLowerCase()));
+      if (kind === "actors") items = items.filter((actor) => [actor.name, actor.body_size, actor.debut_year, actor.age, actor.height_cm].join(" ").toLowerCase().includes(term.toLowerCase()));
+    }
+    const total = items.length;
+    if (pageSize !== "all") items = items.slice(listOffset(page, pageSize), listOffset(page, pageSize) + Number(pageSize));
+    return { items, total, page, pageSize };
+  }
+
+  async function list(kind, options = {}) {
+    await ensureListContext({ includeActors: kind !== "actors" });
+    let result;
+    if (state.mode === "local") {
+      result = await listLocal(kind, options);
+    } else if (state.client) {
+      result = await listSupabase(kind, options);
+    } else {
+      result = listSample(kind, options);
+    }
+
+    const nextData = { ...state.data, [kind]: mergeByPrimaryKey(kind, result.items) };
+    resetData(nextData);
+    const primaryKey = primaryKeys[kind];
+    const byId = new Map((state.data[kind] || []).map((item) => [String(item[primaryKey]), item]));
+    return {
+      ...result,
+      items: result.items.map((item) => byId.get(String(item[primaryKey])) || item)
+    };
   }
 
   async function insertLocal(kind, payload) {
@@ -560,11 +709,14 @@
   }
 
   function favoriteItems(contentType = "movie") {
-    const userKey = favoriteUserKey();
-    return (state.data?.favoriteMovies || []).filter((item) => (
-      item.user_key === userKey
-      && item.content_type === contentType
-    ));
+    const seen = new Set();
+    return (state.data?.favoriteMovies || []).filter((item) => {
+      if (item.content_type !== contentType) return false;
+      const contentId = String(item.content_id || "");
+      if (!contentId || seen.has(contentId)) return false;
+      seen.add(contentId);
+      return true;
+    });
   }
 
   function favoriteIds(contentType = "movie") {
@@ -580,23 +732,21 @@
     await load();
     const contentId = favoriteContentId(contentOrId, contentType);
     if (!contentId) return false;
-    const userKey = favoriteUserKey();
-    const existing = (state.data.favoriteMovies || []).find((item) => (
-      item.user_key === userKey
-      && item.content_type === contentType
+    const existingItems = (state.data.favoriteMovies || []).filter((item) => (
+      item.content_type === contentType
       && String(item.content_id) === contentId
     ));
-    if (existing) {
+    if (existingItems.length) {
       if (state.mode === "sample") {
         const nextCodes = legacyFavoriteMovieCodes().filter((code) => code !== contentId);
         localStorage.setItem(legacyFavoriteMoviesStorageKey, JSON.stringify(nextCodes));
       }
-      await remove("favoriteMovies", existing.id);
+      for (const item of existingItems) await remove("favoriteMovies", item.id);
       return false;
     }
 
     const payload = {
-      user_key: userKey,
+      user_key: favoriteWriteUserKey(),
       content_type: contentType,
       content_id: contentId,
       metadata: {}
@@ -799,6 +949,7 @@
     signIn,
     signOut,
     isAuthenticated,
+    list,
     getStatus: () => state.status,
     primaryKeys
   };

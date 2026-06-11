@@ -1,4 +1,4 @@
-(function () {
+﻿(function () {
   async function init(kind) {
     const UI = window.CineTubeUI;
     const Store = window.CineTubeStore;
@@ -130,3 +130,14 @@
 
   window.CineTubeCatalogPage = { init };
 })();
+
+
+
+
+
+
+
+
+
+
+

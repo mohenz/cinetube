@@ -1,4 +1,4 @@
-$ErrorActionPreference = "Stop"
+﻿$ErrorActionPreference = "Stop"
 
 $ProjectRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $ConfigPath = Join-Path $ProjectRoot "assets\js\supabase-config.js"
@@ -45,3 +45,4 @@ $ratings = @(
 
 Invoke-WebRequest -UseBasicParsing -Method Post -Uri "$url/rest/v1/rating_grades" -Headers $ratingHeaders -Body $ratings | Out-Null
 Write-Host "Cloud CineTube data reset complete."
+

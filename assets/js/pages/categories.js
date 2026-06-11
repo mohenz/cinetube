@@ -1,1 +1,12 @@
-window.CineTubeCatalogPage.init("categories");
+﻿window.CineTubeCatalogPage.init("categories");
+
+
+
+
+
+
+
+
+
+
+

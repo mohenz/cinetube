@@ -1,4 +1,4 @@
-(async function () {
+﻿(async function () {
   const UI = window.CineTubeUI;
   const Store = window.CineTubeStore;
   UI.setupChrome();
@@ -45,3 +45,14 @@
   grid.innerHTML = movies.length ? movies.map(UI.movieCard).join("") : `<div class="empty">등록된 출연 작품이 없습니다.</div>`;
   UI.setupMovieCards(grid);
 })();
+
+
+
+
+
+
+
+
+
+
+

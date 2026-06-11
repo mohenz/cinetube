@@ -1,1 +1,12 @@
-window.CineTubeAdminPage.init("movies");
+﻿window.CineTubeAdminPage.init("movies");
+
+
+
+
+
+
+
+
+
+
+

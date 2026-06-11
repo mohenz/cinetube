@@ -1,1 +1,12 @@
-window.CineTubeAdminPage.init("actors");
+﻿window.CineTubeAdminPage.init("actors");
+
+
+
+
+
+
+
+
+
+
+

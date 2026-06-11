@@ -1,4 +1,4 @@
-const fs = require('fs');
+﻿const fs = require('fs');
 const path = require('path');
 
 // 1. Read Supabase config
@@ -293,3 +293,14 @@ async function registerAll() {
 registerAll().catch(err => {
   console.error("Error during registration process:", err);
 });
+
+
+
+
+
+
+
+
+
+
+

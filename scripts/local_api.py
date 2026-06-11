@@ -22,6 +22,8 @@ ENV = {
     "PGDATABASE": os.getenv("PGDATABASE", "cinetube"),
     "PGSSLMODE": os.getenv("PGSSLMODE", ""),
 }
+API_HOST = os.getenv("CINETUBE_API_HOST", "0.0.0.0")
+API_PORT = int(os.getenv("CINETUBE_API_PORT", "3001"))
 DB_POOL_MAX_SIZE = 8
 DB_POOL = queue.LifoQueue(maxsize=DB_POOL_MAX_SIZE)
 DB_POOL_LOCK = threading.Lock()
@@ -83,6 +85,15 @@ TABLES = {
 
 TMDB_IMAGE_BASE = "https://media.themoviedb.org/t/p"
 IMPORT_SITES = ("tmdb", "javtiful", "supjav", "missav")
+READ_CONTROL_PARAMS = {"select", "order", "limit", "offset", "page", "page_size", "count", "search"}
+SEARCH_COLUMNS = {
+    "movies": ["title", "movie_code", "category_code", "description", "production_company", "keywords"],
+    "gallery_images": ["gallery_image_id", "title", "description", "source", "tags"],
+    "actors": ["name", "body_size", "debut_year", "age", "height_cm"],
+    "categories": ["category_code", "name"],
+    "webtoons": ["webtoon_id", "title", "alternative", "artist", "genre", "type", "tage"],
+}
+MAX_PAGE_SIZE = 200
 
 
 def clean_text(value):
@@ -1426,12 +1437,60 @@ def read_filter_clauses(table, query):
     columns = table_columns(table)
     clauses = []
     for key, values in query.items():
-        if key in {"select", "order"} or key not in columns:
+        if key in READ_CONTROL_PARAMS or key not in columns:
             continue
         raw = values[0] if values else ""
         if raw.startswith("eq."):
             clauses.append(f"{key} = {sql_literal(raw[3:])}")
     return clauses
+
+
+def search_clause(table, query):
+    term = (query.get("search", [""])[0] or "").strip()
+    if not term:
+        return None
+    columns = table_columns(table)
+    search_columns = [name for name in SEARCH_COLUMNS.get(table, []) if name in columns]
+    if not search_columns:
+        return None
+    pattern = sql_literal(f"%{term}%")
+    parts = [f"coalesce({name}::text, '') ilike {pattern}" for name in search_columns]
+    return "(" + " or ".join(parts) + ")"
+
+
+def positive_int(value, default=0, maximum=None):
+    try:
+        number = int(value)
+    except Exception:
+        return default
+    if number < 0:
+        return default
+    if maximum is not None:
+        return min(number, maximum)
+    return number
+
+
+def pagination_clause(query):
+    raw_page_size = query.get("page_size", query.get("limit", [""]))[0]
+    if str(raw_page_size).lower() == "all":
+        return "", 0, 0, 1
+    limit = positive_int(raw_page_size, 0, MAX_PAGE_SIZE)
+    raw_page = query.get("page", [""])[0]
+    page = max(1, positive_int(raw_page, 1))
+    if "offset" in query:
+        offset = positive_int(query.get("offset", ["0"])[0], 0)
+    elif limit:
+        offset = (page - 1) * limit
+    else:
+        offset = 0
+    if not limit:
+        return "", 0, offset, page
+    return f" limit {limit} offset {offset}", limit, offset, page
+
+
+def total_count(table, where_sql):
+    output = run_sql(f"select count(*) from public.{table}{where_sql};")
+    return int(output or "0")
 
 
 def select_clause(table, query):
@@ -1526,8 +1585,21 @@ class Handler(BaseHTTPRequestHandler):
                 raise ValueError(f"invalid order column: {column}")
             select_sql = select_clause(table, query)
             where = read_filter_clauses(table, query)
+            search = search_clause(table, query)
+            if search:
+                where.append(search)
             where_sql = f" where {' and '.join(where)}" if where else ""
-            rows = row_json(table, f"select {select_sql} from public.{table}{where_sql} order by {column} {direction}")
+            page_sql, limit, offset, page = pagination_clause(query)
+            rows = row_json(table, f"select {select_sql} from public.{table}{where_sql} order by {column} {direction}{page_sql}")
+            if query.get("count", [""])[0] == "exact":
+                self.send_json({
+                    "items": rows,
+                    "total": total_count(table, where_sql),
+                    "limit": limit,
+                    "offset": offset,
+                    "page": page,
+                })
+                return
             self.send_json(rows)
         except Exception as exc:
             self.send_error_json(exc)
@@ -1612,5 +1684,5 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    ThreadingHTTPServer(("127.0.0.1", 3001), Handler).serve_forever()
+    ThreadingHTTPServer((API_HOST, API_PORT), Handler).serve_forever()
 

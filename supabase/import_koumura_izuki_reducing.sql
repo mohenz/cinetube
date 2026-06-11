@@ -1,4 +1,4 @@
--- CineTube import: Koumura Izuki reducing-only works
+﻿-- CineTube import: Koumura Izuki reducing-only works
 -- Source URL requested by owner: https://javtiful.com/kr/actress/koumura-izuki
 -- Import rule: only Javtiful reducing-mosaic video cards are included.
 -- Actor profile references:
@@ -206,3 +206,13 @@ on conflict (movie_code) do update set
   recommendation_score = excluded.recommendation_score,
   ranking_score = excluded.ranking_score,
   click_count = excluded.click_count;
+
+
+
+
+
+
+
+
+
+

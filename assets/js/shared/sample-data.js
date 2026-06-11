@@ -1,4 +1,4 @@
-(function () {
+﻿(function () {
   const poster = (seed) => `https://picsum.photos/seed/${seed}/600/900`;
   const wide = (seed) => `https://picsum.photos/seed/${seed}/1400/760`;
 
@@ -84,3 +84,14 @@
 
   window.CineTubeSampleData = { categories, actors, ratings, movies };
 })();
+
+
+
+
+
+
+
+
+
+
+

@@ -1,4 +1,4 @@
-$ErrorActionPreference = "Stop"
+﻿$ErrorActionPreference = "Stop"
 
 $ProjectRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $ConfigPath = Join-Path $ProjectRoot "assets\js\supabase-config.js"
@@ -191,3 +191,4 @@ $env:PGDATABASE = "cinetube"
 Write-Host "Migration complete."
 Write-Host "Backup JSON: $BackupJsonPath"
 Write-Host "Import SQL: $ImportSqlPath"
+

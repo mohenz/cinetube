@@ -19,6 +19,8 @@ $ApiScript = Join-Path $ProjectRoot "scripts\local_api.py"
 $ApiOutLog = Join-Path $ProjectRoot "local\api.out.log"
 $ApiErrLog = Join-Path $ProjectRoot "local\api.err.log"
 $RequirementsPath = Join-Path $ProjectRoot "requirements.txt"
+$ApiHost = "0.0.0.0"
+$ApiPort = "3001"
 
 if (-not (Test-Path (Join-Path $PgBin "initdb.exe"))) {
   throw "PostgreSQL binaries were not found at $PgRoot"
@@ -89,11 +91,20 @@ if (-not (Test-Path $MarkerPath)) {
 
 $runningApi = Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like "*local_api.py*" }
 if (-not $runningApi) {
-  $env:PGDATABASE = $DbName
+  $env:PGDATABASE = "cinetube"
+  $env:CINETUBE_API_HOST = $ApiHost
+  $env:CINETUBE_API_PORT = $ApiPort
   Start-Process -FilePath "python" -ArgumentList @($ApiScript) -WorkingDirectory $ProjectRoot -WindowStyle Hidden -RedirectStandardOutput $ApiOutLog -RedirectStandardError $ApiErrLog
 }
 
+$LanIp = (Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+  Where-Object { $_.IPAddress -match '^(10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)' -and $_.PrefixOrigin -ne 'WellKnown' } |
+  Select-Object -First 1 -ExpandProperty IPAddress)
+
 Write-Host "CineTube local DB is running."
-Write-Host "Local API: http://127.0.0.1:3001"
+Write-Host "Local API: http://127.0.0.1:$ApiPort"
+if ($LanIp) {
+  Write-Host "LAN API: http://$LanIp`:$ApiPort"
+}
 Write-Host "PostgreSQL: 127.0.0.1:54322 / db=cinetube / user=postgres / auth=trust"
 

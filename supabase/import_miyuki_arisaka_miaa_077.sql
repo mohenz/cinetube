@@ -1,4 +1,4 @@
--- CineTube import: Miyuki Arisaka requested reducing-mosaic work
+﻿-- CineTube import: Miyuki Arisaka requested reducing-mosaic work
 -- Source URL requested by owner: https://supjav.com/307511.html
 -- Import rule: only the owner-requested work is included.
 
@@ -114,3 +114,13 @@ on conflict (movie_code) do update set
   recommendation_score = excluded.recommendation_score,
   ranking_score = excluded.ranking_score,
   click_count = excluded.click_count;
+
+
+
+
+
+
+
+
+
+

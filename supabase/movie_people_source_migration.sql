@@ -1,4 +1,4 @@
--- CineTube migration: support up to 4 actors, up to 2 directors, and a source URL per movie.
+﻿-- CineTube migration: support up to 4 actors, up to 2 directors, and a source URL per movie.
 
 alter table public.movies
   add column if not exists actor_ids bigint[] not null default '{}';
@@ -23,3 +23,13 @@ where source_url is null
   and video_url is not null;
 
 create index if not exists idx_movies_actor_ids on public.movies using gin(actor_ids);
+
+
+
+
+
+
+
+
+
+

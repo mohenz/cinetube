@@ -1,4 +1,4 @@
-$ErrorActionPreference = "Stop"
+﻿$ErrorActionPreference = "Stop"
 $ProjectRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $PgBin = "C:\Program Files\PostgreSQL\16\bin"
 $DataDir = Join-Path $ProjectRoot "local\postgres-data"
@@ -16,3 +16,4 @@ if (Test-Path $DataDir) {
 }
 
 Write-Host "CineTube local DB stopped."
+
