@@ -1,4 +1,4 @@
-﻿(function () {
+(function () {
   const imageBucket = "cinetube-images";
   const tableNames = {
     movies: "movies",
@@ -383,7 +383,14 @@
     const page = Math.max(1, Number(options.page || 1));
     const pageSize = listPageSize(options.pageSize, 20);
     const [column, direction = "desc"] = listOrder(kind, options.order).split(".");
-    let query = state.client.from(table).select("*", { count: "exact" }).order(column, { ascending: direction === "asc" });
+    
+    // Optimize select columns (exclude heavy fields like description or video_url for listings)
+    const defaultSelect = kind === "movies"
+      ? "id, title, movie_code, category_code, actor_id, actor_ids, director_names, rating_grade, release_month, recommendation_score, rotten_tomatoes_score, ranking_score, click_count, is_main, created_at, poster_asset_id, capture_asset_id, snapshot_asset_id"
+      : "*";
+    const selectColumns = options.select || defaultSelect;
+    
+    let query = state.client.from(table).select(selectColumns, { count: "exact" }).order(column, { ascending: direction === "asc" });
     Object.entries(options.filters || {}).forEach(([key, value]) => {
       if (value !== undefined && value !== null && value !== "") query = query.eq(key, value);
     });

@@ -41,6 +41,18 @@ create index if not exists idx_gallery_images_visible_regdate
 create index if not exists idx_favorite_movies_content_created_at
   on public.favorite_movies(content_type, content_id, created_at desc);
 
+-- GIN Indexes for fast trigram searching on text columns
+create extension if not exists pg_trgm;
+
+create index if not exists idx_movies_title_trgm
+  on public.movies using gin (title gin_trgm_ops);
+
+create index if not exists idx_movies_movie_code_trgm
+  on public.movies using gin (movie_code gin_trgm_ops);
+
+create index if not exists idx_movies_description_trgm
+  on public.movies using gin (description gin_trgm_ops);
+
 analyze public.movies;
 analyze public.media_assets;
 analyze public.common_codes;

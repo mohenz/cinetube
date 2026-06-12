@@ -6,4 +6,5 @@ local/backups/
 local/*.log
 local/.schema_applied
 scripts/__pycache__/
-
+build/
+local/recovered_*
