@@ -32,7 +32,7 @@ on conflict (id) do update set
   representative_image_url = excluded.representative_image_url,
   image_urls = excluded.image_urls;
 
--- Adjust the auto-increment identity sequence for actors yl subsequent UI creations start at ID 7
+-- Adjust the auto-increment identity sequence for actors so subsequent UI creations start at ID 7
 select setval(pg_get_serial_sequence('public.actors', 'id'), coalesce(max(id), 1)) from public.actors;
 
 -- 3. Seed Default Rating Grades
@@ -99,7 +99,7 @@ on conflict (id) do update set
   recommendation_score = excluded.recommendation_score,
   created_at = excluded.created_at;
 
--- Adjust the auto-increment identity sequence for movies yl subsequent UI creations start at ID 25
+-- Adjust the auto-increment identity sequence for movies so subsequent UI creations start at ID 25
 select setval(pg_get_serial_sequence('public.movies', 'id'), coalesce(max(id), 1)) from public.movies;
 
 

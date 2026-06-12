@@ -13,7 +13,7 @@ drop table if exists public.webtoon_chapters;
 drop table if exists public.webtoons;
 drop table if exists public.media_assets;
 
--- 2. Create media_assets table first (yl other tables can reference it directly)
+-- 2. Create media_assets table first (so other tables can reference it directly)
 create table public.media_assets (
   id uuid primary key default gen_random_uuid(),
   bucket_id text not null default 'cinetube-images',
