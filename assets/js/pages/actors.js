@@ -3,7 +3,7 @@
   const Store = window.CineTubeStore;
   UI.setupChrome();
 
-  await Store.list("actors", { page: 1, pageSize: 20, order: "name.asc" });
+  await Store.load();
   UI.setDbStatus(Store.getStatus());
 
   const actorGrid = document.getElementById("actorGrid");
@@ -19,6 +19,24 @@
 
   function movieCount(actor) {
     return actor.movie_count ?? "-";
+  }
+
+  function actorSort(a, b) {
+    const countCompare = Number(b.movie_count || 0) - Number(a.movie_count || 0);
+    if (countCompare !== 0) return countCompare;
+    return String(a.name || "").localeCompare(String(b.name || ""));
+  }
+
+  function matchesActor(actor, term) {
+    if (!term) return true;
+    const keyword = term.toLowerCase();
+    return [
+      actor.name,
+      actor.body_size,
+      actor.debut_year,
+      actor.age,
+      actor.height_cm
+    ].join(" ").toLowerCase().includes(keyword);
   }
 
   function actorCard(actor) {
@@ -47,21 +65,22 @@
 
   async function render() {
     const term = searchInput ? searchInput.value.trim() : "";
-    const result = await Store.list("actors", {
-      page,
-      pageSize: pageSize.value,
-      search: term,
-      order: "name.asc"
-    });
-    const actors = result.items || [];
+    const data = await Store.load();
+    const size = pageSize.value;
+    const filteredActors = (data.actors || []).filter((actor) => matchesActor(actor, term)).sort(actorSort);
+    const total = filteredActors.length;
+    const pages = totalPages(total, size);
+    page = Math.min(Math.max(1, page), pages);
+    const actors = String(size).toLowerCase() === "all"
+      ? filteredActors
+      : filteredActors.slice((page - 1) * Number(size), page * Number(size));
 
     actorSummary.innerHTML = `
-      <span class="summary-pill"><strong>${UI.escapeHtml(result.total)}</strong> 배우</span>
-      <span class="summary-pill">페이지 단위 로딩</span>`;
+      <span class="summary-pill"><strong>${UI.escapeHtml(total)}</strong> 배우</span>
+      <span class="summary-pill">작품수 많은 순</span>`;
 
-    page = result.page || 1;
     actorGrid.innerHTML = actors.length ? actors.map(actorCard).join("") : `<div class="empty">조건에 맞는 배우정보가 없습니다.</div>`;
-    UI.renderPagination(pagination, totalPages(result.total, pageSize.value), page, (nextPage) => {
+    UI.renderPagination(pagination, pages, page, (nextPage) => {
       page = nextPage;
       render();
     });

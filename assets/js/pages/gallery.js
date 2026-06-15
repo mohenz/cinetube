@@ -15,7 +15,7 @@
   let totalItems = 0;
 
   function imageUrl(item) {
-    return item.image_url || item.image_asset?.public_url || "../assets/img/favicon.svg";
+    return item.image_asset?.thumb_url || item.image_url || item.image_asset?.public_url || "../assets/img/favicon.svg";
   }
 
   function itemId(item) {

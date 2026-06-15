@@ -543,6 +543,18 @@
           setImagePayloadValue(payload, config, media.public_url, media.id);
           continue;
         }
+        if (!assetValue && /^https?:\/\//i.test(urlValue) && Store.importMediaUrl) {
+          const media = await Store.importMediaUrl({
+            url: urlValue,
+            ownerTable: kind,
+            ownerField: ownerField(config),
+            sortOrder: config.index || 0
+          });
+          if (media) {
+            setImagePayloadValue(payload, config, media.public_url, media.id);
+            continue;
+          }
+        }
         setImagePayloadValue(payload, config, urlValue, assetValue);
       }
 
@@ -1015,7 +1027,7 @@
       formHost.innerHTML = `
         <div class="form-title-row">
           <h2>${isEdit ? "정보 수정" : "신규 등록"}</h2>
-          ${isEdit ? `<button class="primary-button form-title-submit" type="button"><span class="material-symbols-outlined">save</span>수정 저장</button>` : ""}
+          <button class="primary-button form-title-submit" type="button"><span class="material-symbols-outlined">save</span>${isEdit ? "수정 저장" : "저장"}</button>
         </div>
         <form class="form-grid" id="entryForm">
           ${renderMovieImportPanel()}
@@ -1208,6 +1220,10 @@
       return `<img class="table-thumb" src="${UI.escapeHtml(url)}" alt="${UI.escapeHtml(label)}">`;
     }
 
+    function assetThumb(asset, fallbackUrl = "") {
+      return asset?.thumb_url || fallbackUrl || asset?.public_url || "";
+    }
+
     function rowActions(item) {
       const key = UI.escapeHtml(item[primaryKey]);
       const detailLink = kind === "movies"
@@ -1244,38 +1260,53 @@
       if (kind === "movies") {
         return items.map((item) => {
           const key = UI.escapeHtml(item[primaryKey]);
-          return `<tr><td class="table-movie-trigger" data-key="${key}" style="cursor:pointer;" title="클릭 시 조회 및 수정">${thumb(UI.movieImageUrl(item, ""), item.title)}</td><td class="table-movie-trigger" data-key="${key}" style="cursor:pointer;color:var(--accent-soft);font-weight:600;text-decoration:underline;" title="클릭 시 조회 및 수정">${UI.escapeHtml(item.movie_code)}</td><td>${UI.escapeHtml(item.category_name)}</td><td>${UI.escapeHtml(item.actor_names || item.actor_name)}</td><td>${UI.escapeHtml((item.director_names || []).join(", ") || "-")}</td><td><span class="rating">${UI.escapeHtml(item.rating_grade)}</span></td><td>${item.is_main ? '<span class="summary-pill" style="min-height:24px;background:var(--accent);color:#fff;border-color:var(--accent);font-weight:700;">전시</span>' : '<span class="summary-pill" style="min-height:24px;">미전시</span>'}</td><td>${UI.escapeHtml(Store.effectiveClickCount(item))}</td><td>${UI.escapeHtml(item.ranking_score || 0)}</td><td>${rowActions(item)}</td></tr>`;
+          return `<tr><td class="table-movie-trigger" data-key="${key}" style="cursor:pointer;" title="클릭 시 조회 및 수정">${thumb(UI.movieThumbnailUrl(item, ""), item.title)}</td><td class="table-movie-trigger" data-key="${key}" style="cursor:pointer;color:var(--accent-soft);font-weight:600;text-decoration:underline;" title="클릭 시 조회 및 수정">${UI.escapeHtml(item.movie_code)}</td><td>${UI.escapeHtml(item.category_name)}</td><td>${UI.escapeHtml(item.actor_names || item.actor_name)}</td><td>${UI.escapeHtml((item.director_names || []).join(", ") || "-")}</td><td><span class="rating">${UI.escapeHtml(item.rating_grade)}</span></td><td>${item.is_main ? '<span class="summary-pill" style="min-height:24px;background:var(--accent);color:#fff;border-color:var(--accent);font-weight:700;">전시</span>' : '<span class="summary-pill" style="min-height:24px;">미전시</span>'}</td><td>${UI.escapeHtml(Store.effectiveClickCount(item))}</td><td>${UI.escapeHtml(item.ranking_score || 0)}</td><td>${rowActions(item)}</td></tr>`;
         }).join("");
       }
       if (kind === "webtoons") {
         return items.map((item) => {
           const key = UI.escapeHtml(item[primaryKey]);
           const episodeCount = (data.webtoonChapters || []).filter((chapter) => String(chapter.webtoon_id) === String(item.webtoon_id)).length;
-          return `<tr><td class="table-record-trigger" data-key="${key}" style="cursor:pointer;" title="클릭 시 조회 및 수정">${thumb(item.poster_image, item.title)}</td><td class="table-record-trigger" data-key="${key}" style="cursor:pointer;color:var(--accent-soft);font-weight:600;text-decoration:underline;" title="클릭 시 조회 및 수정">${UI.escapeHtml(item.webtoon_id)}</td><td>${UI.escapeHtml(item.title)}</td><td>${UI.escapeHtml(item.artist || "-")}</td><td>${UI.escapeHtml(item.genre || "-")}</td><td>${UI.escapeHtml(episodeCount)}</td><td>${rowActions(item)}</td></tr>`;
+          return `<tr><td class="table-record-trigger" data-key="${key}" style="cursor:pointer;" title="클릭 시 조회 및 수정">${thumb(assetThumb(item.poster_image_asset, item.poster_image), item.title)}</td><td class="table-record-trigger" data-key="${key}" style="cursor:pointer;color:var(--accent-soft);font-weight:600;text-decoration:underline;" title="클릭 시 조회 및 수정">${UI.escapeHtml(item.webtoon_id)}</td><td>${UI.escapeHtml(item.title)}</td><td>${UI.escapeHtml(item.artist || "-")}</td><td>${UI.escapeHtml(item.genre || "-")}</td><td>${UI.escapeHtml(episodeCount)}</td><td>${rowActions(item)}</td></tr>`;
         }).join("");
       }
       if (kind === "webtoonChapters") {
-        return items.map((item) => `<tr><td>${thumb(item.chapter_poster, item.webtoon_chapter_id)}</td><td>${UI.escapeHtml(item.webtoon_chapter_id)}</td><td>${UI.escapeHtml(item.webtoon_id)}</td><td>${UI.escapeHtml(item.chapter_number)}</td><td>${item.chapter_url ? `<a class="link-button" href="${UI.escapeHtml(item.chapter_url)}" target="_blank" rel="noreferrer">열기</a>` : `<span class="muted-text">없음</span>`}</td><td>${rowActions(item)}</td></tr>`).join("");
+        return items.map((item) => `<tr><td>${thumb(assetThumb(item.chapter_poster_asset, item.chapter_poster), item.webtoon_chapter_id)}</td><td>${UI.escapeHtml(item.webtoon_chapter_id)}</td><td>${UI.escapeHtml(item.webtoon_id)}</td><td>${UI.escapeHtml(item.chapter_number)}</td><td>${item.chapter_url ? `<a class="link-button" href="${UI.escapeHtml(item.chapter_url)}" target="_blank" rel="noreferrer">열기</a>` : `<span class="muted-text">없음</span>`}</td><td>${rowActions(item)}</td></tr>`).join("");
       }
       if (kind === "galleryImages") {
         return items.map((item) => {
           const key = UI.escapeHtml(item[primaryKey]);
           const tags = Array.isArray(item.tags) ? item.tags.join(", ") : item.tags || "";
-          return `<tr><td class="table-record-trigger" data-key="${key}" style="cursor:pointer;" title="클릭 시 조회 및 수정">${thumb(item.image_url || item.image_asset?.public_url, item.title)}</td><td class="table-record-trigger" data-key="${key}" style="cursor:pointer;color:var(--accent-soft);font-weight:600;text-decoration:underline;" title="클릭 시 조회 및 수정">${UI.escapeHtml(item.gallery_image_id)}</td><td>${UI.escapeHtml(item.title)}</td><td>${UI.escapeHtml(tags || "-")}</td><td>${item.is_visible === false ? "미전시" : "전시"}</td><td>${rowActions(item)}</td></tr>`;
+          return `<tr><td class="table-record-trigger" data-key="${key}" style="cursor:pointer;" title="클릭 시 조회 및 수정">${thumb(assetThumb(item.image_asset, item.image_url), item.title)}</td><td class="table-record-trigger" data-key="${key}" style="cursor:pointer;color:var(--accent-soft);font-weight:600;text-decoration:underline;" title="클릭 시 조회 및 수정">${UI.escapeHtml(item.gallery_image_id)}</td><td>${UI.escapeHtml(item.title)}</td><td>${UI.escapeHtml(tags || "-")}</td><td>${item.is_visible === false ? "미전시" : "전시"}</td><td>${rowActions(item)}</td></tr>`;
         }).join("");
       }
       if (kind === "categories") {
-        return items.map((item) => `<tr><td>${thumb(item.representative_image_url, item.name)}</td><td>${UI.escapeHtml(item.category_code)}</td><td>${UI.escapeHtml(item.name)}</td><td>${item.is_visible === false ? "미전시" : "전시"}</td><td>${rowActions(item)}</td></tr>`).join("");
+        return items.map((item) => `<tr><td>${thumb(assetThumb(item.representative_image_asset, item.representative_image_url), item.name)}</td><td>${UI.escapeHtml(item.category_code)}</td><td>${UI.escapeHtml(item.name)}</td><td>${item.is_visible === false ? "미전시" : "전시"}</td><td>${rowActions(item)}</td></tr>`).join("");
       }
       if (kind === "actors") {
         return items.map((item) => {
           const key = UI.escapeHtml(item[primaryKey]);
-          const movieCount = data.movies.filter((movie) => (movie.actor_ids || [movie.actor_id]).some((id) => String(id) === String(item.id))).length;
-          return `<tr><td class="table-record-trigger" data-key="${key}" style="cursor:pointer;" title="클릭 시 조회 및 수정">${thumb(item.representative_image_url, item.name)}</td><td class="table-record-trigger" data-key="${key}" style="cursor:pointer;color:var(--accent-soft);font-weight:600;text-decoration:underline;" title="클릭 시 조회 및 수정">${UI.escapeHtml(item.name)}</td><td>${UI.escapeHtml(movieCount)}</td><td>${UI.escapeHtml(item.debut_year)}</td><td>${rowActions(item)}</td></tr>`;
+          const movieCount = item.movie_count ?? data.movies.filter((movie) => (movie.actor_ids || [movie.actor_id]).some((id) => String(id) === String(item.id))).length;
+          return `<tr><td class="table-record-trigger" data-key="${key}" style="cursor:pointer;" title="클릭 시 조회 및 수정">${thumb(assetThumb(item.representative_image_asset, item.representative_image_url), item.name)}</td><td class="table-record-trigger" data-key="${key}" style="cursor:pointer;color:var(--accent-soft);font-weight:600;text-decoration:underline;" title="클릭 시 조회 및 수정">${UI.escapeHtml(item.name)}</td><td>${UI.escapeHtml(movieCount)}</td><td>${UI.escapeHtml(item.debut_year)}</td><td>${rowActions(item)}</td></tr>`;
         }).join("");
       }
       if (kind === "commonCodes") {
-        return items.map((item) => `<tr><td>${UI.escapeHtml(item.code_group)}</td><td>${UI.escapeHtml(item.code_value)}</td><td>${UI.escapeHtml(item.code_label)}</td><td>${UI.escapeHtml(item.display_order)}</td><td>${item.is_enabled === false ? "미사용" : "사용"}</td><td>${rowActions(item)}</td></tr>`).join("");
+        const sortedItems = [...items].sort((a, b) => {
+          const groupCompare = String(a.code_group || "").localeCompare(String(b.code_group || ""));
+          if (groupCompare !== 0) return groupCompare;
+          const orderCompare = Number(a.display_order || 0) - Number(b.display_order || 0);
+          if (orderCompare !== 0) return orderCompare;
+          return String(a.code_value || "").localeCompare(String(b.code_value || ""));
+        });
+        let currentGroup = null;
+        return sortedItems.map((item) => {
+          const group = String(item.code_group || "");
+          const groupRow = group !== currentGroup
+            ? `<tr><td colspan="6" style="background:var(--surface-2);color:var(--text);border-top:1px solid var(--line);font-weight:800;">${UI.escapeHtml(group || "-")}</td></tr>`
+            : "";
+          currentGroup = group;
+          return `${groupRow}<tr><td>${UI.escapeHtml(item.code_group)}</td><td>${UI.escapeHtml(item.code_value)}</td><td>${UI.escapeHtml(item.code_label)}</td><td>${UI.escapeHtml(item.display_order)}</td><td>${item.is_enabled === false ? "미사용" : "사용"}</td><td>${rowActions(item)}</td></tr>`;
+        }).join("");
       }
       return items.map((item) => `<tr><td><span class="rating">${UI.escapeHtml(item.grade)}</span></td><td>${UI.escapeHtml(item.display_order)}</td><td>${rowActions(item)}</td></tr>`).join("");
     }
@@ -1314,6 +1345,11 @@
         if (term) {
           filteredItems = allItems.filter((actor) => String(actor.name || "").toLowerCase().includes(term));
         }
+        filteredItems = [...filteredItems].sort((a, b) => {
+          const countCompare = Number(b.movie_count || 0) - Number(a.movie_count || 0);
+          if (countCompare !== 0) return countCompare;
+          return String(a.name || "").localeCompare(String(b.name || ""));
+        });
       }
       if (kind === "commonCodes" && searchInput && searchInput.value.trim()) {
         const term = searchInput.value.trim().toLowerCase();

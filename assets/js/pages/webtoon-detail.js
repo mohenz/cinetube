@@ -64,7 +64,7 @@
       </div>
     </section>
     <section class="movie-image-strip webtoon-image-strip">
-      ${images.length ? images.map((image, index) => `<img src="${UI.escapeHtml(image)}" alt="${UI.escapeHtml(webtoon.title)} 이미지 ${index + 1}">`).join("") : ""}
+      ${images.length ? images.map((image, index) => `<img class="snapshot-preview-image webtoon-preview-image" src="${UI.escapeHtml(image)}" alt="${UI.escapeHtml(webtoon.title)} 이미지 ${index + 1}" role="button" tabindex="0" data-webtoon-image-index="${index}" aria-label="${UI.escapeHtml(webtoon.title)} 이미지 ${index + 1} 전체보기">`).join("") : ""}
     </section>
     <section class="admin-panel webtoon-chapter-panel">
       <div class="section-head"><div><p class="eyebrow">Chapters</p><h2>Chapter 목록</h2></div></div>
@@ -83,6 +83,45 @@
       </table>
     </section>`;
   UI.setupFavoriteButtons(detail, null, "webtoon");
+
+  function openWebtoonImageModal(imageUrl, index) {
+    const existing = document.getElementById("webtoonImageModal");
+    if (existing) existing.remove();
+    const modal = document.createElement("div");
+    modal.className = "image-modal";
+    modal.id = "webtoonImageModal";
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
+    modal.setAttribute("aria-label", "웹툰이미지 전체보기");
+    modal.innerHTML = `
+      <button class="image-modal-close" type="button" aria-label="닫기"><span class="material-symbols-outlined">close</span></button>
+      <img src="${UI.escapeHtml(imageUrl)}" alt="${UI.escapeHtml(webtoon.title)} 웹툰 이미지 ${index + 1} 전체 이미지">
+    `;
+    document.body.appendChild(modal);
+    const closeButton = modal.querySelector(".image-modal-close");
+    const close = () => modal.remove();
+    closeButton.addEventListener("click", close);
+    modal.addEventListener("click", (event) => {
+      if (event.target === modal) close();
+    });
+    document.addEventListener("keydown", function onEscape(event) {
+      if (event.key !== "Escape") return;
+      close();
+      document.removeEventListener("keydown", onEscape);
+    });
+    closeButton.focus();
+  }
+
+  detail.querySelectorAll("[data-webtoon-image-index]").forEach((image) => {
+    const index = Number(image.dataset.webtoonImageIndex || 0);
+    const open = () => openWebtoonImageModal(images[index], index);
+    image.addEventListener("click", open);
+    image.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      open();
+    });
+  });
 })();
 
 

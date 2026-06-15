@@ -46,9 +46,14 @@
       "chapter_poster", "chapter_poster_asset_id", "created_at"
     ],
     mediaAssets: [
-      "id", "bucket_id", "object_path", "original_name", "mime_type", "size_bytes",
+      "id", "bucket_id", "object_path", "thumb_url", "original_name", "mime_type", "size_bytes",
       "owner_table", "owner_field", "owner_id", "sort_order", "created_at"
     ]
+  };
+
+  const supabaseTableColumns = {
+    ...localTableColumns,
+    mediaAssets: [...localTableColumns.mediaAssets, "public_url"].filter((column) => column !== "thumb_url")
   };
 
   const primaryKeys = {
@@ -165,12 +170,21 @@
         rating_order: ratingOrder.get(movie.rating_grade) || 99
       };
     });
+    const actorMovieCounts = new Map();
+    movies.forEach((movie) => {
+      const actorIds = (Array.isArray(movie.actor_ids) && movie.actor_ids.length ? movie.actor_ids : [movie.actor_id])
+        .filter((id) => id !== undefined && id !== null && id !== "");
+      new Set(actorIds.map(String)).forEach((id) => {
+        actorMovieCounts.set(id, (actorMovieCounts.get(id) || 0) + 1);
+      });
+    });
     const categories = data.categories.map((category) => ({
       ...category,
       representative_image_asset: mediaById.get(String(category.representative_image_asset_id)) || null
     }));
     const actors = data.actors.map((actor) => ({
       ...actor,
+      movie_count: actorMovieCounts.get(String(actor.id)) || 0,
       representative_image_asset: mediaById.get(String(actor.representative_image_asset_id)) || null,
       image_assets: Array.isArray(actor.image_asset_ids) ? actor.image_asset_ids.map((id) => mediaById.get(String(id))).filter(Boolean) : []
     }));
@@ -248,7 +262,8 @@
     if (state.mode === "local") return fetchLocalTable(kind);
     const table = tableNames[kind];
     const orderColumn = kind === "ratings" || kind === "commonCodes" ? "display_order" : "created_at";
-    let query = client.from(table).select("*");
+    const columns = (supabaseTableColumns[kind] || ["*"]).join(",");
+    let query = client.from(table).select(columns);
     if (kind === "ratings" || kind === "commonCodes") query = query.order(orderColumn, { ascending: true });
     if (kind !== "ratings" && kind !== "commonCodes") query = query.order(orderColumn, { ascending: false });
     const { data, error } = await query;
@@ -336,7 +351,30 @@
       }
     }
 
-    return await load();
+    state.mode = hasConfig() ? "supabase" : "sample";
+    state.client = createClient();
+    if (!state.client) return await load();
+
+    try {
+      const includeActors = options.includeActors !== false;
+      const [categories, actors, ratings, commonCodes, favoriteMovies, mediaAssets] = await Promise.all([
+        fetchTable(state.client, "categories"),
+        includeActors ? fetchTable(state.client, "actors") : Promise.resolve([]),
+        fetchTable(state.client, "ratings"),
+        fetchOptionalTable(state.client, "commonCodes"),
+        fetchOptionalTable(state.client, "favoriteMovies"),
+        fetchOptionalTable(state.client, "mediaAssets")
+      ]);
+      state.data = enrich({ movies: [], categories, actors, ratings, commonCodes, favoriteMovies, webtoons: [], webtoonChapters: [], galleryImages: [], mediaAssets });
+      await migrateLegacyFavorites();
+      state.status = { connected: true, message: "Supabase 연결됨" };
+      return state.data;
+    } catch (error) {
+      console.error(error);
+      state.data = enrich({ ...clone(window.CineTubeSampleData), commonCodes: defaultCommonCodes(), favoriteMovies: legacyFavoriteMovieCodes().map((code, index) => ({ id: -index - 1, user_key: favoriteUserKey(), content_type: "movie", content_id: code })), webtoons: [], webtoonChapters: [], galleryImages: [], mediaAssets: [] });
+      state.status = { connected: false, message: "Supabase 오류: 샘플 데이터" };
+      return state.data;
+    }
   }
 
   function listOrder(kind, requestedOrder) {
@@ -384,10 +422,11 @@
     const pageSize = listPageSize(options.pageSize, 20);
     const [column, direction = "desc"] = listOrder(kind, options.order).split(".");
     
-    // Optimize select columns (exclude heavy fields like description or video_url for listings)
     const defaultSelect = kind === "movies"
       ? "id, title, movie_code, category_code, actor_id, actor_ids, director_names, rating_grade, release_month, recommendation_score, rotten_tomatoes_score, ranking_score, click_count, is_main, created_at, poster_asset_id, capture_asset_id, snapshot_asset_id"
-      : "*";
+      : options.includeUrls && kind === "galleryImages"
+        ? "*"
+        : (supabaseTableColumns[kind] || ["*"]).join(",");
     const selectColumns = options.select || defaultSelect;
     
     let query = state.client.from(table).select(selectColumns, { count: "exact" }).order(column, { ascending: direction === "asc" });
@@ -667,8 +706,49 @@
     return resetData(state.data);
   }
 
+  function createImageThumbnail(file, maxSize = 300) {
+    return new Promise((resolve) => {
+      if (!file || !file.type?.startsWith("image/")) {
+        resolve("");
+        return;
+      }
+      const image = new Image();
+      const objectUrl = URL.createObjectURL(file);
+      image.onload = () => {
+        URL.revokeObjectURL(objectUrl);
+        const scale = Math.min(1, maxSize / Math.max(image.width, image.height));
+        const width = Math.max(1, Math.round(image.width * scale));
+        const height = Math.max(1, Math.round(image.height * scale));
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const context = canvas.getContext("2d");
+        if (!context) {
+          resolve("");
+          return;
+        }
+        context.drawImage(image, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/webp", 0.78));
+      };
+      image.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        resolve("");
+      };
+      image.src = objectUrl;
+    });
+  }
+
   async function loadGalleryImagesWithUrls() {
     await load();
+    if (state.client && state.mode !== "local") {
+      const { data, error } = await state.client
+        .from(tableNames.galleryImages)
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      resetData({ ...state.data, galleryImages: data || [] });
+      return state.data.galleryImages || [];
+    }
     if (state.mode !== "local") return state.data.galleryImages || [];
     const galleryImages = await requestLocal(`/${tableNames.galleryImages}?select=*&order=created_at.desc`) || [];
     resetData({ ...state.data, galleryImages });
@@ -679,6 +759,33 @@
     await load();
     const key = String(codeOrId || "");
     if (!key) return null;
+    if (state.client && state.mode !== "local") {
+      let query = state.client
+        .from(tableNames.movies)
+        .select("*")
+        .eq("movie_code", key)
+        .order("created_at", { ascending: false })
+        .limit(1);
+      let { data, error } = await query;
+      if (error) throw error;
+      if (!data?.length && /^\d+$/.test(key)) {
+        const fallback = await state.client
+          .from(tableNames.movies)
+          .select("*")
+          .eq("id", key)
+          .order("created_at", { ascending: false })
+          .limit(1);
+        data = fallback.data;
+        error = fallback.error;
+        if (error) throw error;
+      }
+      const movie = data?.[0] || null;
+      if (!movie) return null;
+      const movies = state.data.movies.map((item) => String(item.id) === String(movie.id) ? movie : item);
+      if (!movies.some((item) => String(item.id) === String(movie.id))) movies.unshift(movie);
+      resetData({ ...state.data, movies });
+      return state.data.movies.find((item) => String(item.id) === String(movie.id)) || null;
+    }
     if (state.mode !== "local") {
       return state.data.movies.find((item) => String(item.movie_code) === key || String(item.id) === key) || null;
     }
@@ -817,20 +924,24 @@
     const objectPath = `${ownerTable}/${safeField}/${id}.${extension}`;
 
     if (state.mode === "local") {
-      const publicUrl = await readFileAsDataUrl(file);
-      const assetPayload = {
-        bucket_id: "local-inline",
-        object_path: objectPath,
-        public_url: publicUrl,
-        original_name: file.name,
-        mime_type: file.type,
-        size_bytes: file.size,
-        owner_table: ownerTable,
-        owner_field: ownerField,
-        owner_id: ownerId,
-        sort_order: sortOrder
-      };
-      const data = await insertLocal("mediaAssets", assetPayload);
+      const dataUrl = await readFileAsDataUrl(file);
+      const thumbDataUrl = await createImageThumbnail(file);
+      const rows = await requestLocal("/media/upload", {
+        method: "POST",
+        headers: { Prefer: "return=representation" },
+        body: JSON.stringify({
+          data_url: dataUrl,
+          thumb_data_url: thumbDataUrl,
+          original_name: file.name,
+          mime_type: file.type,
+          size_bytes: file.size,
+          owner_table: ownerTable,
+          owner_field: ownerField,
+          owner_id: ownerId,
+          sort_order: sortOrder
+        })
+      });
+      const data = Array.isArray(rows) ? rows[0] : rows;
       state.data.mediaAssets = [data, ...(state.data.mediaAssets || [])];
       resetData(state.data);
       return data;
@@ -879,6 +990,29 @@
     if (error) throw error;
     state.data.mediaAssets = [data, ...(state.data.mediaAssets || [])];
     resetData(state.data);
+    return data;
+  }
+
+  async function importMediaUrl({ url, ownerTable, ownerField, ownerId = null, sortOrder = 0 }) {
+    await load();
+    const value = String(url || "").trim();
+    if (!value || !value.startsWith("http") || state.mode !== "local") return null;
+    const rows = await requestLocal("/media/import-url", {
+      method: "POST",
+      headers: { Prefer: "return=representation" },
+      body: JSON.stringify({
+        url: value,
+        owner_table: ownerTable,
+        owner_field: ownerField,
+        owner_id: ownerId,
+        sort_order: sortOrder
+      })
+    });
+    const data = Array.isArray(rows) ? rows[0] : rows;
+    if (data) {
+      state.data.mediaAssets = [data, ...(state.data.mediaAssets || [])];
+      resetData(state.data);
+    }
     return data;
   }
 
@@ -946,6 +1080,7 @@
     isFavoriteItem,
     toggleFavoriteItem,
     uploadMedia,
+    importMediaUrl,
     updateMediaOwner,
     deleteMedia,
     clearMainMovies,

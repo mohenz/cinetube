@@ -16,6 +16,7 @@ create table public.media_assets (
   bucket_id text not null default 'local-inline',
   object_path text not null unique,
   public_url text not null,
+  thumb_url text,
   original_name text,
   mime_type text,
   size_bytes bigint,
@@ -151,6 +152,8 @@ create table public.favorite_movies (
   unique (user_key, content_type, content_id)
 );
 
+create extension if not exists pg_trgm;
+
 create index idx_movies_category_code on public.movies(category_code);
 create index idx_movies_actor_id on public.movies(actor_id);
 create index idx_movies_actor_ids on public.movies using gin(actor_ids);
@@ -183,6 +186,20 @@ create index idx_gallery_images_visible_regdate on public.gallery_images(is_visi
 create index idx_favorite_movies_user_content on public.favorite_movies(user_key, content_type, created_at desc);
 create index idx_favorite_movies_content on public.favorite_movies(content_type, content_id);
 create index idx_favorite_movies_content_created_at on public.favorite_movies(content_type, content_id, created_at desc);
+create index idx_categories_representative_asset on public.categories(representative_image_asset_id);
+create index idx_actors_representative_asset on public.actors(representative_image_asset_id);
+create index idx_webtoons_poster_asset on public.webtoons(poster_image_asset_id);
+create index idx_webtoon_chapters_poster_asset on public.webtoon_chapters(chapter_poster_asset_id);
+create index idx_gallery_images_asset on public.gallery_images(image_asset_id);
+create index idx_movies_poster_asset on public.movies(poster_asset_id);
+create index idx_movies_capture_asset on public.movies(capture_asset_id);
+create index idx_movies_snapshot_asset on public.movies(snapshot_asset_id);
+create index idx_actors_name_trgm on public.actors using gin (name gin_trgm_ops);
+create index idx_actors_body_size_trgm on public.actors using gin (body_size gin_trgm_ops);
+create index idx_gallery_images_title_trgm on public.gallery_images using gin (title gin_trgm_ops);
+create index idx_gallery_images_id_trgm on public.gallery_images using gin (gallery_image_id gin_trgm_ops);
+create index idx_gallery_images_description_trgm on public.gallery_images using gin (description gin_trgm_ops);
+create index idx_gallery_images_source_trgm on public.gallery_images using gin (source gin_trgm_ops);
 
 insert into public.rating_grades (grade, display_order)
 values ('A+', 1), ('A', 2), ('B+', 3), ('B', 4), ('C', 5)

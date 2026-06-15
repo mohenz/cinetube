@@ -3,15 +3,24 @@ from urllib.parse import parse_qs, unquote, urlparse
 from urllib.request import HTTPCookieProcessor, Request, build_opener, urlopen
 from http.cookiejar import CookieJar
 from html import unescape
+import base64
 import json
+import mimetypes
 import os
+from pathlib import Path
 import queue
 import re
 import ssl
 import threading
 from functools import lru_cache
+from uuid import uuid4
 
 import psycopg
+
+try:
+    from PIL import Image
+except Exception:
+    Image = None
 
 ENV = {
     "DATABASE_URL": os.getenv("DATABASE_URL", ""),
@@ -24,6 +33,8 @@ ENV = {
 }
 API_HOST = os.getenv("CINETUBE_API_HOST", "0.0.0.0")
 API_PORT = int(os.getenv("CINETUBE_API_PORT", "3001"))
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+LOCAL_MEDIA_ROOT = PROJECT_ROOT / "local" / "media"
 DB_POOL_MAX_SIZE = 8
 DB_POOL = queue.LifoQueue(maxsize=DB_POOL_MAX_SIZE)
 DB_POOL_LOCK = threading.Lock()
@@ -32,8 +43,8 @@ DB_POOL_SIZE = 0
 TABLES = {
     "media_assets": {
         "pk": "id",
-        "insert": ["bucket_id", "object_path", "public_url", "original_name", "mime_type", "size_bytes", "owner_table", "owner_field", "owner_id", "sort_order"],
-        "update": ["bucket_id", "object_path", "public_url", "original_name", "mime_type", "size_bytes", "owner_table", "owner_field", "owner_id", "sort_order"],
+        "insert": ["bucket_id", "object_path", "public_url", "thumb_url", "original_name", "mime_type", "size_bytes", "owner_table", "owner_field", "owner_id", "sort_order"],
+        "update": ["bucket_id", "object_path", "public_url", "thumb_url", "original_name", "mime_type", "size_bytes", "owner_table", "owner_field", "owner_id", "sort_order"],
     },
     "categories": {
         "pk": "category_code",
@@ -1504,7 +1515,7 @@ def select_clause(table, query):
         if not name:
             continue
         if name not in columns:
-            raise ValueError(f"unknown column: {name}")
+            continue
         selected.append(name)
     if not selected:
         return "*"
@@ -1529,6 +1540,176 @@ def database_metadata():
         "pg_size_pretty(pg_database_size(current_database())) as size_pretty"
     )
     return rows[0] if rows else {"database_name": ENV["PGDATABASE"], "size_bytes": 0, "size_pretty": "0 bytes"}
+
+
+def parse_data_url(value):
+    match = re.match(r"^data:([^;,]+)?(?:;[^,]*)?;base64,(.*)$", value or "", re.S)
+    if not match:
+        raise ValueError("data URL 형식의 이미지가 필요합니다")
+    mime_type = match.group(1) or "application/octet-stream"
+    return mime_type, base64.b64decode(match.group(2), validate=True)
+
+
+def safe_media_part(value, fallback="item"):
+    value = re.sub(r"[^a-z0-9_-]+", "-", str(value or "").lower()).strip("-")
+    return value or fallback
+
+
+def extension_for_media(mime_type, original_name=""):
+    if original_name and "." in original_name:
+        ext = original_name.rsplit(".", 1)[-1].lower()
+        if re.match(r"^[a-z0-9]{1,8}$", ext):
+            return ext
+    return (mimetypes.guess_extension(mime_type or "") or ".bin").lstrip(".")
+
+
+def public_media_url(relative_path):
+    return "/" + relative_path.replace("\\", "/")
+
+
+def write_local_media_file(relative_path, content):
+    path = PROJECT_ROOT / relative_path
+    resolved = path.resolve()
+    if not str(resolved).startswith(str(LOCAL_MEDIA_ROOT.resolve())):
+        raise ValueError("invalid media path")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(content)
+
+
+def save_local_media(payload):
+    owner_table = safe_media_part(payload.get("owner_table"), "media")
+    owner_field = safe_media_part(payload.get("owner_field"), "image")
+    original_name = payload.get("original_name") or "upload"
+    mime_type, original_bytes = parse_data_url(payload.get("data_url"))
+    extension = extension_for_media(mime_type, original_name)
+    media_id = str(uuid4())
+    base_dir = f"local/media/{owner_table}/{owner_field}"
+    object_path = f"{base_dir}/{media_id}.{extension}"
+    write_local_media_file(object_path, original_bytes)
+
+    thumb_url = None
+    thumb_data_url = payload.get("thumb_data_url")
+    if thumb_data_url:
+        thumb_mime, thumb_bytes = parse_data_url(thumb_data_url)
+        thumb_ext = extension_for_media(thumb_mime, "thumb.webp")
+        thumb_path = f"{base_dir}/{media_id}.thumb.{thumb_ext}"
+        write_local_media_file(thumb_path, thumb_bytes)
+        thumb_url = public_media_url(thumb_path)
+
+    asset_payload = {
+        "bucket_id": "local-file",
+        "object_path": object_path,
+        "public_url": public_media_url(object_path),
+        "thumb_url": thumb_url or public_media_url(object_path),
+        "original_name": original_name,
+        "mime_type": mime_type,
+        "size_bytes": len(original_bytes),
+        "owner_table": payload.get("owner_table") or owner_table,
+        "owner_field": payload.get("owner_field") or owner_field,
+        "owner_id": payload.get("owner_id"),
+        "sort_order": payload.get("sort_order", 0),
+    }
+    return insert_row_for_table("media_assets", asset_payload)
+
+
+def thumbnail_data_url(content):
+    if Image is None:
+        return ""
+    try:
+        from io import BytesIO
+        with Image.open(BytesIO(content)) as image:
+            image.thumbnail((300, 300))
+            if image.mode not in ("RGB", "RGBA"):
+                image = image.convert("RGB")
+            output = BytesIO()
+            image.save(output, "WEBP", quality=78, method=6)
+            encoded = base64.b64encode(output.getvalue()).decode("ascii")
+            return f"data:image/webp;base64,{encoded}"
+    except Exception:
+        return ""
+
+
+def import_remote_media(payload):
+    url = payload.get("url") or ""
+    if not url.startswith(("http://", "https://")):
+        raise ValueError("http 또는 https 이미지 URL이 필요합니다")
+    request = Request(url, headers={
+        "User-Agent": "Mozilla/5.0",
+        "Referer": f"{urlparse(url).scheme}://{urlparse(url).netloc}/",
+    })
+    with urlopen(request, timeout=30) as response:
+        content = response.read()
+        mime_type = response.headers.get_content_type() or "application/octet-stream"
+    if not mime_type.startswith("image/"):
+        raise ValueError(f"이미지 응답이 아닙니다: {mime_type}")
+    original_name = urlparse(url).path.rsplit("/", 1)[-1] or "remote-image"
+    data_url = f"data:{mime_type};base64,{base64.b64encode(content).decode('ascii')}"
+    next_payload = {
+        **payload,
+        "data_url": data_url,
+        "thumb_data_url": thumbnail_data_url(content),
+        "original_name": original_name,
+        "mime_type": mime_type,
+        "size_bytes": len(content),
+    }
+    return save_local_media(next_payload)
+
+
+IMAGE_FIELDS = {
+    "movies": [
+        ("poster_url", "poster_asset_id", "poster"),
+        ("capture_url", "capture_asset_id", "capture"),
+        ("snapshot_url", "snapshot_asset_id", "snapshot"),
+    ],
+    "categories": [("representative_image_url", "representative_image_asset_id", "representative")],
+    "actors": [("representative_image_url", "representative_image_asset_id", "representative")],
+    "gallery_images": [("image_url", "image_asset_id", "image")],
+    "webtoons": [("poster_image", "poster_image_asset_id", "poster")],
+    "webtoon_chapters": [("chapter_poster", "chapter_poster_asset_id", "poster")],
+}
+
+
+def localize_remote_images(table, rows):
+    fields = IMAGE_FIELDS.get(table, [])
+    if not fields or not rows:
+        return rows
+    pk = TABLES[table]["pk"]
+    for row in rows:
+        owner_id = row.get(pk)
+        updates = {}
+        for url_field, asset_field, owner_field in fields:
+            value = row.get(url_field)
+            if not isinstance(value, str) or not value.startswith(("http://", "https://")):
+                continue
+            if row.get(asset_field):
+                continue
+            asset_rows = import_remote_media({
+                "url": value,
+                "owner_table": table,
+                "owner_field": owner_field,
+                "owner_id": str(owner_id) if owner_id is not None else None,
+                "sort_order": 0,
+            })
+            asset = asset_rows[0] if isinstance(asset_rows, list) and asset_rows else asset_rows
+            if not asset:
+                continue
+            updates[url_field] = asset.get("public_url")
+            updates[asset_field] = asset.get("id")
+            row[url_field] = asset.get("public_url")
+            row[asset_field] = asset.get("id")
+        if updates and owner_id is not None:
+            sets = ", ".join(f"{name} = {sql_literal(value)}" for name, value in updates.items())
+            run_sql(f"update public.{table} set {sets} where {pk} = {sql_literal(owner_id)};")
+    return rows
+
+
+def insert_row_for_table(table, payload):
+    columns = existing_columns(table, [c for c in TABLES[table]["insert"] if c in payload])
+    if not columns:
+        raise ValueError("empty insert payload")
+    values = [f"(json_populate_record(null::public.{table}, {json_literal(payload)}::json)).{c}" for c in columns]
+    sql = f"insert into public.{table} ({','.join(columns)}) values ({','.join(values)}) returning *"
+    return row_json(table, sql, mutable=True)
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -1606,6 +1787,14 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         try:
+            if urlparse(self.path).path.strip("/") == "media/upload":
+                payload = self.read_json()
+                self.send_json(save_local_media(payload))
+                return
+            if urlparse(self.path).path.strip("/") == "media/import-url":
+                payload = self.read_json()
+                self.send_json(import_remote_media(payload))
+                return
             table, _ = self.parse_table()
             payload = self.read_json()
             rows = self.insert_row(table, payload)
@@ -1651,12 +1840,7 @@ class Handler(BaseHTTPRequestHandler):
         return json.loads(self.rfile.read(length).decode("utf-8"))
 
     def insert_row(self, table, payload):
-        columns = existing_columns(table, [c for c in TABLES[table]["insert"] if c in payload])
-        if not columns:
-            raise ValueError("empty insert payload")
-        values = [f"(json_populate_record(null::public.{table}, {json_literal(payload)}::json)).{c}" for c in columns]
-        sql = f"insert into public.{table} ({','.join(columns)}) values ({','.join(values)}) returning *"
-        return row_json(table, sql, mutable=True)
+        return localize_remote_images(table, insert_row_for_table(table, payload))
 
     def update_row(self, table, payload, where):
         columns = existing_columns(table, [c for c in TABLES[table]["update"] if c in payload])
@@ -1664,7 +1848,7 @@ class Handler(BaseHTTPRequestHandler):
             raise ValueError("empty update payload")
         sets = [f"{c} = (json_populate_record(null::public.{table}, {json_literal(payload)}::json)).{c}" for c in columns]
         sql = f"update public.{table} set {','.join(sets)} where {where} returning *"
-        return row_json(table, sql, mutable=True)
+        return localize_remote_images(table, row_json(table, sql, mutable=True))
 
     def send_json(self, value, status=200):
         body = json.dumps(value, ensure_ascii=False).encode("utf-8")

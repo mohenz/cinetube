@@ -53,6 +53,48 @@ create index if not exists idx_movies_movie_code_trgm
 create index if not exists idx_movies_description_trgm
   on public.movies using gin (description gin_trgm_ops);
 
+create index if not exists idx_actors_name_trgm
+  on public.actors using gin (name gin_trgm_ops);
+
+create index if not exists idx_actors_body_size_trgm
+  on public.actors using gin (body_size gin_trgm_ops);
+
+create index if not exists idx_gallery_images_title_trgm
+  on public.gallery_images using gin (title gin_trgm_ops);
+
+create index if not exists idx_gallery_images_id_trgm
+  on public.gallery_images using gin (gallery_image_id gin_trgm_ops);
+
+create index if not exists idx_gallery_images_description_trgm
+  on public.gallery_images using gin (description gin_trgm_ops);
+
+create index if not exists idx_gallery_images_source_trgm
+  on public.gallery_images using gin (source gin_trgm_ops);
+
+create index if not exists idx_categories_representative_asset
+  on public.categories(representative_image_asset_id);
+
+create index if not exists idx_actors_representative_asset
+  on public.actors(representative_image_asset_id);
+
+create index if not exists idx_webtoons_poster_asset
+  on public.webtoons(poster_image_asset_id);
+
+create index if not exists idx_webtoon_chapters_poster_asset
+  on public.webtoon_chapters(chapter_poster_asset_id);
+
+create index if not exists idx_gallery_images_asset
+  on public.gallery_images(image_asset_id);
+
+create index if not exists idx_movies_poster_asset
+  on public.movies(poster_asset_id);
+
+create index if not exists idx_movies_capture_asset
+  on public.movies(capture_asset_id);
+
+create index if not exists idx_movies_snapshot_asset
+  on public.movies(snapshot_asset_id);
+
 analyze public.movies;
 analyze public.media_assets;
 analyze public.common_codes;

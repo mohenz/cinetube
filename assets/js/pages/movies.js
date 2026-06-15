@@ -11,6 +11,7 @@
   const pagination = document.getElementById("pagination");
   const pageSize = document.getElementById("pageSizeSelect");
   const searchInput = document.getElementById("searchInput");
+  const contentView = document.querySelector(".content-view");
   let page = 1;
 
   if (pageSize) pageSize.value = "20";
@@ -20,7 +21,19 @@
     return Math.max(1, Math.ceil(Number(total || 0) / Number(size || 20)));
   }
 
-  async function render() {
+  function focusListTop() {
+    requestAnimationFrame(() => {
+      const focusTarget = movieGrid || contentView;
+      const scrollTarget = contentView || focusTarget;
+      if (!focusTarget || !scrollTarget) return;
+      focusTarget.setAttribute("tabindex", "-1");
+      focusTarget.focus({ preventScroll: true });
+      const top = scrollTarget.getBoundingClientRect().top + window.scrollY - 80;
+      window.scrollTo({ top: Math.max(top, 0), behavior: "smooth" });
+    });
+  }
+
+  async function render(options = {}) {
     const term = searchInput ? searchInput.value.trim() : "";
     const result = await Store.list("movies", {
       page,
@@ -39,8 +52,10 @@
     UI.setupMovieCards(movieGrid);
     UI.renderPagination(pagination, totalPages(result.total, pageSize.value), page, (nextPage) => {
       page = nextPage;
-      render();
+      render({ focusTop: true });
     });
+
+    if (options.focusTop) focusListTop();
   }
 
   if (pageSize) pageSize.addEventListener("change", () => { page = 1; render(); });

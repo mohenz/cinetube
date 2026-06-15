@@ -56,6 +56,10 @@
     return asset?.public_url || "";
   }
 
+  function assetThumbUrl(asset) {
+    return asset?.thumb_url || assetPublicUrl(asset);
+  }
+
   function movieImageUrl(movie, fallback = routePath("assets/img/favicon.svg")) {
     return movie?.poster_url
       || assetPublicUrl(movie?.poster_asset)
@@ -63,6 +67,16 @@
       || assetPublicUrl(movie?.capture_asset)
       || movie?.snapshot_url
       || assetPublicUrl(movie?.snapshot_asset)
+      || fallback;
+  }
+
+  function movieThumbnailUrl(movie, fallback = routePath("assets/img/favicon.svg")) {
+    return assetThumbUrl(movie?.poster_asset)
+      || movie?.poster_url
+      || assetThumbUrl(movie?.capture_asset)
+      || movie?.capture_url
+      || assetThumbUrl(movie?.snapshot_asset)
+      || movie?.snapshot_url
       || fallback;
   }
 
@@ -130,7 +144,7 @@
 
   function movieCard(movie) {
     const keywords = Array.isArray(movie.keywords) ? movie.keywords.join(", ") : movie.keywords || "";
-    const posterUrl = movieImageUrl(movie);
+    const posterUrl = movieThumbnailUrl(movie);
     const detailUrl = `${routePath("pages/movie.html")}?code=${encodeURIComponent(movie.movie_code || movie.id || "")}`;
     const favoriteCode = favoriteMovieCode(movie);
     const favorite = isFavoriteMovie(favoriteCode);
@@ -267,6 +281,7 @@
     setDbStatus,
     movieCard,
     movieImageUrl,
+    movieThumbnailUrl,
     getFavoriteMovieCodes,
     isFavoriteMovie,
     toggleFavoriteMovie,
