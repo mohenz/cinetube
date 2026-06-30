@@ -14,8 +14,12 @@
   let pageSize = "20";
   let totalItems = 0;
 
-  function imageUrl(item) {
+  function thumbImageUrl(item) {
     return item.image_asset?.thumb_url || item.image_url || item.image_asset?.public_url || "../assets/img/favicon.svg";
+  }
+
+  function fullImageUrl(item) {
+    return item.image_asset?.public_url || item.image_url || item.image_asset?.thumb_url || "../assets/img/favicon.svg";
   }
 
   function itemId(item) {
@@ -62,7 +66,7 @@
     return `
       <article class="poster-card gallery-card" data-gallery-href="${UI.escapeHtml(href)}" tabindex="0" role="link" aria-label="${UI.escapeHtml(item.title)} 갤러리 보기">
         <div class="poster-frame gallery-frame">
-          <img src="${UI.escapeHtml(imageUrl(item))}" alt="${UI.escapeHtml(item.title)}" loading="lazy">
+          <img src="${UI.escapeHtml(thumbImageUrl(item))}" alt="${UI.escapeHtml(item.title)}" loading="lazy">
           ${favoriteButton(item)}
           <div class="poster-overlay">
             <span>${UI.escapeHtml(item.source || "Gallery")}</span>
@@ -117,7 +121,7 @@
       <section class="gallery-list">
         ${items.length ? items.map((item) => `
           <article class="gallery-list-row" data-gallery-href="gallery.html?id=${UI.escapeHtml(itemId(item))}" tabindex="0" role="link">
-            <img src="${UI.escapeHtml(imageUrl(item))}" alt="${UI.escapeHtml(item.title)}">
+            <img src="${UI.escapeHtml(thumbImageUrl(item))}" alt="${UI.escapeHtml(item.title)}">
             <div>
               <h2>${UI.escapeHtml(item.title)}</h2>
               <p>${UI.escapeHtml(item.description || "설명 없음")}</p>
@@ -134,7 +138,7 @@
     const item = items[slideIndex];
     return `
       <section class="gallery-slide">
-        <div class="gallery-slide-media"><img src="${UI.escapeHtml(imageUrl(item))}" alt="${UI.escapeHtml(item.title)}"></div>
+        <div class="gallery-slide-media"><img src="${UI.escapeHtml(fullImageUrl(item))}" alt="${UI.escapeHtml(item.title)}"></div>
         <div class="gallery-slide-info">
           <p class="eyebrow">${UI.escapeHtml(slideIndex + 1)} / ${UI.escapeHtml(items.length)}</p>
           <h2>${UI.escapeHtml(item.title)}</h2>
@@ -178,12 +182,12 @@
   async function renderDetail(item) {
     document.title = `CineTube | ${item.title}`;
     const code = itemId(item);
-    const fullImageUrl = imageUrl(item);
+    const previewUrl = fullImageUrl(item);
     const favorite = UI.isFavoriteContent("gallery", code);
     root.innerHTML = `
       <section class="movie-detail gallery-detail">
         <div class="movie-detail-media">
-          <img class="gallery-detail-preview-image" id="openGalleryImagePreview" src="${UI.escapeHtml(fullImageUrl)}" alt="${UI.escapeHtml(item.title)}" role="button" tabindex="0" aria-label="${UI.escapeHtml(item.title)} 전체 이미지 보기">
+          <img class="gallery-detail-preview-image" id="openGalleryImagePreview" src="${UI.escapeHtml(previewUrl)}" alt="${UI.escapeHtml(item.title)}" role="button" tabindex="0" aria-label="${UI.escapeHtml(item.title)} 전체 이미지 보기">
         </div>
         <div class="movie-detail-body">
           <p class="eyebrow">Gallery Detail</p>
@@ -217,7 +221,7 @@
         modal.setAttribute("aria-label", "갤러리 이미지 전체보기");
         modal.innerHTML = `
           <button class="image-modal-close" type="button" aria-label="닫기"><span class="material-symbols-outlined">close</span></button>
-          <img src="${UI.escapeHtml(fullImageUrl)}" alt="${UI.escapeHtml(item.title)} 전체 이미지">
+          <img src="${UI.escapeHtml(previewUrl)}" alt="${UI.escapeHtml(item.title)} 전체 이미지">
         `;
         document.body.appendChild(modal);
         const closeButton = modal.querySelector(".image-modal-close");

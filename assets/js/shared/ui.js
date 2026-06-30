@@ -265,10 +265,20 @@
       container.innerHTML = "";
       return;
     }
-    container.innerHTML = Array.from({ length: totalPages }, (_, index) => {
-      const page = index + 1;
-      return `<button class="page-button ${page === currentPage ? "active" : ""}" type="button" data-page="${page}">${page}</button>`;
-    }).join("");
+    const groupSize = 20;
+    const groupStart = Math.floor((currentPage - 1) / groupSize) * groupSize + 1;
+    const groupEnd = Math.min(totalPages, groupStart + groupSize - 1);
+    const buttons = [];
+    if (groupStart > 1) {
+      buttons.push(`<button class="page-button page-nav" type="button" data-page="${groupStart - 1}" aria-label="이전 20페이지">이전</button>`);
+    }
+    for (let page = groupStart; page <= groupEnd; page += 1) {
+      buttons.push(`<button class="page-button ${page === currentPage ? "active" : ""}" type="button" data-page="${page}" aria-label="${page}페이지">${page}</button>`);
+    }
+    if (groupEnd < totalPages) {
+      buttons.push(`<button class="page-button page-nav" type="button" data-page="${groupEnd + 1}" aria-label="다음 20페이지">다음</button>`);
+    }
+    container.innerHTML = buttons.join("");
     container.querySelectorAll("button").forEach((button) => {
       button.addEventListener("click", () => onMove(Number(button.dataset.page)));
     });

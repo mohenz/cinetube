@@ -2,6 +2,7 @@
 values
   ('webtoon_import_site', 'auto', '자동 인식', 0, true, '{"system": true}'::jsonb),
   ('webtoon_import_site', 'mangadistrict', 'MangaDistrict', 10, true, '{"placeholder": "https://mangadistrict.com/series/..."}'::jsonb),
+  ('webtoon_import_site', 'mangadna', 'MangaDNA', 15, true, '{"placeholder": "https://mangadna.com/manga/..."}'::jsonb),
   ('webtoon_import_site', 'hentai18', 'Hentai18', 20, true, '{"placeholder": "https://hentai18.net/read-hentai/..."}'::jsonb),
   ('webtoon_import_site', 'imhentai', 'IMHentai', 30, true, '{"placeholder": "https://imhentai.xxx/gallery/..."}'::jsonb)
 on conflict (code_group, code_value) do update set

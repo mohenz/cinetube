@@ -135,6 +135,15 @@
         const current = String(valueFor(name) === false ? "false" : "true");
         const trueLabel = name === "is_enabled" ? "사용" : "전시";
         const falseLabel = name === "is_enabled" ? "미사용" : "미전시";
+        if (name === "is_main") {
+          return `<label class="toggle-field">${label}
+            <input type="hidden" name="${name}" value="${current}">
+            <span class="toggle-buttons" role="group" aria-label="${label}">
+              <button class="toggle-button ${current === "true" ? "active" : ""}" type="button" data-toggle-name="${name}" data-toggle-value="true" aria-pressed="${current === "true"}">${trueLabel}</button>
+              <button class="toggle-button ${current === "false" ? "active" : ""}" type="button" data-toggle-name="${name}" data-toggle-value="false" aria-pressed="${current === "false"}">${falseLabel}</button>
+            </span>
+          </label>`;
+        }
         return `<label>${label}<select class="select-control" name="${name}"><option value="true" ${current === "true" ? "selected" : ""}>${trueLabel}</option><option value="false" ${current === "false" ? "selected" : ""}>${falseLabel}</option></select></label>`;
       }
       if (type === "category" || type === "actor" || type === "rating" || type === "webtoon") {
@@ -145,7 +154,12 @@
           ? (Array.isArray(editingItem.actor_ids) && editingItem.actor_ids.length ? editingItem.actor_ids : [editingItem.actor_id]).filter(Boolean).slice(0, 4)
           : [];
         return Array.from({ length: 4 }, (_, index) => `
-          <label>${label} ${index + 1}<select class="select-control" name="actor_ids_${index}">${actorOptions(actorIds[index])}</select></label>
+          <label class="actor-picker-label">${label} ${index + 1}
+            <div class="actor-picker">
+              <select class="select-control" name="actor_ids_${index}" aria-label="${label} ${index + 1} 목록 선택">${actorOptions(actorIds[index])}</select>
+              <input class="input-control" name="actor_names_${index}" type="text" placeholder="직접입력">
+            </div>
+          </label>
         `).join("");
       }
       if (type === "directors") {
@@ -251,21 +265,26 @@
         { code_value: "tmdb", code_label: "TMDB", display_order: 10 },
         { code_value: "javtiful", code_label: "Javtiful", display_order: 20 },
         { code_value: "supjav", code_label: "Supjav", display_order: 30 },
-        { code_value: "missav", code_label: "MissAV", display_order: 40 }
+        { code_value: "missav", code_label: "123AV", display_order: 40 }
       ];
     }
 
     function webtoonImportSiteCodes() {
-      const sites = (data.commonCodes || [])
-        .filter((item) => item.code_group === "webtoon_import_site" && item.is_enabled !== false)
-        .sort((a, b) => Number(a.display_order ?? 99) - Number(b.display_order ?? 99));
-      if (sites.length) return sites;
-      return [
+      const defaults = [
         { code_value: "auto", code_label: "자동 인식", display_order: 0 },
         { code_value: "mangadistrict", code_label: "MangaDistrict", display_order: 10 },
+        { code_value: "mangadna", code_label: "MangaDNA", display_order: 15 },
         { code_value: "hentai18", code_label: "Hentai18", display_order: 20 },
         { code_value: "imhentai", code_label: "IMHentai", display_order: 30 }
       ];
+      const sites = (data.commonCodes || [])
+        .filter((item) => item.code_group === "webtoon_import_site" && item.is_enabled !== false)
+        .sort((a, b) => Number(a.display_order ?? 99) - Number(b.display_order ?? 99));
+      const merged = [...sites];
+      defaults.forEach((site) => {
+        if (!merged.some((item) => item.code_value === site.code_value)) merged.push(site);
+      });
+      return merged.sort((a, b) => Number(a.display_order ?? 99) - Number(b.display_order ?? 99));
     }
 
     function renderActorImportPanel() {
@@ -298,7 +317,7 @@
         <fieldset class="image-fieldset tmdb-import-panel">
           <legend>Webtoon URL 가져오기</legend>
           <label>참조사이트 URL
-            <input class="input-control" id="webtoonImportInput" type="url" value="${UI.escapeHtml(value)}" placeholder="https://mangadistrict.com/series/... 또는 https://hentai18.net/read-hentai/... 또는 https://imhentai.xxx/gallery/...">
+            <input class="input-control" id="webtoonImportInput" type="url" value="${UI.escapeHtml(value)}" placeholder="https://mangadistrict.com/series/... 또는 https://mangadna.com/manga/... 또는 https://hentai18.net/read-hentai/...">
           </label>
           <div class="import-site-field">
             <span class="import-site-label">가져오기 대상</span>
@@ -360,20 +379,45 @@
       setActiveSite(valueInput.value || "auto");
     }
 
-    function normalize(formData) {
+    async function ensureActorByName(name) {
+      const normalized = String(name || "").trim();
+      if (!normalized) return null;
+      let actor = data.actors.find((item) => String(item.name || "").trim().toLowerCase() === normalized.toLowerCase());
+      if (actor) return actor;
+      data = await Store.create("actors", {
+        name: normalized,
+        age: 0,
+        height_cm: 0,
+        body_size: "",
+        debut_year: 0,
+        representative_image_url: null,
+        representative_image_asset_id: null,
+        image_urls: [],
+        image_asset_ids: []
+      });
+      return data.actors.find((item) => String(item.name || "").trim().toLowerCase() === normalized.toLowerCase()) || null;
+    }
+
+    async function normalize(formData) {
       const payload = Object.fromEntries(formData.entries());
       Object.keys(payload).forEach((key) => {
         if (key.startsWith("file_") || key.startsWith("url_") || key.startsWith("asset_")) delete payload[key];
       });
 
       if (kind === "movies") {
-        payload.actor_ids = [0, 1, 2, 3]
-          .map((index) => payload[`actor_ids_${index}`])
-          .filter(Boolean)
-          .map(Number)
-          .filter((id, index, list) => Number.isFinite(id) && list.indexOf(id) === index)
-          .slice(0, 4);
-        [0, 1, 2, 3].forEach((index) => delete payload[`actor_ids_${index}`]);
+        const actorIds = [];
+        for (const index of [0, 1, 2, 3]) {
+          const typedName = (payload[`actor_names_${index}`] || "").trim();
+          const typedActor = typedName ? await ensureActorByName(typedName) : null;
+          const actorId = typedActor?.id || payload[`actor_ids_${index}`];
+          const numericId = Number(actorId);
+          if (Number.isFinite(numericId) && !actorIds.includes(numericId)) actorIds.push(numericId);
+        }
+        payload.actor_ids = actorIds.slice(0, 4);
+        [0, 1, 2, 3].forEach((index) => {
+          delete payload[`actor_ids_${index}`];
+          delete payload[`actor_names_${index}`];
+        });
         payload.actor_id = payload.actor_ids[0] || null;
         payload.director_names = [0, 1]
           .map((index) => (payload[`director_names_${index}`] || "").trim())
@@ -613,6 +657,33 @@
       const field = form.querySelector(`[name="${name}"]`);
       if (!field) return;
       field.value = value ?? "";
+      if (field.type === "hidden") {
+        updateToggleButtons(form, name, field.value);
+        field.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+    }
+
+    function updateToggleButtons(form, name, value) {
+      const current = String(value);
+      form.querySelectorAll(`[data-toggle-name="${name}"]`).forEach((button) => {
+        const isActive = button.dataset.toggleValue === current;
+        button.classList.toggle("active", isActive);
+        button.setAttribute("aria-pressed", String(isActive));
+      });
+    }
+
+    function bindToggleButtons(form) {
+      form.querySelectorAll("[data-toggle-name]").forEach((button) => {
+        button.addEventListener("click", () => {
+          const name = button.dataset.toggleName;
+          const value = button.dataset.toggleValue;
+          const field = form.querySelector(`input[type="hidden"][name="${name}"]`);
+          if (!field) return;
+          field.value = value;
+          updateToggleButtons(form, name, value);
+          field.dispatchEvent(new Event("change", { bubbles: true }));
+        });
+      });
     }
 
     function appendSelectOption(select, value, label) {
@@ -792,7 +863,7 @@
       setFieldValue(form, "webtoon_id", imported.webtoon_id);
       setFieldValue(form, "title", imported.title);
       setFieldValue(form, "rating", imported.rating);
-      setFieldValue(form, "alternative", imported.alternative || imported.summary || "");
+      setFieldValue(form, "alternative", imported.alternative || "");
       setFieldValue(form, "artist", imported.artist);
       setFieldValue(form, "genre", imported.genre);
       setFieldValue(form, "type", imported.type);
@@ -891,6 +962,12 @@
         const value = editingItem[select.name];
         if (value !== undefined && value !== null) select.value = String(value);
       });
+      form.querySelectorAll('input[type="hidden"][name]').forEach((input) => {
+        const value = editingItem[input.name];
+        if (value === undefined || value === null) return;
+        input.value = String(value);
+        updateToggleButtons(form, input.name, input.value);
+      });
     }
 
     // projectjav.com에서 실제 커버 이미지 URL 조회 (codetabs 프록시 경유)
@@ -956,7 +1033,7 @@
     function bindMainExhibitionAutoCover(form) {
       if (kind !== "movies") return;
 
-      const isMainSelect = form.querySelector('select[name="is_main"]');
+      const isMainSelect = form.querySelector('[name="is_main"]');
       const movieCodeInput = form.querySelector('input[name="movie_code"]');
       if (!isMainSelect || !movieCodeInput) return;
 
@@ -1050,6 +1127,7 @@
           else form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
         });
       }
+      bindToggleButtons(form);
       setSelectValues(form);
       bindImageFields();
       bindMovieImportSiteButtons(form);
@@ -1060,7 +1138,7 @@
       form.addEventListener("submit", async (event) => {
         event.preventDefault();
         try {
-          const payload = normalize(new FormData(form));
+          const payload = await normalize(new FormData(form));
           applyGalleryDefaults(payload, form);
           const uploadedAssetIds = await applyImagePayload(payload, form);
           compactActorImages(payload);

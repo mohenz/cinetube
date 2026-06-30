@@ -103,7 +103,12 @@
       { id: -2, code_group: "import_site", code_value: "tmdb", code_label: "TMDB", display_order: 10, is_enabled: true, extra: {} },
       { id: -3, code_group: "import_site", code_value: "javtiful", code_label: "Javtiful", display_order: 20, is_enabled: true, extra: {} },
       { id: -4, code_group: "import_site", code_value: "supjav", code_label: "Supjav", display_order: 30, is_enabled: true, extra: {} },
-      { id: -5, code_group: "import_site", code_value: "missav", code_label: "MissAV", display_order: 40, is_enabled: true, extra: {} }
+      { id: -5, code_group: "import_site", code_value: "missav", code_label: "123AV", display_order: 40, is_enabled: true, extra: { placeholder: "https://123av.com/ko/v/... 또는 작품번호" } },
+      { id: -101, code_group: "webtoon_import_site", code_value: "auto", code_label: "자동 인식", display_order: 0, is_enabled: true, extra: { system: true } },
+      { id: -102, code_group: "webtoon_import_site", code_value: "mangadistrict", code_label: "MangaDistrict", display_order: 10, is_enabled: true, extra: { placeholder: "https://mangadistrict.com/series/..." } },
+      { id: -103, code_group: "webtoon_import_site", code_value: "mangadna", code_label: "MangaDNA", display_order: 15, is_enabled: true, extra: { placeholder: "https://mangadna.com/manga/..." } },
+      { id: -104, code_group: "webtoon_import_site", code_value: "hentai18", code_label: "Hentai18", display_order: 20, is_enabled: true, extra: { placeholder: "https://hentai18.net/read-hentai/..." } },
+      { id: -105, code_group: "webtoon_import_site", code_value: "imhentai", code_label: "IMHentai", display_order: 30, is_enabled: true, extra: { placeholder: "https://imhentai.xxx/gallery/..." } }
     ];
   }
 

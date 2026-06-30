@@ -19,7 +19,7 @@ values
   ('import_site', 'tmdb', 'TMDB', 10, true, '{"placeholder": "TMDB URL 또는 TMDB 작품번호"}'::jsonb),
   ('import_site', 'javtiful', 'Javtiful', 20, true, '{"placeholder": "Javtiful URL 또는 작품번호"}'::jsonb),
   ('import_site', 'supjav', 'Supjav', 30, true, '{"placeholder": "Supjav URL 또는 작품번호"}'::jsonb),
-  ('import_site', 'missav', 'MissAV', 40, true, '{"placeholder": "MissAV URL 또는 작품번호"}'::jsonb)
+  ('import_site', 'missav', '123AV', 40, true, '{"placeholder": "https://123av.com/ko/v/... 또는 작품번호"}'::jsonb)
 on conflict (code_group, code_value) do update set
   code_label = excluded.code_label,
   display_order = excluded.display_order,

@@ -379,8 +379,9 @@ button { cursor: pointer; }
   border: 1px solid var(--line);
   border-radius: 6px;
 }
-.pagination { display: flex; justify-content: center; gap: 8px; margin-top: 28px; }
+.pagination { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; max-width: 100%; margin-top: 28px; }
 .page-button { min-width: 36px; height: 36px; color: var(--text); background: var(--surface-2); border: 1px solid var(--line); border-radius: 6px; }
+.page-button.page-nav { min-width: 52px; padding: 0 10px; }
 .page-button.active { background: var(--accent); border-color: var(--accent); }
 .page-size-label { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); }
 .profile-panel, .admin-panel {
@@ -472,6 +473,19 @@ button { cursor: pointer; }
 .form-title-submit { flex-shrink: 0; }
 .form-grid { display: grid; gap: 12px; }
 .form-grid label { display: grid; gap: 6px; color: var(--muted); font-size: 13px; }
+.actor-picker { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+.toggle-buttons { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.toggle-button {
+  min-height: 38px;
+  padding: 0 12px;
+  color: var(--muted);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-weight: 800;
+}
+.toggle-button:hover { color: var(--text); background: var(--surface-3); border-color: var(--line-soft); }
+.toggle-button.active { color: #fff; background: var(--accent); border-color: var(--accent); box-shadow: 0 4px 14px rgba(229, 9, 20, 0.28); }
 .form-note { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
 .form-actions { display: flex; flex-wrap: wrap; gap: 10px; }
 .import-site-field { display: grid; gap: 8px; }
@@ -508,6 +522,25 @@ td:has(.table-thumb) { width: 208px; }
 .image-preview img { width: 100%; height: 100%; object-fit: cover; }
 .image-input { width: 100%; color: var(--muted); font-size: 13px; }
 .table-thumb { display: block; width: 184px; aspect-ratio: var(--movie-image-ratio); height: auto; object-fit: cover; background: var(--surface-2); border: 1px solid var(--line-soft); border-radius: 6px; }
+body[data-admin-kind="galleryImages"] .admin-grid { grid-template-columns: minmax(260px, 380px) minmax(0, 1fr); }
+body[data-admin-kind="galleryImages"] .table-wrap { overflow-x: hidden; }
+body[data-admin-kind="galleryImages"] #adminTable table { min-width: 0; table-layout: fixed; }
+body[data-admin-kind="galleryImages"] #adminTable th,
+body[data-admin-kind="galleryImages"] #adminTable td {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+body[data-admin-kind="galleryImages"] #adminTable th:nth-child(1),
+body[data-admin-kind="galleryImages"] #adminTable td:nth-child(1) { width: 128px; }
+body[data-admin-kind="galleryImages"] #adminTable th:nth-child(2),
+body[data-admin-kind="galleryImages"] #adminTable td:nth-child(2) { width: 22%; }
+body[data-admin-kind="galleryImages"] #adminTable th:nth-child(5),
+body[data-admin-kind="galleryImages"] #adminTable td:nth-child(5) { width: 74px; }
+body[data-admin-kind="galleryImages"] #adminTable th:nth-child(6),
+body[data-admin-kind="galleryImages"] #adminTable td:nth-child(6) { width: 148px; }
+body[data-admin-kind="galleryImages"] #adminTable td:has(.table-thumb) { width: 128px; }
+body[data-admin-kind="galleryImages"] #adminTable .table-thumb { width: 104px; }
+body[data-admin-kind="galleryImages"] #adminTable .toolbar { min-width: 0; }
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -645,6 +678,7 @@ td:has(.table-thumb) { width: 208px; }
   .topbar { left: 0; padding: 0 16px; }
   .mobile-menu { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; color: var(--text); background: var(--surface-2); border: 1px solid var(--line); border-radius: 6px; }
   .topbar .ghost-button { display: none; }
+  .actor-picker { grid-template-columns: 1fr; }
   .app-shell { margin-left: 0; }
   .hero { min-height: 380px; padding: 64px 16px 32px; }
   .hero h1 { font-size: 34px; }

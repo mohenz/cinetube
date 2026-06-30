@@ -227,7 +227,7 @@ def best_poster_url(images):
 
 def clean_av_title(title, movie_code):
     title = clean_text(title)
-    title = re.sub(r"\s*[-|]\s*(Javtiful|Supjav).*$", "", title, flags=re.I)
+    title = re.sub(r"\s*[-|]\s*(Javtiful|Supjav|MissAV|123AV).*$", "", title, flags=re.I)
     if movie_code and movie_code.lower() not in title.lower():
         title = f"{movie_code} {title}".strip()
     return title
@@ -489,8 +489,60 @@ def build_projectjav_import(url):
     }
 
 
+def normalize_missav_url(value):
+    value = (value or "").strip()
+    if not value.startswith(("http://", "https://")):
+        return value
+    parsed = urlparse(value)
+    host = parsed.netloc.lower()
+    if "missav" not in host and not host.endswith("123av.com"):
+        return value
+    path = parsed.path or "/"
+    query = f"?{parsed.query}" if parsed.query else ""
+    fragment = f"#{parsed.fragment}" if parsed.fragment else ""
+    return f"https://123av.com{path}{query}{fragment}"
+
+
+def build_missav_fallback(url, error_message=""):
+    normalized_url = normalize_missav_url(url)
+    movie_code = extract_movie_code(normalized_url)
+    title = title_from_url_slug(normalized_url, movie_code) or movie_code or "123AV Movie"
+    description = "123AV 페이지 직접 조회가 차단되어 URL 구조 기준 최소 정보를 가져왔습니다."
+    if error_message:
+        description = f"{description} {clean_text(error_message)}"
+    description = description.strip()
+    return {
+        "title": title,
+        "movie_code": movie_code or code_slug(normalized_url).upper(),
+        "category_code": "missav",
+        "category_name": "123AV",
+        "actor_names": [],
+        "actor_profiles": [],
+        "director_names": [],
+        "keywords": [item for item in ["123AV", movie_code] if item],
+        "rating_grade": "B+",
+        "video_url": normalized_url,
+        "source_url": normalized_url,
+        "description": description,
+        "poster_url": None,
+        "capture_url": None,
+        "snapshot_url": None,
+        "release_month": "",
+        "production_company": "",
+        "recommendation_score": 80,
+        "ranking_score": 80,
+        "rotten_tomatoes_score": None,
+        "is_main": False,
+        "import_warning": "remote_fetch_blocked",
+    }
+
+
 def build_missav_import(url):
-    html = fetch_remote_text(url)
+    url = normalize_missav_url(url)
+    try:
+        html = fetch_remote_text(url)
+    except Exception as exc:
+        return build_missav_fallback(url, str(exc))
     text = html_text_lines(html)
     title = first_match([r"<h1[^>]*>(.*?)</h1>"], html) or meta_content(html, "og:title")
     movie_code = extract_movie_code(title) or extract_movie_code(url) or extract_colon_value(text, "코드").upper()
@@ -526,11 +578,11 @@ def build_missav_import(url):
         "title": title,
         "movie_code": movie_code,
         "category_code": "missav",
-        "category_name": "MissAV",
+        "category_name": "123AV",
         "actor_names": actor_names[:4],
         "actor_profiles": [{"name": name, "profile_url": None} for name in actor_names[:4]],
         "director_names": [],
-        "keywords": [item for item in ["MissAV", movie_code, *actor_names[:2], *genres[:4], *tags[:2]] if item],
+        "keywords": [item for item in ["123AV", movie_code, *actor_names[:2], *genres[:4], *tags[:2]] if item],
         "rating_grade": "B+",
         "video_url": url,
         "source_url": url,
@@ -573,6 +625,8 @@ def extract_first_external_result(search_url, code, site):
 
 def resolve_external_input(value, site):
     value = (value or "").strip()
+    if site == "missav":
+        value = normalize_missav_url(value)
     if value.startswith("http://") or value.startswith("https://"):
         return value
     code = extract_movie_code(value)
@@ -595,7 +649,7 @@ def resolve_external_input(value, site):
             f"https://projectjav.com/?searchTerm={code.lower()}",
         ]
     else:
-        return f"https://missav123.to/ko/v/{code.lower()}"
+        return f"https://123av.com/ko/v/{code.lower()}"
     for search_url in search_urls:
         try:
             result = extract_first_external_result(search_url, code, site)
@@ -616,12 +670,12 @@ def detect_import_site(value):
     if "supjav.com" in host:
         return "supjav"
     if "projectjav.com" in host:
-        raise ValueError("ProjectJAV는 가져오기 자동인식 대상에서 제외되었습니다. MissAV 등 다른 참조주소를 사용해 주세요.")
-    if "missav" in host or "123av.com" in host:
+        raise ValueError("ProjectJAV는 가져오기 자동인식 대상에서 제외되었습니다. 123AV 등 다른 참조주소를 사용해 주세요.")
+    if "missav" in host or host.endswith("123av.com"):
         return "missav"
     if extract_movie_code(raw):
         return "javtiful"
-    raise ValueError("지원하는 URL은 TMDB, Javtiful, Supjav, MissAV입니다")
+    raise ValueError("지원하는 URL은 TMDB, Javtiful, Supjav, 123AV입니다")
 
 
 def build_movie_import(value, site="auto"):
@@ -736,11 +790,40 @@ def slug_from_url(url):
 
 def extract_webtoon_label(text, label):
     labels = [
-        "Rank", "Alternative", "Author(s)", "Artist(s)", "Genre(s)", "Type", "Tag(s)",
+        "Rank", "Alternative", "Alternative(s)", "Author(s)", "Artist(s)", "Genre(s)", "Type", "Tag(s)",
         "Release", "Status", "SUMMARY", "LATEST MANGA RELEASES", "MANGA DISCUSSION"
     ]
+    def normalize_label(value):
+        return re.sub(r"[\s:]+", " ", value or "").strip().lower()
+
+    target_labels = [label]
+    if label == "Alternative":
+        target_labels.append("Alternative(s)")
+    target_names = {normalize_label(item) for item in target_labels}
+    stop_names = {normalize_label(item) for item in labels}
+    lines = [line.strip() for line in (text or "").splitlines() if line.strip()]
+
+    def collect_value(start_index, initial_value=""):
+        values = [clean_text(initial_value)] if clean_text(initial_value) else []
+        for next_line in lines[start_index:]:
+            if normalize_label(next_line) in stop_names:
+                break
+            values.append(clean_text(next_line))
+        return clean_text(" ".join(item for item in values if item))
+
+    for index, line in enumerate(lines):
+        normalized = normalize_label(line)
+        for target in target_labels:
+            prefix = target + ":"
+            if line.lower().startswith(prefix.lower()):
+                return collect_value(index + 1, line[len(prefix):])
+        if normalized not in target_names:
+            continue
+        return collect_value(index + 1)
+
+    label_pattern = r"Alternative(?:\(s\))?" if label == "Alternative" else re.escape(label)
     pattern = re.compile(
-        rf"{re.escape(label)}\s+(.+?)(?=\s+(?:{'|'.join(re.escape(item) for item in labels if item != label)})(?:\s|$)|$)",
+        rf"{label_pattern}\s*:?\s+(.+?)(?=\s+(?:{'|'.join(re.escape(item) for item in labels if item != label)})(?:\s|:|$)|$)",
         re.I | re.S,
     )
     match = pattern.search(text or "")
@@ -775,6 +858,44 @@ def extract_mangadistrict_chapters(html, webtoon_id):
         seen.add(href)
         chapters.append({
             "webtoon_chapter_id": f"{webtoon_id}-{number:03d}",
+            "webtoon_id": webtoon_id,
+            "chapter_number": number,
+            "chapter_url": href,
+            "chapter_poster": None,
+            "title": label,
+        })
+    return sorted(chapters, key=lambda item: item["chapter_number"])
+
+
+def extract_mangadna_title(html):
+    title = first_match([r"<h1[^>]*>(.*?)</h1>"], html)
+    if title:
+        return title
+    title_meta = meta_content(html, "og:title") or meta_content(html, "twitter:title") or first_match([r"<title[^>]*>(.*?)</title>"], html)
+    title_meta = re.sub(r"^\s*Read\s+", "", title_meta or "", flags=re.I)
+    title_meta = re.sub(r"\s+(?:Manhwa\s+)?at\s+MangaDNA.*$", "", title_meta, flags=re.I)
+    return clean_text(title_meta)
+
+
+def extract_mangadna_chapters(html, webtoon_id, base_url):
+    chapters = []
+    seen = set()
+    escaped_id = re.escape(webtoon_id)
+    pattern = re.compile(
+        rf"<a\b[^>]*href=[\"']([^\"']*/manga/{escaped_id}/chapter-(\d+(?:\.\d+)?)/?)[\"'][^>]*>(.*?)</a>",
+        re.I | re.S,
+    )
+    for match in pattern.finditer(html or ""):
+        href = absolute_url(base_url, match.group(1))
+        raw_number = match.group(2)
+        label = clean_text(match.group(3)) or f"Chapter {raw_number}"
+        if not href or href in seen:
+            continue
+        seen.add(href)
+        number = int(float(raw_number))
+        chapter_id = raw_number.replace(".", "-")
+        chapters.append({
+            "webtoon_chapter_id": f"{webtoon_id}-{chapter_id.zfill(3)}",
             "webtoon_id": webtoon_id,
             "chapter_number": number,
             "chapter_url": href,
@@ -1058,6 +1179,45 @@ def build_mangadistrict_webtoon_import(url):
     }
 
 
+def build_mangadna_webtoon_import(url):
+    html = fetch_remote_text(url)
+    text = html_text_lines(html)
+    title = extract_mangadna_title(html)
+    webtoon_id = slug_from_url(url) or re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")
+    poster = meta_content(html, "og:image") or meta_content(html, "twitter:image") or best_poster_url(extract_image_candidates(html, url))
+    rating_match = re.search(r"Average\s+([0-9.]+)\s*/\s*5", text, re.I)
+    rating = rating_match.group(1) if rating_match else first_match([r"\b([0-5](?:\.\d)?)\s+Rating\b"], text)
+    alternative = extract_webtoon_label(text, "Alternative")
+    author = extract_webtoon_label(text, "Author(s)")
+    artist = extract_webtoon_label(text, "Artist(s)") or author
+    genre_items = split_webtoon_terms(extract_webtoon_label(text, "Genre(s)"))
+    type_items = split_webtoon_terms(extract_webtoon_label(text, "Type"))
+    tag_items = split_webtoon_terms(extract_webtoon_label(text, "Tag(s)"))
+    summary = meta_content(html, "description")
+    summary_match = re.search(r"SUMMARY\s+(.+?)\s+LATEST MANGA RELEASES", text, re.I | re.S)
+    if summary_match:
+        summary = clean_text(summary_match.group(1))
+    release = extract_webtoon_label(text, "Release")
+    chapters = extract_mangadna_chapters(html, webtoon_id, url)
+    return {
+        "site": "mangadna",
+        "webtoon_id": webtoon_id,
+        "title": title,
+        "rating": rating,
+        "alternative": alternative,
+        "artist": artist,
+        "genre": ", ".join(genre_items),
+        "type": ", ".join(type_items),
+        "tage": tag_items,
+        "poster_image": poster,
+        "url": url,
+        "webtoon_images": [poster] if poster else [],
+        "summary": summary,
+        "release": release,
+        "chapters": chapters,
+    }
+
+
 def build_webtoon_import(value, site="auto"):
     url = value.strip()
     if not url.startswith(("http://", "https://")):
@@ -1065,11 +1225,13 @@ def build_webtoon_import(value, site="auto"):
     host = urlparse(url).netloc.lower()
     if site in {"auto", "mangadistrict"} and "mangadistrict.com" in host:
         return build_mangadistrict_webtoon_import(url)
+    if site in {"auto", "mangadna"} and "mangadna.com" in host:
+        return build_mangadna_webtoon_import(url)
     if site in {"auto", "hentai18"} and "hentai18.net" in host:
         return build_hentai18_webtoon_import(url)
     if site in {"auto", "imhentai"} and "imhentai.xxx" in host:
         return build_imhentai_webtoon_import(url)
-    raise ValueError("현재 Webtoon 가져오기는 mangadistrict, hentai18, imhentai URL을 지원합니다")
+    raise ValueError("현재 Webtoon 가져오기는 mangadistrict, mangadna, hentai18, imhentai URL을 지원합니다")
 
 
 def tmdb_image_url(path, size):
@@ -1112,6 +1274,24 @@ def fetch_remote_text(url):
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
             "Accept-Language": "en-US,en;q=0.9,ko;q=0.8",
             "Referer": "https://imhentai.xxx/",
+        })
+        with urlopen(req, timeout=20, context=ssl._create_unverified_context()) as response:
+            return response.read().decode("utf-8", errors="replace")
+    if "mangadna.com" in host:
+        req = Request(url, headers={
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.9,ko;q=0.8",
+            "Referer": "https://mangadna.com/",
+        })
+        with urlopen(req, timeout=20, context=ssl._create_unverified_context()) as response:
+            return response.read().decode("utf-8", errors="replace")
+    if "missav" in host or host.endswith("123av.com"):
+        req = Request(url, headers={
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "ko-KR,ko;q=0.9,en;q=0.8",
+            "Referer": "https://123av.com/",
         })
         with urlopen(req, timeout=20, context=ssl._create_unverified_context()) as response:
             return response.read().decode("utf-8", errors="replace")
