@@ -1,7 +1,15 @@
-﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="10" fill="#e50914"/>
-  <path d="M16 18h32v28H16z" fill="#111"/>
-  <path d="M22 24h20v4H22zm0 8h14v4H22z" fill="#fff"/>
-  <path d="M42 32l8 6-8 6z" fill="#ffdb3c"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <!-- Background: Soft Dark Rounded Square -->
+  <rect width="512" height="512" rx="140" fill="#18181b"/>
+  
+  <!-- Outer Tube Screen: Simple soft gray/white outline -->
+  <rect x="120" y="120" width="272" height="272" rx="72" fill="none" stroke="#f4f4f5" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- Inner Play Button: Soft red play triangle with rounded corners -->
+  <path d="M 215,190 L 215,322 L 320,256 Z" 
+        fill="#e50914" 
+        stroke="#e50914" 
+        stroke-width="24" 
+        stroke-linejoin="round" 
+        stroke-linecap="round"/>
 </svg>
-

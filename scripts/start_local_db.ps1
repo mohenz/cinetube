@@ -4,14 +4,26 @@
 
 $ErrorActionPreference = "Stop"
 $ProjectRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
-$PgRoot = Get-ChildItem "C:\Program Files\PostgreSQL" -Directory -ErrorAction SilentlyContinue |
-  Sort-Object { [int]$_.Name } -Descending |
-  Select-Object -First 1 -ExpandProperty FullName
+$DataDir = Join-Path $ProjectRoot "local\postgres-data"
+$ExistingPgVersionPath = Join-Path $DataDir "PG_VERSION"
+$PgInstallations = Get-ChildItem "C:\Program Files\PostgreSQL" -Directory -ErrorAction SilentlyContinue |
+  Sort-Object { [int]$_.Name } -Descending
+$ExistingPgVersion = if (Test-Path $ExistingPgVersionPath) { (Get-Content -Raw $ExistingPgVersionPath).Trim() } else { "" }
+$PgRoot = if ($ExistingPgVersion) {
+  $PgInstallations |
+    Where-Object { $_.Name -eq $ExistingPgVersion } |
+    Select-Object -First 1 -ExpandProperty FullName
+} else {
+  $PgInstallations |
+    Select-Object -First 1 -ExpandProperty FullName
+}
 if (-not $PgRoot) {
+  if ($ExistingPgVersion) {
+    throw "PostgreSQL $ExistingPgVersion is required for existing data directory $DataDir"
+  }
   throw "PostgreSQL was not found under C:\Program Files\PostgreSQL"
 }
 $PgBin = Join-Path $PgRoot "bin"
-$DataDir = Join-Path $ProjectRoot "local\postgres-data"
 $LogPath = Join-Path $ProjectRoot "local\postgres.log"
 $SchemaPath = Join-Path $ProjectRoot "local\schema.sql"
 $MarkerPath = Join-Path $ProjectRoot "local\.schema_applied"

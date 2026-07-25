@@ -129,6 +129,8 @@ def absolute_url(base_url, value):
     if not value:
         return None
     value = unescape(value).strip()
+    if value.lower().startswith("data:"):
+        return None
     if value.startswith("//"):
         return "https:" + value
     if value.startswith("http://") or value.startswith("https://"):
@@ -563,8 +565,6 @@ def build_missav_import(url):
     genres = [clean_text(item) for item in re.split(r",|、", genre_text) if clean_text(item)]
     actor_text = extract_colon_value(text, "여배우")
     actor_names = [clean_text(item) for item in re.split(r",|、", actor_text) if clean_text(item)]
-    if not actor_names:
-        actor_names = link_texts(html, ["/actresses/"])[:4]
     maker = extract_colon_value(text, "제작사")
     tag_text = extract_colon_value(text, "태그")
     tags = [clean_text(item) for item in re.split(r",|、", tag_text) if clean_text(item)]

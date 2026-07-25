@@ -102,9 +102,17 @@
       });
     }
 
+    function actorNameAsc(a, b) {
+      return String(a.name || "").localeCompare(String(b.name || ""), "ko");
+    }
+
+    function sortedActors() {
+      return [...data.actors].sort(actorNameAsc);
+    }
+
     function optionList(type) {
       if (type === "category") return data.categories.map((item) => `<option value="${UI.escapeHtml(item.category_code)}">${UI.escapeHtml(item.name)}</option>`).join("");
-      if (type === "actor") return data.actors.map((item) => `<option value="${UI.escapeHtml(item.id)}">${UI.escapeHtml(item.name)}</option>`).join("");
+      if (type === "actor") return sortedActors().map((item) => `<option value="${UI.escapeHtml(item.id)}">${UI.escapeHtml(item.name)}</option>`).join("");
       if (type === "rating") return data.ratings.map((item) => `<option value="${UI.escapeHtml(item.grade)}">${UI.escapeHtml(item.grade)}</option>`).join("");
       if (type === "webtoon") return (data.webtoons || []).map((item) => `<option value="${UI.escapeHtml(item.webtoon_id)}">${UI.escapeHtml(item.webtoon_id)} · ${UI.escapeHtml(item.title)}</option>`).join("");
       return "";
@@ -114,7 +122,7 @@
       const selected = String(selectedValue || "");
       return [
         `<option value="">선택 안 함</option>`,
-        ...data.actors.map((item) => `<option value="${UI.escapeHtml(item.id)}" ${String(item.id) === selected ? "selected" : ""}>${UI.escapeHtml(item.name)}</option>`)
+        ...sortedActors().map((item) => `<option value="${UI.escapeHtml(item.id)}" ${String(item.id) === selected ? "selected" : ""}>${UI.escapeHtml(item.name)}</option>`)
       ].join("");
     }
 
@@ -761,7 +769,7 @@
       }
       [0, 1, 2, 3].forEach((index) => {
         const select = form.querySelector(`[name="actor_ids_${index}"]`);
-        data.actors.forEach((actor) => appendSelectOption(select, actor.id, actor.name));
+        sortedActors().forEach((actor) => appendSelectOption(select, actor.id, actor.name));
         select.value = selectedIds[index] || "";
       });
       return selectedIds;

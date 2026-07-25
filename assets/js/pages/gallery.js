@@ -184,6 +184,10 @@
     const code = itemId(item);
     const previewUrl = fullImageUrl(item);
     const favorite = UI.isFavoriteContent("gallery", code);
+    const imagePath = item.image_asset?.object_path || item.image_url || "";
+    const isBase64 = String(imagePath).startsWith("data:");
+    const displayPath = isBase64 ? "내장 데이터 이미지 (Data URL)" : imagePath;
+
     root.innerHTML = `
       <section class="movie-detail gallery-detail">
         <div class="movie-detail-media">
@@ -198,6 +202,18 @@
             <span>${UI.escapeHtml(String(item.regdate || item.created_at || "").slice(0, 10) || "-")}</span>
           </div>
           <p class="movie-description">${UI.escapeHtml(item.description || "등록된 설명이 없습니다.")}</p>
+          ${imagePath ? `
+            <div class="image-path-box" style="margin-top: 16px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; gap: 8px; background: var(--surface-2); padding: 10px 14px; border-radius: var(--radius); border: 1px solid var(--line);">
+              <div style="display: flex; flex-direction: column; gap: 4px; overflow: hidden; flex-grow: 1;">
+                <span style="font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em;">이미지 파일 경로</span>
+                <code id="imagePathText" style="font-family: monospace; font-size: 12px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${UI.escapeHtml(displayPath)}">${UI.escapeHtml(displayPath)}</code>
+              </div>
+              <button class="ghost-button" type="button" id="copyPathButton" style="min-height: 32px; height: 32px; padding: 0 10px; font-size: 12px; flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px; border-color: var(--line-soft);" title="경로 복사">
+                <span class="material-symbols-outlined" style="font-size: 16px;">content_copy</span>
+                <span id="copyBtnText">복사</span>
+              </button>
+            </div>
+          ` : ""}
           <div class="keyword-row">${itemTags(item).map((tag) => `<span>${UI.escapeHtml(tag)}</span>`).join("") || "<span>태그 없음</span>"}</div>
           <div class="hero-actions">
             <button class="ghost-button favorite-toggle detail-favorite-toggle ${favorite ? "active" : ""}" type="button" data-favorite-type="gallery" data-favorite-code="${UI.escapeHtml(code)}" aria-pressed="${favorite ? "true" : "false"}"><span class="material-symbols-outlined">${favorite ? "favorite" : "favorite_border"}</span><span class="favorite-label">관심작품</span></button>
@@ -208,6 +224,40 @@
         </div>
       </section>`;
     UI.setupFavoriteButtons(root, null, "gallery");
+
+    const copyButton = document.getElementById("copyPathButton");
+    if (copyButton && imagePath) {
+      copyButton.addEventListener("click", async () => {
+        try {
+          if (navigator.clipboard) {
+            await navigator.clipboard.writeText(imagePath);
+          } else {
+            const textarea = document.createElement("textarea");
+            textarea.value = imagePath;
+            textarea.style.position = "fixed";
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand("copy");
+            document.body.removeChild(textarea);
+          }
+          const copyBtnText = document.getElementById("copyBtnText");
+          const copyIcon = copyButton.querySelector(".material-symbols-outlined");
+          if (copyBtnText) copyBtnText.textContent = "복사됨";
+          if (copyIcon) copyIcon.textContent = "check";
+          copyButton.style.color = "var(--ok)";
+          copyButton.style.borderColor = "var(--ok)";
+          setTimeout(() => {
+            if (copyBtnText) copyBtnText.textContent = "복사";
+            if (copyIcon) copyIcon.textContent = "content_copy";
+            copyButton.style.color = "";
+            copyButton.style.borderColor = "";
+          }, 1500);
+        } catch (err) {
+          console.error("복사 실패", err);
+        }
+      });
+    }
+
     const previewImage = document.getElementById("openGalleryImagePreview");
     if (previewImage) {
       const openImageModal = () => {
