@@ -184,7 +184,11 @@
     const code = itemId(item);
     const previewUrl = fullImageUrl(item);
     const favorite = UI.isFavoriteContent("gallery", code);
-    const imagePath = item.image_asset?.object_path || item.image_url || "";
+    let imagePath = item.image_asset?.object_path || item.image_url || "";
+    if (imagePath && !imagePath.startsWith("http") && !imagePath.startsWith("data:")) {
+      const cleanPath = imagePath.startsWith("/") ? imagePath.slice(1) : imagePath;
+      imagePath = `http://localhost:8080/${cleanPath}`;
+    }
     const isBase64 = String(imagePath).startsWith("data:");
     const displayPath = isBase64 ? "내장 데이터 이미지 (Data URL)" : imagePath;
 
