@@ -1312,12 +1312,19 @@
 
     function rowActions(item) {
       const key = UI.escapeHtml(item[primaryKey]);
+      if (kind === "galleryImages") {
+        const detailId = UI.escapeHtml(item.gallery_image_id || item[primaryKey]);
+        return `
+          <div class="table-actions gallery-table-actions">
+            <a class="link-button icon-link-button" href="../pages/gallery.html?id=${detailId}" aria-label="상세" title="상세"><span class="material-symbols-outlined" aria-hidden="true">visibility</span></a>
+            <button class="link-button icon-link-button table-edit" type="button" data-key="${key}" aria-label="수정" title="수정"><span class="material-symbols-outlined" aria-hidden="true">edit</span></button>
+            <button class="link-button icon-link-button danger-link table-delete" type="button" data-key="${key}" aria-label="삭제" title="삭제"><span class="material-symbols-outlined" aria-hidden="true">delete</span></button>
+          </div>`;
+      }
       const detailLink = kind === "movies"
         ? `<a class="link-button" href="movie-detail.html?code=${UI.escapeHtml(item.movie_code || item[primaryKey])}">상세</a>`
         : kind === "webtoons"
           ? `<a class="link-button" href="../pages/webtoon.html?id=${UI.escapeHtml(item.webtoon_id || item[primaryKey])}">상세</a>`
-        : kind === "galleryImages"
-          ? `<a class="link-button" href="../pages/gallery.html?id=${UI.escapeHtml(item.gallery_image_id || item[primaryKey])}">상세</a>`
         : "";
       return `
         <div class="table-actions">
@@ -1363,7 +1370,7 @@
         return items.map((item) => {
           const key = UI.escapeHtml(item[primaryKey]);
           const tags = Array.isArray(item.tags) ? item.tags.join(", ") : item.tags || "";
-          return `<tr><td class="table-record-trigger" data-key="${key}" style="cursor:pointer;" title="클릭 시 조회 및 수정">${thumb(assetThumb(item.image_asset, item.image_url), item.title)}</td><td class="table-record-trigger" data-key="${key}" style="cursor:pointer;color:var(--accent-soft);font-weight:600;text-decoration:underline;" title="클릭 시 조회 및 수정">${UI.escapeHtml(item.gallery_image_id)}</td><td>${UI.escapeHtml(item.title)}</td><td>${UI.escapeHtml(tags || "-")}</td><td>${item.is_visible === false ? "미전시" : "전시"}</td><td>${rowActions(item)}</td></tr>`;
+          return `<tr><td class="table-record-trigger" data-key="${key}" style="cursor:pointer;" title="클릭 시 조회 및 수정">${thumb(assetThumb(item.image_asset, item.image_url), item.title)}</td><td>${UI.escapeHtml(item.title)}</td><td>${UI.escapeHtml(tags || "-")}</td><td>${item.is_visible === false ? "미전시" : "전시"}</td><td>${rowActions(item)}</td></tr>`;
         }).join("");
       }
       if (kind === "categories") {
@@ -1401,7 +1408,7 @@
       if (kind === "movies") return "<tr><th>포스터</th><th>영화코드</th><th>카테고리</th><th>주연배우</th><th>감독</th><th>평가등급</th><th>메인전시</th><th>클릭수</th><th>랭킹</th><th>관리</th></tr>";
       if (kind === "webtoons") return "<tr><th>포스터</th><th>Webtoon ID</th><th>Title</th><th>Artist</th><th>Genre</th><th>에피소드 개수</th><th>관리</th></tr>";
       if (kind === "webtoonChapters") return "<tr><th>포스터</th><th>Chapter ID</th><th>Webtoon ID</th><th>Chapter</th><th>URL</th><th>관리</th></tr>";
-      if (kind === "galleryImages") return "<tr><th>이미지</th><th>Gallery ID</th><th>제목</th><th>태그</th><th>전시여부</th><th>관리</th></tr>";
+      if (kind === "galleryImages") return "<tr><th>이미지</th><th>제목</th><th>태그</th><th>전시여부</th><th>관리</th></tr>";
       if (kind === "categories") return "<tr><th>대표이미지</th><th>코드</th><th>카테고리명</th><th>전시여부</th><th>관리</th></tr>";
       if (kind === "actors") return "<tr><th>대표이미지</th><th>배우명</th><th>작품수</th><th>데뷔년도</th><th>관리</th></tr>";
       if (kind === "commonCodes") return "<tr><th>코드그룹</th><th>코드값</th><th>표시명</th><th>정렬</th><th>사용여부</th><th>관리</th></tr>";

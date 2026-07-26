@@ -510,6 +510,8 @@ td:has(.table-thumb) { width: 208px; }
 }
 .link-button:hover { background: var(--surface-3); }
 .table-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.icon-link-button { display: inline-grid; place-items: center; width: 34px; min-height: 34px; padding: 0; }
+.icon-link-button .material-symbols-outlined { font-size: 19px; }
 .danger-link { color: var(--danger); border-color: rgba(255, 139, 131, 0.45); }
 .danger-link:hover { background: rgba(255, 139, 131, 0.12); border-color: var(--danger); }
 .image-fieldset { padding: 14px; border: 1px solid var(--line); border-radius: var(--radius); }
@@ -533,14 +535,15 @@ body[data-admin-kind="galleryImages"] #adminTable td {
 body[data-admin-kind="galleryImages"] #adminTable th:nth-child(1),
 body[data-admin-kind="galleryImages"] #adminTable td:nth-child(1) { width: 128px; }
 body[data-admin-kind="galleryImages"] #adminTable th:nth-child(2),
-body[data-admin-kind="galleryImages"] #adminTable td:nth-child(2) { width: 22%; }
+body[data-admin-kind="galleryImages"] #adminTable td:nth-child(2) { width: 30%; }
+body[data-admin-kind="galleryImages"] #adminTable th:nth-child(4),
+body[data-admin-kind="galleryImages"] #adminTable td:nth-child(4) { width: 74px; }
 body[data-admin-kind="galleryImages"] #adminTable th:nth-child(5),
-body[data-admin-kind="galleryImages"] #adminTable td:nth-child(5) { width: 74px; }
-body[data-admin-kind="galleryImages"] #adminTable th:nth-child(6),
-body[data-admin-kind="galleryImages"] #adminTable td:nth-child(6) { width: 148px; }
+body[data-admin-kind="galleryImages"] #adminTable td:nth-child(5) { width: 126px; }
 body[data-admin-kind="galleryImages"] #adminTable td:has(.table-thumb) { width: 128px; }
 body[data-admin-kind="galleryImages"] #adminTable .table-thumb { width: 104px; }
 body[data-admin-kind="galleryImages"] #adminTable .toolbar { min-width: 0; }
+body[data-admin-kind="galleryImages"] #adminTable .gallery-table-actions { flex-wrap: nowrap; }
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
