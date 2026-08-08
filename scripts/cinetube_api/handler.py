@@ -22,6 +22,10 @@ ACTOR_IMPORT_PATHS = {"metadata/actor", "actor/import"}
 WEBTOON_IMPORT_PATHS = {"metadata/webtoon", "webtoon/import"}
 MEDIA_UPLOAD_PATH = "media/upload"
 MEDIA_IMPORT_URL_PATH = "media/import-url"
+JOBS_PATH = "jobs"
+JOBS_STATS_PATH = "jobs/stats"
+
+ASYNC_TRUE_VALUES = {"1", "true", "yes", "async"}
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -82,6 +86,27 @@ class Handler(BaseHTTPRequestHandler):
             raise ValueError("url 또는 q 파라미터가 필요합니다")
         return value
 
+    def wants_async(self, query=None):
+        """백그라운드 실행 요청 여부.
+
+        기존 호출부는 이 값을 보내지 않으므로 기본은 동기 실행이며
+        응답 형식이 바뀌지 않는다.
+        """
+        prefer = (self.headers.get("Prefer") or "").lower()
+        if "respond-async" in prefer:
+            return True
+        raw = ((query or {}).get("async", [""])[0] or "").strip().lower()
+        return raw in ASYNC_TRUE_VALUES
+
+    def send_job_accepted(self, job):
+        """202 Accepted + 작업 ID."""
+        self.send_json({
+            "job_id": job["id"],
+            "job_type": job["job_type"],
+            "status": job["status"],
+            "status_url": f"/jobs/{job['id']}",
+        }, status=202)
+
     # --- 처리시간 로그 ----------------------------------------------------
 
     def _timed(self, method, handle):
@@ -112,19 +137,48 @@ class Handler(BaseHTTPRequestHandler):
             if route in DB_STATS_PATHS:
                 self.send_json(repository.database_metadata())
                 return
+            if route == JOBS_STATS_PATH:
+                self.send_json(jobs.queue_stats())
+                return
+            if route == JOBS_PATH:
+                self.send_json(jobs.list_jobs(
+                    status=query.get("status", [""])[0] or None,
+                    job_type=query.get("job_type", [""])[0] or None,
+                    limit=query.get("limit", ["50"])[0],
+                ))
+                return
+            if route.startswith(JOBS_PATH + "/"):
+                job = jobs.get_job(route.split("/", 1)[1])
+                if job is None:
+                    self.send_json({"message": "job not found"}, status=404)
+                    return
+                self.send_json(job)
+                return
+
             if route in MOVIE_IMPORT_PATHS:
                 value = self.import_value(query)
                 site = query.get("site", ["auto"])[0]
+                if self.wants_async(query):
+                    self.send_job_accepted(jobs.enqueue("movie_import", {"value": value, "site": site}))
+                    return
                 self.send_json(jobs.run("movie_import", importers.build_movie_import, value, site))
                 return
             if route in ACTOR_IMPORT_PATHS:
                 actor_name = query.get("name", [""])[0]
                 value = self.import_value(query)
+                if self.wants_async(query):
+                    self.send_job_accepted(
+                        jobs.enqueue("actor_import", {"actor_name": actor_name, "value": value})
+                    )
+                    return
                 self.send_json(jobs.run("actor_import", importers.build_actor_import, actor_name, value))
                 return
             if route in WEBTOON_IMPORT_PATHS:
                 value = self.import_value(query)
                 site = query.get("site", ["auto"])[0]
+                if self.wants_async(query):
+                    self.send_job_accepted(jobs.enqueue("webtoon_import", {"value": value, "site": site}))
+                    return
                 self.send_json(jobs.run("webtoon_import", importers.build_webtoon_import, value, site))
                 return
 
@@ -148,13 +202,19 @@ class Handler(BaseHTTPRequestHandler):
 
     def _handle_post(self):
         try:
-            route, _ = self.route()
+            route, query = self.route()
             if route == MEDIA_UPLOAD_PATH:
                 payload = self.read_json()
+                if self.wants_async(query):
+                    self.send_job_accepted(jobs.enqueue("media_upload", payload))
+                    return
                 self.send_json(jobs.run("media_upload", media.save_local_media, payload))
                 return
             if route == MEDIA_IMPORT_URL_PATH:
                 payload = self.read_json()
+                if self.wants_async(query):
+                    self.send_job_accepted(jobs.enqueue("media_import_url", payload))
+                    return
                 self.send_json(jobs.run("media_import_url", media.import_remote_media, payload))
                 return
             table = repository.assert_known_table(route)
