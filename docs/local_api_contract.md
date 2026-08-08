@@ -78,12 +78,18 @@
 |---|---|
 | `select` | 콤마 구분 컬럼. 실제 존재하는 컬럼만 통과, 전부 무효면 `*` |
 | `order` | `<column>.asc` / `<column>.desc` (기본 `created_at.desc`). 미존재 컬럼은 오류 |
+
 | `page_size` / `limit` | 최대 200. `all`이면 제한 없음 |
 | `page` | 1부터. `offset` 미지정 시 `(page-1)*limit` |
 | `offset` | 지정 시 `page` 계산보다 우선 |
 | `count` | `exact`이면 총 건수 포함 응답 |
 | `search` | 테이블별 검색 컬럼에 `ilike '%term%'` OR 결합 |
 | `<column>=eq.<value>` | 실제 존재하는 컬럼에 한해 등호 필터 |
+
+> `rating_grades`에는 `created_at` 컬럼이 없어 기본 정렬로는 조회할 수 없고
+> `{"message": "invalid order column: created_at"}`를 반환한다.
+> 모듈 분리 이전과 동일한 기존 동작이며, 프론트엔드(`store.js`)는 이 테이블과
+> `common_codes`를 `order=display_order.asc`로 조회하므로 화면에는 영향이 없다.
 
 응답:
 
