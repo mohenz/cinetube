@@ -9,3 +9,4 @@ local/.schema_applied
 scripts/__pycache__/
 build/
 local/recovered_*
+__pycache__/
