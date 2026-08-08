@@ -34,6 +34,9 @@
 
 `url`/`q`가 모두 비면 `{"message": "url 또는 q 파라미터가 필요합니다"}`.
 
+기본은 동기 실행이며 응답은 아래 dict 그대로다. `async=1`(또는 `true`/`yes`)
+쿼리나 `Prefer: respond-async` 헤더를 붙이면 백그라운드 작업으로 등록된다 (§7).
+
 ### 3.1 영화 import dict 필드
 
 `title`, `movie_code`, `category_code`, `category_name`, `actor_names`, `actor_profiles`,
@@ -152,6 +155,8 @@ asset id 컬럼에 이미 값이 있거나 URL이 `http(s)`가 아니면 건너�
 | POST | `/media/upload` | `data_url`(필수), `thumb_data_url`, `owner_table`, `owner_field`, `owner_id`, `original_name`, `sort_order` | `media_assets` 행 배열 |
 | POST | `/media/import-url` | `url`(필수, http/https) + 위 owner 필드 | `media_assets` 행 배열 |
 
+두 엔드포인트도 `?async=1` 또는 `Prefer: respond-async`로 백그라운드 등록이 가능하다 (§7).
+
 저장 규칙:
 
 - 원본: `local/media/{owner_table}/{owner_field}/{uuid}.{ext}`
@@ -160,7 +165,60 @@ asset id 컬럼에 이미 값이 있거나 URL이 `http(s)`가 아니면 건너�
 - `bucket_id`는 항상 `local-file`
 - `local/media` 밖 경로는 `invalid media path`로 거부
 
-## 6. 환경변수
+## 6. 백그라운드 작업 (선택)
+
+작업계획서 단계 7. **기존 호출부는 영향을 받지 않는다.** 요청에 명시적으로
+비동기를 요청했을 때만 동작이 달라진다.
+
+### 6.1 비동기 옵트인
+
+| 방법 | 예시 |
+|---|---|
+| 쿼리 | `?async=1` (`1`, `true`, `yes`, `async` 허용) |
+| 헤더 | `Prefer: respond-async` |
+
+지원 엔드포인트: 영화/배우/웹툰 가져오기 3종, `/media/upload`, `/media/import-url`
+
+응답은 `202 Accepted`:
+
+```json
+{"job_id": 55, "job_type": "movie_import", "status": "queued", "status_url": "/jobs/55"}
+```
+
+파라미터 검증(예: `url`/`q` 누락)은 등록 전에 그대로 수행된다.
+
+### 6.2 작업 상태 API
+
+| 메서드 | 경로 | 응답 |
+|---|---|---|
+| GET | `/jobs/<id>` | `background_jobs` 행 1건. 없으면 `404` + `{"message": "job not found"}` |
+| GET | `/jobs` | 최근 작업 목록. `status`, `job_type`, `limit`(기본 50, 최대 200) |
+| GET | `/jobs/stats` | 상태별 건수 `{"queued": 2, "succeeded": 10}` |
+
+작업 행 필드: `id`, `job_type`, `status`, `payload`, `result`, `error`,
+`attempts`, `max_attempts`, `run_after`, `locked_by`, `locked_at`,
+`started_at`, `finished_at`, `created_at`, `updated_at`
+
+상태 전이: `queued → running → succeeded` / `failed`
+(재시도가 남아 있으면 `running → queued`로 되돌아가며 `run_after`에 backoff가 적용된다)
+
+### 6.3 작업 유형
+
+| job_type | payload | 결과 |
+|---|---|---|
+| `movie_import` | `{"value": ..., "site": ...}` | 영화 import dict |
+| `actor_import` | `{"actor_name": ..., "value": ...}` | 배우 import dict |
+| `webtoon_import` | `{"value": ..., "site": ...}` | 웹툰 import dict |
+| `media_upload` | `/media/upload` 본문 | `media_assets` 행 배열 |
+| `media_import_url` | `/media/import-url` 본문 | `media_assets` 행 배열 |
+| `media_localize` | `{"table": ..., "rows": [...]}` | 로컬화된 행 배열 |
+
+`background_jobs`는 CRUD 화이트리스트에 없으므로 `/background_jobs` 경로로는
+접근할 수 없고 위 읽기 전용 API로만 조회한다.
+
+운영 방법은 `docs/local_api_worker.md` 참고.
+
+## 7. 환경변수
 
 | 변수 | 기본값 | 용도 |
 |---|---|---|

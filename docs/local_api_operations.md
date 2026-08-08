@@ -9,6 +9,7 @@
 ```text
 scripts/
 ├─ local_api.py                  호환성 진입점 (Handler 재노출 + 서버 실행)
+├─ local_worker.py               백그라운드 작업 Worker (독립 프로세스)
 ├─ check_module_layers.py        계층·순환·미사용 import 정적 검증
 └─ cinetube_api/
    ├─ config.py                  환경변수, 경로, timeout, 풀 크기, 로깅 임계값
@@ -18,7 +19,7 @@ scripts/
    ├─ queries.py                 필터·검색·정렬·페이지네이션·건수·row_json
    ├─ repository.py              목록/단건/등록/수정/삭제, DB 통계
    ├─ media.py                   data URL, 안전 경로, 썸네일, 외부 이미지 로컬화, 보상 처리
-   ├─ jobs.py                    장시간 작업 실행 경계 (현재 inline)
+   ├─ jobs.py                    장시간 작업 경계 + background_jobs 작업 큐
    ├─ handler.py                 라우팅, CORS, JSON 응답, 처리시간 로그
    └─ importers/
       ├─ common.py               HTML 정리, OG/JSON-LD, 링크·이미지, URL/작품번호 정규화
@@ -80,6 +81,9 @@ DB는 가짜 연결 객체로, 외부 사이트는 `tests/fixtures/*.html`로 �
 | `tests/test_importers_webtoon.py` | 4개 웹툰 사이트 정상·차단 |
 | `tests/test_handler_api.py` | URL·상태코드·JSON 형식·CORS 계약 |
 | `tests/test_concurrency.py` | 동시 조회, 가져오기 중 조회, 풀 부하·복구 |
+| `tests/test_jobs.py` | 큐 SQL 조립, 재시도 backoff, 핸들러 레지스트리 |
+| `tests/test_handler_jobs.py` | 비동기 옵트인 202, 작업 상태 API, 동기 계약 유지 |
+| `tests/test_jobs_live.py` | 실제 DB 선점·중복 방지·Worker 프로세스 (DB 없으면 skip) |
 
 ## 4. 동시 처리 안정화 (1단계 적용분)
 
@@ -116,16 +120,27 @@ from cinetube_api import database
 database.pool_status()   # {'max_size': 8, 'created': n, 'idle': n, 'wait_timeout': 15.0}
 ```
 
-## 6. 다음 단계 (사용자 승인 필요)
+## 6. 백그라운드 Worker (단계 7, 적용 완료)
 
-작업계획서 7.3 / 14절 승인지점 4·5에 해당하며, **DB 스키마 변경이므로 미실행 상태**다.
+사용자 승인 후 `background_jobs` 테이블과 Worker를 도입했다.
 
-- `background_jobs` 테이블 추가 (작업 유형·상태·입력·결과·오류·재시도)
-- 장시간 작업 요청 시 `202 Accepted` + 작업 ID 반환
-- Worker가 `FOR UPDATE SKIP LOCKED`로 선점 실행
-- 작업 상태 조회 API
+```powershell
+# 마이그레이션 (반복 실행 안전)
+psql -h 127.0.0.1 -p 54322 -U postgres -d cinetube -f local\background_jobs_migration.sql
 
-전환 지점은 `cinetube_api/jobs.py`의 `run_job()` 하나다.
-현재는 `("inline", 결과)`를 반환하며, Worker 도입 시 장시간 작업만
-`("queued", {"job_id": ...})`를 반환하도록 이 함수만 교체하면 된다.
-장시간 후보 목록은 같은 파일의 `LONG_RUNNING_JOBS`에 정의되어 있다.
+# Worker 실행 (API와 별도 프로세스)
+python scripts\local_worker.py
+```
+
+- 기본 요청은 여전히 동기 실행이며 응답 형식이 바뀌지 않는다.
+- `?async=1` 또는 `Prefer: respond-async`를 붙인 요청만 `202 Accepted` + 작업 ID를 받는다.
+- 상태 조회: `GET /jobs/<id>`, `GET /jobs`, `GET /jobs/stats`
+
+자세한 운영 방법, 중복 실행 방지 구조, 재시도 정책, 분산 실행 전제 조건은
+`docs/local_api_worker.md` 참고.
+
+## 7. 남은 승인 대상
+
+작업계획서 14절 승인지점 6 — 공용 Storage 전환.
+현재 `media.py`가 `local/media` 로컬 디스크에 직접 쓰므로 여러 서버에서
+API/Worker를 나눠 실행하려면 Storage 인터페이스 도입이 선행되어야 한다.
