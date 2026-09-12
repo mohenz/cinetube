@@ -27,7 +27,6 @@
     ...(webtoon.webtoon_images || []),
     ...(webtoon.webtoon_image_assets || []).map((asset) => asset.public_url)
   ].filter(Boolean).slice(0, 6);
-  const chapters = (webtoon.chapters || []).slice().sort((a, b) => Number(a.chapter_number || 0) - Number(b.chapter_number || 0));
   const favoriteCode = String(webtoon.webtoon_id || webtoon.id || "");
   const isFavoriteWebtoon = UI.isFavoriteContent("webtoon", favoriteCode);
 
@@ -57,7 +56,10 @@
         </div>
         <div class="hero-actions">
           <button class="ghost-button favorite-toggle detail-favorite-toggle ${isFavoriteWebtoon ? "active" : ""}" type="button" id="toggleFavoriteWebtoon" data-favorite-type="webtoon" data-favorite-code="${UI.escapeHtml(favoriteCode)}" aria-pressed="${isFavoriteWebtoon ? "true" : "false"}"><span class="material-symbols-outlined">${isFavoriteWebtoon ? "favorite" : "favorite_border"}</span><span class="favorite-label">관심작품</span></button>
-          ${webtoon.url ? `<a class="primary-button" href="${UI.escapeHtml(webtoon.url)}" target="_blank" rel="noreferrer"><span class="material-symbols-outlined">open_in_new</span>원문 링크</a>` : ""}
+          ${webtoon.url ? `
+            <a class="primary-button" href="${UI.escapeHtml(webtoon.url)}" target="_blank" rel="noreferrer"><span class="material-symbols-outlined">open_in_new</span>원문 링크</a>
+            <button class="ghost-button" type="button" id="fetchLatestChaptersButton"><span class="material-symbols-outlined">sync</span>최신챕터 가져오기</button>
+          ` : ""}
           <a class="ghost-button" href="../admin/webtoons.html?id=${UI.escapeHtml(webtoon.webtoon_id)}"><span class="material-symbols-outlined">edit</span>웹툰 관리</a>
           <a class="ghost-button" href="../admin/webtoon-chapters.html"><span class="material-symbols-outlined">format_list_numbered</span>Chapter 관리</a>
         </div>
@@ -67,22 +69,142 @@
       ${images.length ? images.map((image, index) => `<img class="snapshot-preview-image webtoon-preview-image" src="${UI.escapeHtml(image)}" alt="${UI.escapeHtml(webtoon.title)} 이미지 ${index + 1}" role="button" tabindex="0" data-webtoon-image-index="${index}" aria-label="${UI.escapeHtml(webtoon.title)} 이미지 ${index + 1} 전체보기">`).join("") : ""}
     </section>
     <section class="admin-panel webtoon-chapter-panel">
-      <div class="section-head"><div><p class="eyebrow">Chapters</p><h2>Chapter 목록</h2></div></div>
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Chapters</p>
+          <h2>Chapter 목록</h2>
+        </div>
+        <div class="filter-pills" id="chapterSortControls">
+          <button class="pill active" type="button" data-sort-dir="asc">Read First</button>
+          <button class="pill" type="button" data-sort-dir="desc">Read Last</button>
+        </div>
+      </div>
       <table>
         <thead><tr><th>Chapter</th><th>Poster</th><th>URL</th><th>Regdate</th></tr></thead>
-        <tbody>
-          ${chapters.length ? chapters.map((chapter) => `
-            <tr>
-              <td>${UI.escapeHtml(chapter.chapter_number)}</td>
-              <td>${chapter.chapter_poster ? `<img class="table-thumb" src="${UI.escapeHtml(chapter.chapter_poster)}" alt="${UI.escapeHtml(chapter.webtoon_chapter_id)}">` : `<span class="muted-text">없음</span>`}</td>
-              <td>${chapter.chapter_url ? `<a class="link-button" href="${UI.escapeHtml(chapter.chapter_url)}" target="_blank" rel="noreferrer">열기</a>` : `<span class="muted-text">없음</span>`}</td>
-              <td>${UI.escapeHtml(chapter.regdate ? String(chapter.regdate).slice(0, 10) : "-")}</td>
-            </tr>
-          `).join("") : `<tr><td colspan="4"><div class="empty">등록된 Chapter가 없습니다.</div></td></tr>`}
-        </tbody>
+        <tbody></tbody>
       </table>
     </section>`;
   UI.setupFavoriteButtons(detail, null, "webtoon");
+
+  let currentSortDir = "asc";
+
+  function renderChapters(sortDir) {
+    currentSortDir = sortDir;
+    const sortedChapters = (webtoon.chapters || []).slice().sort((a, b) => {
+      const numA = Number(a.chapter_number || 0);
+      const numB = Number(b.chapter_number || 0);
+      return sortDir === "desc" ? numB - numA : numA - numB;
+    });
+
+    const tbody = detail.querySelector(".webtoon-chapter-panel tbody");
+    if (!tbody) return;
+
+    tbody.innerHTML = sortedChapters.length ? sortedChapters.map((chapter) => `
+      <tr>
+        <td>${UI.escapeHtml(chapter.chapter_number)}</td>
+        <td>${chapter.chapter_poster ? `<img class="table-thumb" src="${UI.escapeHtml(chapter.chapter_poster)}" alt="${UI.escapeHtml(chapter.webtoon_chapter_id)}">` : `<span class="muted-text">없음</span>`}</td>
+        <td>${chapter.chapter_url ? `<a class="link-button" href="${UI.escapeHtml(chapter.chapter_url)}" target="_blank" rel="noreferrer">열기</a>` : `<span class="muted-text">없음</span>`}</td>
+        <td>${UI.escapeHtml(chapter.regdate ? String(chapter.regdate).slice(0, 10) : "-")}</td>
+      </tr>
+    `).join("") : `<tr><td colspan="4"><div class="empty">등록된 Chapter가 없습니다.</div></td></tr>`;
+  }
+
+  // Render chapters initially as ascending (Read First)
+  renderChapters("asc");
+
+  const sortControls = detail.querySelector("#chapterSortControls");
+  if (sortControls) {
+    sortControls.addEventListener("click", (event) => {
+      const button = event.target.closest("button.pill");
+      if (!button) return;
+
+      const sortDir = button.dataset.sortDir;
+      if (!sortDir) return;
+
+      // Update active state
+      sortControls.querySelectorAll("button.pill").forEach((btn) => {
+        btn.classList.toggle("active", btn === button);
+      });
+
+      renderChapters(sortDir);
+    });
+  }
+
+  const fetchButton = detail.querySelector("#fetchLatestChaptersButton");
+  if (fetchButton) {
+    fetchButton.addEventListener("click", async () => {
+      if (!webtoon.url) {
+        alert("웹툰의 원문 링크(URL) 정보가 없어 최신 챕터를 가져올 수 없습니다.");
+        return;
+      }
+      fetchButton.disabled = true;
+      const originalHtml = fetchButton.innerHTML;
+      fetchButton.innerHTML = `<span class="material-symbols-outlined">sync</span>가져오는 중...`;
+
+      try {
+        const base = window.CINETUBE_LOCAL_API?.url || "";
+        if (!base) throw new Error("로컬 API 설정이 필요합니다");
+
+        const params = new URLSearchParams({ url: webtoon.url, site: "auto" });
+        const response = await fetch(`${base.replace(/\/$/, "")}/metadata/webtoon?${params.toString()}`);
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(errorText || `가져오기 실패: HTTP ${response.status}`);
+        }
+
+        const imported = await response.json();
+        const pendingChapters = (imported.chapters || []).map((chapter) => ({
+          webtoon_chapter_id: chapter.webtoon_chapter_id,
+          webtoon_id: webtoon.webtoon_id,
+          chapter_number: chapter.chapter_number,
+          chapter_url: chapter.chapter_url,
+          chapter_poster: chapter.chapter_poster || imported.poster_image || null
+        }));
+
+        if (!pendingChapters.length) {
+          alert("가져올 챕터 정보가 없습니다.");
+          return;
+        }
+
+        let updatedData = data;
+        const existing = data.webtoonChapters || [];
+        let createdCount = 0;
+        let updatedCount = 0;
+
+        for (const chapter of pendingChapters) {
+          const matched = existing.find((item) => String(item.webtoon_chapter_id) === String(chapter.webtoon_chapter_id));
+          if (matched) {
+            updatedData = await Store.update("webtoonChapters", matched.id, chapter);
+            updatedCount++;
+          } else {
+            updatedData = await Store.create("webtoonChapters", chapter);
+            createdCount++;
+          }
+        }
+
+        // Update local data caches
+        data.webtoonChapters = updatedData.webtoonChapters;
+        data.webtoons = updatedData.webtoons;
+
+        // Refresh current webtoon chapters
+        const updatedWebtoon = (updatedData.webtoons || []).find((item) => String(item.webtoon_id) === String(webtoon.webtoon_id) || String(item.id) === String(webtoon.id));
+        if (updatedWebtoon) {
+          webtoon.chapters = updatedWebtoon.chapters;
+        }
+
+        // Re-render UI
+        renderChapters(currentSortDir);
+
+        alert(`최신 챕터 동기화 완료!\n새로 등록: ${createdCount}건, 업데이트: ${updatedCount}건`);
+      } catch (error) {
+        console.error("최신 챕터 가져오기 실패:", error);
+        alert(`최신 챕터 가져오기 실패: ${error.message}`);
+      } finally {
+        fetchButton.disabled = false;
+        fetchButton.innerHTML = originalHtml;
+      }
+    });
+  }
 
   function openWebtoonImageModal(imageUrl, index) {
     const existing = document.getElementById("webtoonImageModal");

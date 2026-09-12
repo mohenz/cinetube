@@ -208,8 +208,12 @@
           <div class="image-preview ${value.url ? "has-image" : ""}">
             ${value.url ? `<img src="${UI.escapeHtml(value.url)}" alt="${UI.escapeHtml(config.label)} 미리보기">` : `<span>이미지 없음</span>`}
           </div>
-          <input class="image-input" type="file" name="file_${UI.escapeHtml(name)}" accept="image/*">
-          ${kind === "galleryImages" && name === "image" ? `<p class="form-note">이 영역을 선택한 뒤 Ctrl+V로 클립보드 이미지를 붙여넣을 수 있습니다.</p>` : ""}
+          ${kind === "galleryImages" && name === "image"
+            ? `<div class="gallery-image-primary-actions">
+                <label class="image-file-picker">파일선택<input class="image-input" type="file" name="file_${UI.escapeHtml(name)}" accept="image/*"></label>
+                <button class="primary-button" type="submit"><span class="material-symbols-outlined">save</span>${editingItem ? "수정 저장" : "저장"}</button>
+              </div>`
+            : `<input class="image-input" type="file" name="file_${UI.escapeHtml(name)}" accept="image/*">`}
           <input type="hidden" name="url_${UI.escapeHtml(name)}" value="${UI.escapeHtml(value.url)}">
           <input type="hidden" name="asset_${UI.escapeHtml(name)}" value="${UI.escapeHtml(value.assetId)}">
         </div>`;
@@ -229,7 +233,7 @@
       const fields = imageFields[kind] || [];
       return fields.map((config) => `
         <button class="ghost-button image-clear-form" type="button" data-target-image-field="${UI.escapeHtml(config.field)}">
-          <span class="material-symbols-outlined">delete</span>${UI.escapeHtml(config.label)} 삭제
+          <span class="material-symbols-outlined">delete</span>${kind === "galleryImages" ? "파일삭제" : `${UI.escapeHtml(config.label)} 삭제`}
         </button>
       `).join("");
     }
@@ -596,14 +600,21 @@
           continue;
         }
         if (!assetValue && /^https?:\/\//i.test(urlValue) && Store.importMediaUrl) {
-          const media = await Store.importMediaUrl({
-            url: urlValue,
-            ownerTable: kind,
-            ownerField: ownerField(config),
-            sortOrder: config.index || 0
-          });
-          if (media) {
-            setImagePayloadValue(payload, config, media.public_url, media.id);
+          try {
+            const media = await Store.importMediaUrl({
+              url: urlValue,
+              ownerTable: kind,
+              ownerField: ownerField(config),
+              sortOrder: config.index || 0
+            });
+            if (media) {
+              setImagePayloadValue(payload, config, media.public_url, media.id);
+              continue;
+            }
+          } catch (error) {
+            console.warn("외부 이미지 로컬 다운로드 실패 (원본 URL 유지):", error);
+            // 다운로드 실패 시 원본 원격 URL을 그냥 필드값으로 저장하고 넘어갑니다!
+            setImagePayloadValue(payload, config, urlValue, "");
             continue;
           }
         }
@@ -1121,7 +1132,7 @@
           ${fieldSets[kind].map(inputFor).join("")}
           ${renderImageFields()}
           <div class="form-actions">
-            <button class="primary-button" type="submit"><span class="material-symbols-outlined">save</span>${isEdit ? "수정 저장" : "저장"}</button>
+            ${kind === "galleryImages" ? "" : `<button class="primary-button" type="submit"><span class="material-symbols-outlined">save</span>${isEdit ? "수정 저장" : "저장"}</button>`}
             ${renderImageActionButtons()}
             ${isEdit ? `<button class="ghost-button" type="button" id="cancelEdit"><span class="material-symbols-outlined">close</span>취소</button>` : ""}
           </div>

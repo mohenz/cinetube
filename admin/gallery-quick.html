@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>CineTube Admin | 갤러리 퀵등록</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@200..700,0..1&display=swap" rel="stylesheet">
+    <link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="../assets/css/styles.css?v=gallery-quick-delete">
+  </head>
+  <body data-page="admin" data-admin-kind="galleryQuick">
+    <aside class="sidebar" aria-label="관리 메뉴">
+      <a class="brand" href="../index.html"><span class="brand-mark">CT</span><span><strong>CineAdmin</strong><small>Gallery Control</small></span></a>
+      <nav class="side-nav">
+        <a class="nav-item" href="../index.html"><span class="material-symbols-outlined">home</span>사이트 홈</a>
+        <a class="nav-item" href="index.html"><span class="material-symbols-outlined">dashboard</span>대시보드</a>
+        <a class="nav-item" href="movies.html"><span class="material-symbols-outlined">movie</span>영화정보</a>
+        <a class="nav-item" href="categories.html"><span class="material-symbols-outlined">category</span>카테고리</a>
+        <a class="nav-item" href="actors.html"><span class="material-symbols-outlined">person</span>주연배우</a>
+        <a class="nav-item" href="ratings.html"><span class="material-symbols-outlined">grade</span>평가등급</a>
+        <span class="nav-divider" aria-hidden="true"></span>
+        <a class="nav-item" href="webtoons.html"><span class="material-symbols-outlined">auto_stories</span>Webtoon 정보</a>
+        <a class="nav-item" href="webtoon-chapters.html"><span class="material-symbols-outlined">format_list_numbered</span>Webtoon Chapter</a>
+        <a class="nav-item" href="gallery-images.html"><span class="material-symbols-outlined">photo_library</span>갤러리</a>
+        <a class="nav-item active" href="gallery-quick.html"><span class="material-symbols-outlined">bolt</span>갤러리 퀵등록</a>
+        <span class="nav-divider" aria-hidden="true"></span>
+        <a class="nav-item" href="common-codes.html"><span class="material-symbols-outlined">tune</span>공통코드</a>
+      </nav>
+      <div class="db-status" id="dbStatus">Bloom Universe</div>
+    </aside>
+    <header class="topbar">
+      <button class="mobile-menu" type="button" id="mobileMenu" aria-label="메뉴 열기"><span class="material-symbols-outlined">menu</span></button>
+      <div class="search-box"><span class="material-symbols-outlined">search</span><input id="searchInput" type="search" placeholder="등록된 이미지 검색 (제목, 태그)"></div>
+      <a class="primary-button" href="gallery-images.html"><span class="material-symbols-outlined">photo_library</span>갤러리 관리</a>
+      <a class="ghost-button" href="webtoons.html" title="웹툰정보"><span class="material-symbols-outlined">auto_stories</span>웹툰정보</a>
+      <a class="ghost-button" href="gallery-quick.html" title="갤러리 퀵등록"><span class="material-symbols-outlined">bolt</span>갤러리 퀵등록</a>
+    </header>
+    <main class="app-shell">
+      <section class="content-view">
+        <div class="section-head"><div><p class="eyebrow">Gallery Quick Menu</p><h1>갤러리 퀵등록</h1><p>캡쳐한 이미지를 붙여넣으면 즉시 저장되고, 오른쪽에서 바로 등록 결과를 확인합니다.</p></div></div>
+
+        <div class="quick-split">
+          <section class="quick-pane" id="registerPanel">
+            <div class="admin-panel">
+              <div class="quick-pane-head"><h2><span class="material-symbols-outlined" style="vertical-align:-5px;font-size:20px;">bolt</span>빠른 등록</h2></div>
+              <label class="quick-dropzone" id="dropzone" tabindex="0">
+                <span class="material-symbols-outlined">add_photo_alternate</span>
+                <strong>이미지를 붙여넣거나(Ctrl+V) 드래그하세요</strong>
+                <small>붙여넣는 즉시 저장됩니다. 여러 장을 붙여넣으면 순서대로 자동 저장됩니다.</small>
+                <input type="file" id="fileInput" accept="image/*" multiple>
+              </label>
+
+              <p class="quick-status" id="quickStatus" style="display:none;"></p>
+            </div>
+          </section>
+
+          <section class="quick-pane" id="reviewPanel">
+            <div class="admin-panel">
+              <div class="quick-pane-head"><h2><span class="material-symbols-outlined" style="vertical-align:-5px;font-size:20px;">fact_check</span>등록 확인<span class="tab-count" id="reviewCount"></span></h2></div>
+              <div class="quick-review-toolbar">
+                <span class="muted-text">최근 등록한 2개까지 표시합니다. 상단 검색창에서 제목·태그로 찾을 수 있습니다.</span>
+                <button class="ghost-button" type="button" id="reviewTodayButton">오늘 등록만</button>
+                <button class="link-button" type="button" id="reviewRefreshButton"><span class="material-symbols-outlined" style="vertical-align:-4px;font-size:18px;">refresh</span>새로고침</button>
+              </div>
+              <div class="quick-review-grid" id="reviewGrid"></div>
+            </div>
+          </section>
+        </div>
+      </section>
+    </main>
+    <div class="drawer-backdrop" id="drawerBackdrop"></div>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../assets/js/supabase-config.js"></script>
+    <script src="../assets/js/local-db-config.js?v=lan-api"></script>
+    <script src="../assets/js/shared/sample-data.js"></script>
+    <script src="../assets/js/shared/store.js?v=supabase-perf"></script>
+    <script src="../assets/js/shared/ui.js?v=paging-window"></script>
+    <script src="../assets/js/pages/admin-gallery-quick.js?v=gallery-quick-delete"></script>
+  </body>
+</html>

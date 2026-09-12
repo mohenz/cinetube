@@ -186,8 +186,8 @@ def localize_remote_images(table, rows):
                     "owner_id": str(owner_id) if owner_id is not None else None,
                     "sort_order": 0,
                 })
-            except http_client.RemoteFetchError as exc:
-                # 외부 사이트 장애는 DB 오류와 분리해 기록하고 원본 URL을 유지한다.
+            except Exception as exc:
+                # 외부 사이트 장애 및 모든 다운로드/가공 오류는 DB 등록 전체 실패와 무관하게 기록하고 원본 URL을 유지한다.
                 logger.warning("remote image localize skipped (%s): %s", value, exc)
                 continue
             asset = asset_rows[0] if isinstance(asset_rows, list) and asset_rows else asset_rows

@@ -9,7 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@200..700,0..1&display=swap" rel="stylesheet">
     <link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
-    <link rel="stylesheet" href="../assets/css/styles.css?v=gallery-admin-icons">
+    <link rel="stylesheet" href="../assets/css/styles.css?v=gallery-admin-action-layout">
   </head>
   <body data-page="admin" data-admin-kind="galleryImages">
     <aside class="sidebar" aria-label="관리 메뉴">
@@ -25,6 +25,7 @@
         <a class="nav-item" href="webtoons.html"><span class="material-symbols-outlined">auto_stories</span>Webtoon 정보</a>
         <a class="nav-item" href="webtoon-chapters.html"><span class="material-symbols-outlined">format_list_numbered</span>Webtoon Chapter</a>
         <a class="nav-item active" href="gallery-images.html"><span class="material-symbols-outlined">photo_library</span>갤러리</a>
+        <a class="nav-item" href="gallery-quick.html"><span class="material-symbols-outlined">bolt</span>갤러리 퀵등록</a>
         <span class="nav-divider" aria-hidden="true"></span>
         <a class="nav-item" href="common-codes.html"><span class="material-symbols-outlined">tune</span>공통코드</a>
       </nav>
@@ -34,6 +35,8 @@
       <button class="mobile-menu" type="button" id="mobileMenu" aria-label="메뉴 열기"><span class="material-symbols-outlined">menu</span></button>
       <div class="search-box"><span class="material-symbols-outlined">search</span><input id="searchInput" type="search" placeholder="제목, 태그, 출처 검색"></div>
       <a class="primary-button" href="../pages/gallery.html"><span class="material-symbols-outlined">visibility</span>갤러리 보기</a>
+      <a class="ghost-button" href="webtoons.html" title="웹툰정보"><span class="material-symbols-outlined">auto_stories</span>웹툰정보</a>
+      <a class="ghost-button" href="gallery-quick.html" title="갤러리 퀵등록"><span class="material-symbols-outlined">bolt</span>갤러리 퀵등록</a>
     </header>
     <main class="app-shell">
       <section class="content-view">
@@ -48,7 +51,7 @@
     <script src="../assets/js/shared/sample-data.js"></script>
     <script src="../assets/js/shared/store.js?v=supabase-perf"></script>
     <script src="../assets/js/shared/ui.js?v=paging-window"></script>
-    <script src="../assets/js/shared/admin-page.js?v=gallery-admin-icons"></script>
+    <script src="../assets/js/shared/admin-page.js?v=gallery-admin-action-layout"></script>
     <script src="../assets/js/pages/admin-gallery-images.js"></script>
   </body>
 </html>
