@@ -1109,6 +1109,9 @@
     function renderForm() {
       removedAssets = [];
       const isEdit = Boolean(editingItem);
+      const movieFields = fieldSets[kind] || [];
+      const fieldsBeforeMovieImages = kind === "movies" ? movieFields.slice(0, 2) : movieFields;
+      const fieldsAfterMovieImages = kind === "movies" ? movieFields.slice(2) : [];
       formHost.innerHTML = `
         <div class="form-title-row">
           <h2>${isEdit ? "정보 수정" : "신규 등록"}</h2>
@@ -1118,8 +1121,10 @@
           ${renderMovieImportPanel()}
           ${renderActorImportPanel()}
           ${renderWebtoonImportPanel()}
-          ${fieldSets[kind].map(inputFor).join("")}
-          ${renderImageFields()}
+          ${fieldsBeforeMovieImages.map(inputFor).join("")}
+          ${kind === "movies" ? renderImageFields() : ""}
+          ${fieldsAfterMovieImages.map(inputFor).join("")}
+          ${kind === "movies" ? "" : renderImageFields()}
           <div class="form-actions">
             <button class="primary-button" type="submit"><span class="material-symbols-outlined">save</span>${isEdit ? "수정 저장" : "저장"}</button>
             ${renderImageActionButtons()}
