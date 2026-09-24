@@ -624,6 +624,31 @@ body[data-admin-kind="galleryImages"] #adminTable .gallery-table-actions { flex-
   border-radius: 6px;
 }
 .image-modal-close:hover { background: var(--surface-3); border-color: var(--accent-soft); }
+.notice-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.6);
+}
+.notice-modal {
+  width: min(100%, 360px);
+  padding: 28px 24px 20px;
+  text-align: center;
+  background: var(--surface);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.4);
+}
+.notice-modal-message {
+  margin: 0 0 20px;
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.6;
+}
+.notice-modal-close { min-width: 96px; }
 .gallery-frame img { object-fit: cover; }
 .gallery-card .poster-overlay { display: none; }
 .gallery-card .card-favorite-toggle {

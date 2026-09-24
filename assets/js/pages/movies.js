@@ -10,11 +10,18 @@
   const movieSummary = document.getElementById("movieSummary");
   const pagination = document.getElementById("pagination");
   const pageSize = document.getElementById("pageSizeSelect");
+  const sortSelect = document.getElementById("sortSelect");
   const searchInput = document.getElementById("searchInput");
   const contentView = document.querySelector(".content-view");
   let page = 1;
 
+  const SORT_LABELS = {
+    "release_month.desc": "최신영화순",
+    "created_at.desc": "최신등록순"
+  };
+
   if (pageSize) pageSize.value = "20";
+  if (sortSelect) sortSelect.value = "release_month.desc";
 
   function totalPages(total, size) {
     if (String(size).toLowerCase() === "all") return 1;
@@ -35,17 +42,18 @@
 
   async function render(options = {}) {
     const term = searchInput ? searchInput.value.trim() : "";
+    const order = sortSelect && SORT_LABELS[sortSelect.value] ? sortSelect.value : "release_month.desc";
     const result = await Store.list("movies", {
       page,
       pageSize: pageSize.value,
       search: term,
-      order: "release_month.desc"
+      order
     });
     const movies = result.items || [];
 
     movieSummary.innerHTML = `
       <span class="summary-pill"><strong>${UI.escapeHtml(result.total)}</strong> 영화</span>
-      <span class="summary-pill">최신영화 순</span>`;
+      <span class="summary-pill">${UI.escapeHtml(SORT_LABELS[order])}</span>`;
 
     page = result.page || 1;
     movieGrid.innerHTML = movies.length ? movies.map(UI.movieCard).join("") : `<div class="empty">조건에 맞는 영화정보가 없습니다.</div>`;
@@ -59,6 +67,7 @@
   }
 
   if (pageSize) pageSize.addEventListener("change", () => { page = 1; render(); });
+  if (sortSelect) sortSelect.addEventListener("change", () => { page = 1; render(); });
   if (searchInput) searchInput.addEventListener("input", () => { page = 1; render(); });
   render();
 })();

@@ -44,10 +44,16 @@
     <main class="app-shell">
       <section class="content-view">
         <div class="section-head">
-          <div><p class="eyebrow">Movie Index</p><h1>영화목록</h1><p>최신영화 순으로 정렬된 전체 영화정보입니다.</p></div>
+          <div><p class="eyebrow">Movie Index</p><h1>영화목록</h1><p>선택한 정렬 조건으로 표시된 전체 영화정보입니다.</p></div>
         </div>
         <div class="toolbar">
           <div class="filter-pills" id="movieSummary"></div>
+          <label class="page-size-label">정렬
+            <select class="select-control" id="sortSelect">
+              <option value="release_month.desc" selected>최신영화순</option>
+              <option value="created_at.desc">최신등록순</option>
+            </select>
+          </label>
           <label class="page-size-label">페이지당
             <select class="select-control" id="pageSizeSelect">
               <option value="20" selected>20개</option><option value="40">40개</option><option value="80">80개</option><option value="100">100개</option><option value="all">전체</option>
@@ -65,7 +71,7 @@
     <script src="../assets/js/shared/sample-data.js"></script>
     <script src="../assets/js/shared/store.js?v=supabase-perf"></script>
     <script src="../assets/js/shared/ui.js?v=local-media"></script>
-    <script src="../assets/js/pages/movies.js?v=paging-focus-top"></script>
+    <script src="../assets/js/pages/movies.js?v=sort-select"></script>
   </body>
 </html>
 

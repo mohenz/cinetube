@@ -63,6 +63,33 @@
     ]
   };
 
+  function showCenteredNotice(message) {
+    const escaped = window.CineTubeUI ? window.CineTubeUI.escapeHtml(message) : String(message);
+    const backdrop = document.createElement("div");
+    backdrop.className = "notice-modal-backdrop";
+    backdrop.innerHTML = `
+      <div class="notice-modal" role="alertdialog" aria-modal="true">
+        <p class="notice-modal-message">${escaped}</p>
+        <button type="button" class="primary-button notice-modal-close">확인</button>
+      </div>`;
+    document.body.appendChild(backdrop);
+
+    function close() {
+      backdrop.remove();
+      document.removeEventListener("keydown", onKeydown);
+    }
+    function onKeydown(event) {
+      if (event.key === "Escape") close();
+    }
+
+    backdrop.addEventListener("click", (event) => {
+      if (event.target === backdrop) close();
+    });
+    backdrop.querySelector(".notice-modal-close").addEventListener("click", close);
+    document.addEventListener("keydown", onKeydown);
+    backdrop.querySelector(".notice-modal-close").focus();
+  }
+
   async function init(kind) {
   try {
     const UI = window.CineTubeUI;
@@ -1207,7 +1234,7 @@
           renderForm();
           renderTable();
           UI.setDbStatus(Store.getStatus());
-          if (isEdit) alert("정보수정이 완료되었습니다.");
+          if (isEdit) showCenteredNotice("정보수정이 완료되었습니다.");
         } catch (error) {
           alert(`저장 실패: ${error.message}`);
         }
