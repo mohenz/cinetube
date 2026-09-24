@@ -1,0 +1,73 @@
+:root {
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f5f6f8;
+  --surface: #fff;
+  --surface-2: #eef0f4;
+  --surface-3: #e2e5ec;
+  --line: #cdd2db;
+  --line-soft: rgba(90, 65, 65, .2);
+  --text: #222631;
+  --muted: #606775;
+  --accent: #ce0712;
+  --accent-soft: #ad2730;
+  --gold: #926b00;
+  --blue: #235fba;
+  --ok: #187647;
+  --danger: #bb2634;
+}
+
+.site-theme-toggle {
+  position: fixed;
+  top: 50%;
+  right: 0;
+  transform: translateY(-50%);
+  z-index: 45;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 48px;
+  padding: 0;
+  border: 1px solid var(--line, #353534);
+  border-right: 0;
+  border-radius: 12px 0 0 12px;
+  background: var(--surface, #131313);
+  color: var(--text, #e5e2e1);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, .15);
+  font: 26px/1 system-ui, sans-serif;
+  cursor: pointer;
+}
+
+.site-theme-toggle:hover { background: var(--surface-3, #2a2a2a); }
+.site-theme-toggle:focus-visible { outline: 3px solid var(--accent, #e50914); outline-offset: 2px; }
+
+:root[data-theme="light"] .sidebar { background: rgba(255, 255, 255, .96); }
+:root[data-theme="light"] .topbar { background: rgba(255, 255, 255, .9); }
+:root[data-theme="light"] .movie-description { color: var(--text); }
+:root[data-theme="light"] .image-preview { background: var(--surface-2); }
+:root[data-theme="light"] .table-movie-trigger:hover { color: var(--accent) !important; }
+
+/* Text placed over photographs retains contrast against the dark image scrim. */
+:root[data-theme="light"] .hero,
+:root[data-theme="light"] .poster-overlay,
+:root[data-theme="light"] .card-favorite-toggle { color: #f5f5f5; }
+:root[data-theme="light"] .hero .eyebrow { color: #ffb4aa; }
+:root[data-theme="light"] .hero .ghost-button { color: #f5f5f5; border-color: #999; }
+:root[data-theme="light"] .brand-mark { color: #fff; }
+:root[data-theme="light"] .rating,
+:root[data-theme="light"] .main-display-badge,
+:root[data-theme="light"] .main-action,
+:root[data-theme="light"] .quick-status { --gold: #ffdb3c; }
+:root[data-theme="light"] .main-action { color: #785800; }
+:root[data-theme="light"] .main-action:hover,
+:root[data-theme="light"] .main-action.active { color: #201800; }
+:root[data-theme="light"] .quick-status { --ok: #67d39a; --danger: #ff8b83; }
+
+/* Login uses its own layout and colors instead of the shared site stylesheet. */
+:root[data-theme="light"] body:has(#loginForm) { background-color: var(--bg); }
+:root[data-theme="light"] .glass-effect { background: rgba(255, 255, 255, .96); border-color: var(--line); color: var(--text); }
+:root[data-theme="light"] .glass-effect [class*="text-on-surface-variant"] { color: var(--muted); }
+:root[data-theme="light"] .glass-effect input { background: var(--surface-2); color: var(--text); }
