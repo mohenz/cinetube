@@ -1702,6 +1702,21 @@
         }
       }
     }
+    if (kind === "actors") {
+      const urlParams = new URLSearchParams(window.location.search);
+      const preloadId = urlParams.get("id");
+      if (preloadId) {
+        const matched = data.actors.find((item) => String(item.id) === String(preloadId));
+        if (matched) {
+          editingItem = matched;
+          renderForm();
+          renderTable();
+          setTimeout(() => {
+            if (formHost) formHost.scrollIntoView({ behavior: "smooth", block: "start" });
+          }, 100);
+        }
+      }
+    }
     } catch (err) {
       UI.showError(err.message);
       console.error(err);

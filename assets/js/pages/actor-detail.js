@@ -39,6 +39,9 @@
           <div><span>데뷔년도</span><strong>${UI.escapeHtml(actor.debut_year || "-")}</strong></div>
           <div><span>등록 작품</span><strong>${UI.escapeHtml(movies.length)}개</strong></div>
         </div>
+        <div class="hero-actions">
+          <a class="ghost-button" href="../admin/actors.html?id=${encodeURIComponent(actor.id)}"><span class="material-symbols-outlined">edit</span>배우 관리</a>
+        </div>
       </div>
     </article>`;
 
