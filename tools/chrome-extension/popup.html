@@ -7,31 +7,36 @@
     :root {
       --accent: #ff5a5f;
       --accent-hover: #e0484d;
-      --background: #121212;
-      --surface: #1e1e1e;
-      --surface-2: #2d2d2d;
-      --text: #e0e0e0;
-      --text-muted: #888888;
-      --border: #3d3d3d;
+      --accent-subtle: rgba(255, 90, 95, 0.15);
+      --background: #141416;
+      --surface: #1f1f23;
+      --surface-2: #2a2a30;
+      --surface-hover: #33333b;
+      --text: #f0f0f2;
+      --text-muted: #9a9aa2;
+      --border: #36363f;
+      --success: #2ecc71;
+      --danger: #ff5a5f;
       --radius: 6px;
     }
 
     body {
-      width: 340px;
+      width: 360px;
       margin: 0;
       padding: 16px;
       background-color: var(--background);
       color: var(--text);
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
       font-size: 13px;
+      box-sizing: border-box;
     }
 
     header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 14px;
-      padding-bottom: 8px;
+      margin-bottom: 12px;
+      padding-bottom: 10px;
       border-bottom: 1px solid var(--border);
     }
 
@@ -52,20 +57,120 @@
       padding: 2px 6px;
       border-radius: 999px;
       text-transform: uppercase;
+      font-weight: 700;
     }
 
+    .icon-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      border-radius: var(--radius);
+      padding: 4px 8px;
+      font-size: 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.15s ease;
+    }
+
+    .icon-btn:hover {
+      background: var(--surface-2);
+      color: var(--text);
+      border-color: #555;
+    }
+
+    .icon-btn.active {
+      background: var(--accent-subtle);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* 설정 패널 */
+    #settingsPanel {
+      background-color: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px;
+      margin-bottom: 12px;
+      display: none;
+    }
+
+    #settingsPanel.open {
+      display: block;
+      animation: slideDown 0.18s ease-out;
+    }
+
+    @keyframes slideDown {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .settings-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .url-input-group {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 6px;
+    }
+
+    .url-input-group input {
+      flex: 1;
+    }
+
+    .test-btn {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 10px;
+      font-size: 11px;
+      font-weight: 600;
+      border-radius: 4px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.15s ease;
+    }
+
+    .test-btn:hover {
+      background: var(--surface-hover);
+    }
+
+    .settings-hint {
+      font-size: 11px;
+      color: var(--text-muted);
+      line-height: 1.4;
+      margin-top: 4px;
+    }
+
+    #connStatus {
+      font-size: 11px;
+      font-weight: 600;
+      margin-top: 6px;
+      min-height: 15px;
+    }
+
+    /* 메타 박스 */
     .meta-box {
       background-color: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius);
       padding: 12px;
-      margin-bottom: 14px;
+      margin-bottom: 12px;
     }
 
     .meta-row {
       display: flex;
       flex-direction: column;
-      margin-bottom: 10px;
+      margin-bottom: 9px;
     }
 
     .meta-row:last-child {
@@ -80,20 +185,52 @@
       text-transform: uppercase;
     }
 
-    input {
+    input[type="text"] {
       background-color: var(--surface-2);
       border: 1px solid var(--border);
       color: var(--text);
       padding: 6px 8px;
       font-size: 12px;
       border-radius: 4px;
-      width: calc(100% - 18px);
-      box-sizing: content-box;
+      box-sizing: border-box;
+      width: 100%;
     }
 
-    input:focus {
+    input[type="text"]:focus {
       outline: none;
       border-color: var(--accent);
+    }
+
+    .server-summary-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background-color: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 5px 8px;
+      margin-bottom: 10px;
+      font-size: 11px;
+    }
+
+    .server-summary-bar .target-url {
+      color: var(--text-muted);
+      font-family: monospace;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 220px;
+    }
+
+    .server-summary-bar .change-link {
+      color: var(--accent);
+      cursor: pointer;
+      font-weight: 600;
+      text-decoration: none;
+    }
+
+    .server-summary-bar .change-link:hover {
+      text-decoration: underline;
     }
 
     .button-group {
@@ -102,7 +239,7 @@
       gap: 8px;
     }
 
-    button {
+    button#sendBtn {
       background-color: var(--accent);
       border: none;
       color: white;
@@ -116,13 +253,14 @@
       justify-content: center;
       gap: 6px;
       transition: background-color 0.15s ease;
+      width: 100%;
     }
 
-    button:hover {
+    button#sendBtn:hover {
       background-color: var(--accent-hover);
     }
 
-    button:disabled {
+    button#sendBtn:disabled {
       background-color: var(--border);
       color: var(--text-muted);
       cursor: not-allowed;
@@ -134,13 +272,40 @@
       font-weight: 600;
       min-height: 18px;
       margin-top: 10px;
+      line-height: 1.4;
+      word-break: break-word;
     }
   </style>
 </head>
 <body>
   <header>
-    <h1>CineTube Exporter <span class="badge">123AV</span></h1>
+    <h1>🎬 CineTube <span class="badge">123AV</span></h1>
+    <button id="toggleSettingsBtn" class="icon-btn" type="button" title="CineTube 서버 연결 설정">
+      ⚙️ <span id="settingsBtnLabel">서버 설정</span>
+    </button>
   </header>
+
+  <!-- 서버 주소 설정 패널 (접이식) -->
+  <div id="settingsPanel">
+    <div class="settings-title">
+      <span>CineTube 서버 API 주소</span>
+    </div>
+    <div class="url-input-group">
+      <input type="text" id="serverUrl" placeholder="http://localhost:3001" spellcheck="false">
+      <button id="testConnBtn" class="test-btn" type="button">연결 테스트</button>
+    </div>
+    <div id="connStatus"></div>
+    <div class="settings-hint">
+      💡 다른 PC에서 실행 중인 경우 호스트 PC의 IP 주소를 입력하세요.<br>
+      (예: <code>http://192.168.0.50:3001</code> / 방화벽 3001 허용 필요)
+    </div>
+  </div>
+
+  <!-- 현재 대상 서버 요약 바 -->
+  <div class="server-summary-bar">
+    <span>서버: <span class="target-url" id="summaryServerUrl">http://localhost:3001</span></span>
+    <span class="change-link" id="quickChangeServer">변경</span>
+  </div>
 
   <div id="mainContent">
     <div class="meta-box">
@@ -163,12 +328,14 @@
     </div>
 
     <div class="button-group">
+      <button id="checkBtn" class="test-btn" type="button" disabled>등록 여부 확인</button>
       <button id="sendBtn" disabled>CineTube로 영화 등록</button>
     </div>
   </div>
 
-  <div id="status">페이지 수집 중...</div>
+  <div id="status" role="status" aria-live="polite">페이지 수집 중...</div>
 
+  <script src="registration-check.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>
