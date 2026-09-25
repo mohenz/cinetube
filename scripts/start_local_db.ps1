@@ -102,7 +102,12 @@ if (-not (Test-Path $MarkerPath)) {
 }
 
 $runningApi = Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like "*local_api.py*" }
-if (-not $runningApi) {
+$SupervisorTask = Get-ScheduledTask -TaskName "CineTube-API-Supervisor" -ErrorAction SilentlyContinue
+if ($SupervisorTask) {
+  # Preferred: the scheduled task runs the API outside this shell's job object,
+  # so it keeps running after this window / agent shell closes.
+  Start-ScheduledTask -TaskName "CineTube-API-Supervisor"
+} elseif (-not $runningApi) {
   $env:PGDATABASE = "cinetube"
   $env:CINETUBE_API_HOST = $ApiHost
   $env:CINETUBE_API_PORT = $ApiPort
