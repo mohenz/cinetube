@@ -3,6 +3,8 @@
 테이블·컬럼 화이트리스트를 적용하며 미디어·외부 파서 모듈을 참조하지 않는다.
 """
 
+import time
+
 from . import config, queries, tables
 from .database import existing_columns, run_sql, sql_literal
 
@@ -75,6 +77,31 @@ def update_columns(table, pk_value, updates):
     pk = primary_key(table)
     sets = ", ".join(f"{name} = {sql_literal(value)}" for name, value in updates.items())
     run_sql(f"update public.{table} set {sets} where {pk} = {sql_literal(pk_value)};")
+
+
+def database_health():
+    """DB 연결 확인 및 응답 지연시간 측정. 모니터링 화면에서 사용한다."""
+    started = time.perf_counter()
+    try:
+        rows = queries.row_json(
+            "select version() as version, "
+            "pg_postmaster_start_time() as started_at, "
+            "(select count(*) from pg_stat_activity where datname = current_database()) as connections"
+        )
+        row = rows[0] if rows else {}
+        return {
+            "ok": True,
+            "latency_ms": round((time.perf_counter() - started) * 1000, 1),
+            "version": row.get("version"),
+            "started_at": row.get("started_at"),
+            "connections": row.get("connections"),
+        }
+    except Exception as exc:
+        return {
+            "ok": False,
+            "latency_ms": round((time.perf_counter() - started) * 1000, 1),
+            "error": str(exc),
+        }
 
 
 def database_metadata():

@@ -132,7 +132,18 @@ class Handler(BaseHTTPRequestHandler):
         try:
             route, query = self.route()
             if route in HEALTH_PATHS:
-                self.send_json({"ok": True, "service": "cinetube-api"})
+                database_health = repository.database_health()
+                try:
+                    job_stats = jobs.queue_stats()
+                except Exception as exc:
+                    job_stats = {"error": str(exc)}
+                self.send_json({
+                    "ok": database_health["ok"],
+                    "service": "cinetube-api",
+                    "server_time": time.time(),
+                    "database": database_health,
+                    "jobs": job_stats,
+                }, status=200 if database_health["ok"] else 503)
                 return
             if route in DB_STATS_PATHS:
                 self.send_json(repository.database_metadata())
