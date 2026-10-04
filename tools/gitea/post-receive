@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# CineTube Auto-Deploy Hook for Gitea
+unset GIT_DIR
+unset GIT_WORK_TREE
+unset GIT_INDEX_FILE
+
+while read oldrev newrev refname; do
+    branch="${refname#refs/heads/}"
+    echo "======================================================"
+    echo ">> [Gitea Auto-Deploy] Push detected: branch '$branch'"
+    echo ">> [Gitea Auto-Deploy] Deploying to E:/workspace/cinetube..."
+    echo "======================================================"
+
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -File "E:/workspace/cinetube/scripts/deploy_from_gitea.ps1" -Branch "$branch" -Commit "$newrev"
+done

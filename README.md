@@ -1,4 +1,4 @@
-﻿# CineTube
+# CineTube
 
 PC 웹 우선, 모바일 반응형 영화정보 관리 사이트입니다. 화면은 단일 앱 파일에 모으지 않고 HTML과 화면 진입 JS를 화면별로 분리했습니다.
 
@@ -103,6 +103,15 @@ python -m http.server 8080 --bind 0.0.0.0
 ```
 
 설정이 비어 있으면 샘플 데이터로 화면이 동작합니다.
+
+## 내부망 협업 및 자동 배포 (Gitea)
+
+동일 네트워크(LAN)의 다른 개발 PC에서 작업하고 운영 서버(`192.168.0.2`)로 자동 배포하려면 아래 문서를 참고하세요:
+
+- **개발자 가이드**: [`docs/internal_git_developer_guide.md`](file:///e:/workspace/cinetube/docs/internal_git_developer_guide.md) (클론, 커밋, 푸시, 크롬 확장 프로그램 연동)
+- **배포 인프라 구성 보고서**: [`docs/gitea_deploy_setup_20260915.md`](file:///e:/workspace/cinetube/docs/gitea_deploy_setup_20260915.md)
+- **Gitea 웹 UI**: `http://192.168.0.2:3000/` (계정: `admin` / `Cinetube1234!`)
+
 
 
 

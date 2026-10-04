@@ -47,7 +47,7 @@ $env:CINETUBE_API_PORT = "3001"
 Write-Log "supervisor started (pid $PID)"
 try {
     while ($true) {
-        $existing = Get-CimInstance Win32_Process | Where-Object { $_.Name -like "python*" -and $_.CommandLine -like "*local_api.py*" } | Select-Object -First 1
+        $existing = Get-CimInstance Win32_Process | Where-Object { $_.Name -like "python*" -and $_.CommandLine -like "*local_api.py*" -and $_.CommandLine -like "*$ProjectRoot*" } | Select-Object -First 1
         if ($existing) {
             # An API started some other way (e.g. start_local_db.ps1 before the
             # task existed). Adopt it and wait for it to exit.

@@ -1,4 +1,4 @@
-﻿param(
+param(
   [switch]$Reset
 )
 
@@ -71,8 +71,10 @@ foreach ($ConfigPath in $ConfigPaths) {
 
 $serverReady = & (Join-Path $PgBin "pg_isready.exe") -h 127.0.0.1 -p 54322 2>$null
 if ($LASTEXITCODE -ne 0) {
-  & (Join-Path $PgBin "pg_ctl.exe") -D $DataDir -o "-p 54322" -l $LogPath start
-  if ($LASTEXITCODE -ne 0) {
+  $proc = Start-Process (Join-Path $PgBin "pg_ctl.exe") -WindowStyle Hidden -PassThru `
+    -ArgumentList @('start', '-D', "`"$DataDir`"", '-l', "`"$LogPath`"", '-o', "`"-p 54322`"", '-w', '-t', '30')
+  $proc.WaitForExit()
+  if ($proc.ExitCode -ne 0) {
     throw "PostgreSQL start failed. Check $LogPath"
   }
 }
@@ -101,7 +103,7 @@ if (-not (Test-Path $MarkerPath)) {
   Set-Content -Encoding UTF8 $MarkerPath (Get-Date -Format o)
 }
 
-$runningApi = Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like "*local_api.py*" }
+$runningApi = Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like "*local_api.py*" -and $_.CommandLine -like "*$ProjectRoot*" }
 $SupervisorTask = Get-ScheduledTask -TaskName "CineTube-API-Supervisor" -ErrorAction SilentlyContinue
 if ($SupervisorTask) {
   # Preferred: the scheduled task runs the API outside this shell's job object,
