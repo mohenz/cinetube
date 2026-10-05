@@ -3,6 +3,12 @@
   try {
     const h1Title = document.querySelector("h1")?.textContent?.trim() || document.title || "";
     const pageUrl = window.location.href;
+    const host = window.location.hostname;
+    const siteLabel = host.includes("123av") ? "123AV"
+      : host.includes("missav") ? "MissAV"
+      : host.includes("javhdporn") ? "JavHDporn"
+      : host.includes("javtiful") ? "Javtiful"
+      : host;
 
     // 1. 영화 코드 파싱 (URL 경로 또는 제목에서 추출)
     // 예: .../ko/v/pred-890-uncensored-leaked -> PRED-890
@@ -119,11 +125,13 @@
         movie_code: movieCode || codeValue.toUpperCase(),
         category_code: "missav", // CineTube 기본 카테고리 코드
         actor_names: actorNames.slice(0, 4),
-        keywords: ["123AV", movieCode, ...actorNames.slice(0, 2), ...genres.slice(0, 4), ...tags.slice(0, 2)].filter(Boolean),
+        site_label: siteLabel,
+        extra_keywords: [...genres.slice(0, 4), ...tags.slice(0, 2)],
+        keywords: [siteLabel, movieCode, ...actorNames.slice(0, 2), ...genres.slice(0, 4), ...tags.slice(0, 2)].filter(Boolean),
         rating_grade: "B+",
         video_url: inlineStreamUrl || pageUrl, // 인라인 검출 실패시 페이지 URL로 폴백 (네트워크 가로채기가 2차 보완)
         source_url: pageUrl,
-        description: document.querySelector('meta[name="description"]')?.content || "123AV에서 추출한 콘텐츠 정보입니다.",
+        description: document.querySelector('meta[name="description"]')?.content || `${siteLabel}에서 추출한 콘텐츠 정보입니다.`,
         poster_url: posterUrl || null,
         capture_url: posterUrl || null,
         release_month: releaseMonth,

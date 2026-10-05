@@ -177,10 +177,11 @@ function processActiveTab(activeTab) {
   }
 
   const isSupported = host.includes("123av.com") || host.includes("missav.com") || host.includes("missav.ai")
-    || host === "javhdporn.net" || host.endsWith(".javhdporn.net");
+    || host === "javhdporn.net" || host.endsWith(".javhdporn.net")
+    || host === "javtiful.com" || host.endsWith(".javtiful.com");
 
   if (!isSupported) {
-    statusEl.textContent = "123AV / MissAV / JavHDporn 상세페이지에서 실행해 주세요.";
+    statusEl.textContent = "123AV / MissAV / JavHDporn / Javtiful 상세페이지에서 실행해 주세요.";
     statusEl.style.color = "#ff5a5f";
     sendBtn.disabled = true;
     return;
@@ -351,9 +352,10 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // 키워드 목록 구성
     movieData.keywords = [
-      "123AV",
+      movieData.site_label || "123AV",
       movieData.movie_code,
-      ...movieData.actor_names.slice(0, 2)
+      ...movieData.actor_names.slice(0, 2),
+      ...(movieData.extra_keywords || [])
     ].filter(Boolean);
 
     sendBtn.disabled = true;
