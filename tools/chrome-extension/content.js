@@ -32,7 +32,9 @@
 
     // 2. 대표 이미지(포스터) 추출
     const posterUrl = document.querySelector('meta[property="og:image"]')?.content || 
-                      document.querySelector('meta[name="twitter:image"]')?.content || "";
+                      document.querySelector('meta[name="twitter:image"]')?.content ||
+                      // iJavTorrent 등 og:image가 없는 사이트: 본문 커버 이미지로 대체
+                      document.querySelector('img[src*="/data/covers/"]')?.src || "";
 
     // 3. 다국어(한국어/영어) 키값 기반 상세 속성값 추출기
     function getDetailValue(labels) {
