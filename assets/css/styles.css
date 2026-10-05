@@ -882,3 +882,6 @@ body[data-admin-kind="galleryImages"] .form-title-submit .material-symbols-outli
 @media (max-width: 720px) {
   .quick-queue-grid, .quick-review-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
 }
+
+.table-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+.table-heading h2 { margin: 0; }

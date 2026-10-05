@@ -1515,7 +1515,7 @@
       }
 
       tableHost.innerHTML = `
-        <h2>등록 목록</h2>
+        <div class="table-heading"><h2>등록 목록</h2><button type="button" class="ghost-button table-refresh" title="목록 새로고침">새로고침</button></div>
         ${kind === "actors" ? `
           <div class="toolbar table-search-toolbar">
             <label>배우명 조회
@@ -1592,6 +1592,29 @@
         renderForm();
         formHost.scrollIntoView({ behavior: "smooth", block: "start" });
       }
+
+      tableHost.querySelector(".table-refresh")?.addEventListener("click", async (event) => {
+        const button = event.currentTarget;
+        button.disabled = true;
+        button.textContent = "새로고침 중...";
+        try {
+          data = await Store.load();
+          if (kind === "galleryImages" && Store.loadGalleryImagesWithUrls) {
+            await Store.loadGalleryImagesWithUrls();
+            data = await Store.load();
+          }
+          if (["movies", "categories", "actors", "webtoons", "webtoonChapters"].includes(kind) && Store.loadMediaAssetsWithUrls) {
+            await Store.loadMediaAssetsWithUrls();
+            data = await Store.load();
+          }
+          UI.setDbStatus(Store.getStatus());
+          renderTable();
+        } catch (error) {
+          button.disabled = false;
+          button.textContent = "새로고침";
+          alert(`새로고침 실패: ${error.message}`);
+        }
+      });
 
       tableHost.querySelectorAll(".table-edit").forEach((button) => {
         button.addEventListener("click", () => loadItemIntoForm(button.dataset.key));
