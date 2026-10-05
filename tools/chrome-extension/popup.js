@@ -178,10 +178,11 @@ function processActiveTab(activeTab) {
 
   const isSupported = host.includes("123av.com") || host.includes("missav.com") || host.includes("missav.ai")
     || host === "javhdporn.net" || host.endsWith(".javhdporn.net")
-    || host === "javtiful.com" || host.endsWith(".javtiful.com");
+    || host === "javtiful.com" || host.endsWith(".javtiful.com")
+    || host === "ijavtorrent.com" || host.endsWith(".ijavtorrent.com");
 
   if (!isSupported) {
-    statusEl.textContent = "123AV / MissAV / JavHDporn / Javtiful 상세페이지에서 실행해 주세요.";
+    statusEl.textContent = "123AV / MissAV / JavHDporn / Javtiful / iJavTorrent 상세페이지에서 실행해 주세요.";
     statusEl.style.color = "#ff5a5f";
     sendBtn.disabled = true;
     return;

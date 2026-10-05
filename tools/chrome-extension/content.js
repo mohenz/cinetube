@@ -8,6 +8,7 @@
       : host.includes("missav") ? "MissAV"
       : host.includes("javhdporn") ? "JavHDporn"
       : host.includes("javtiful") ? "Javtiful"
+      : host.includes("ijavtorrent") ? "iJavTorrent"
       : host;
 
     // 1. 영화 코드 파싱 (URL 경로 또는 제목에서 추출)

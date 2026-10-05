@@ -1,6 +1,6 @@
 # CineTube 123AV & MissAV Exporter 크롬 확장 프로그램
 
-이 도구는 **123AV / MissAV / MissAV.ai / JavHDporn / Javtiful** 상세 페이지에서 영화 메타데이터(제목, 품번, 여배우, 출시년월 등)와 **비디오 스트리밍 주소(.m3u8 HLS 링크)**를 파싱하여, 구동 중인 CineTube API 서버로 원클릭 직접 등록해 주는 구글 크롬 확장 프로그램입니다.
+이 도구는 **123AV / MissAV / MissAV.ai / JavHDporn / Javtiful / iJavTorrent** 상세 페이지에서 영화 메타데이터(제목, 품번, 여배우, 출시년월 등)와 **비디오 스트리밍 주소(.m3u8 HLS 링크)**를 파싱하여, 구동 중인 CineTube API 서버로 원클릭 직접 등록해 주는 구글 크롬 확장 프로그램입니다.
 
 v1.4부터 **멀티 PC(내부망 클라이언트) 지원**이 추가되어, 동일 네트워크에 있는 다른 PC의 브라우저에서도 서버 IP를 지정하여 영화를 원격으로 등록할 수 있습니다.
 
@@ -49,7 +49,7 @@ v1.4부터 **멀티 PC(내부망 클라이언트) 지원**이 추가되어, 동�
 
 ## 실제 영화 등록 방법
 
-1. 등록하고 싶은 **123AV / MissAV / JavHDporn / Javtiful** 사이트의 비디오 상세 페이지(예: `https://123av.com/ko/v/...`)로 이동합니다. JavHDporn 주소는 `https://www.javhdporn.net/`, Javtiful 주소는 `https://javtiful.com/kr/main`입니다.
+1. 등록하고 싶은 **123AV / MissAV / JavHDporn / Javtiful / iJavTorrent** 사이트의 비디오 상세 페이지(예: `https://123av.com/ko/v/...`)로 이동합니다. JavHDporn 주소는 `https://www.javhdporn.net/`, Javtiful 주소는 `https://javtiful.com/kr/main`, iJavTorrent 주소는 `https://ijavtorrent.com/`입니다.
 2. **영상 가볍게 재생**: 상세 페이지에서 비디오를 플레이하여 스트리밍 재생이 시작되도록 합니다.
 3. 상단 툴바의 **CineTube Exporter** 아이콘(🎬)을 클릭합니다.
 4. 자동 조회 결과가 **미등록 영화**인지 확인합니다. 수집된 정보를 필요시 수정한 뒤 **[CineTube로 영화 등록]** 버튼을 클릭합니다.
