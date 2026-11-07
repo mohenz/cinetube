@@ -9,7 +9,7 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
-from . import config, importers, jobs, media, queries, repository
+from . import config, importers, jobs, media, migrations, queries, repository
 from .database import DatabaseError
 from .http_client import RemoteFetchError
 
@@ -284,6 +284,7 @@ def serve_forever(host=None, port=None, handler_class=Handler):
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
     )
+    migrations.apply_startup_migrations()
     server = create_server(host, port, handler_class)
     logger.info("cinetube api listening on %s:%s", *server.server_address[:2])
     server.serve_forever()

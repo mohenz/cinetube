@@ -20,6 +20,7 @@ LAYERS = {
     "database": 1,
     "http_client": 1,
     "queries": 2,
+    "migrations": 2,
     "repository": 3,
     "media": 3,
     "importers.common": 3,
