@@ -67,34 +67,17 @@ python -m http.server 8080 --bind 0.0.0.0
 
 브라우저에서 `http://localhost:8080`으로 접속합니다. 같은 네트워크의 다른 PC에서는 호스트 PC의 사설 IP를 사용해 `http://<호스트IP>:8080`으로 접속합니다. 예: `http://192.168.0.10:8080`.
 
-기본 설정은 `assets/js/local-db-config.js`의 도메인 기반 API 선택을 사용합니다. `localhost`, `127.0.0.1`, 사설 IP(`192.168.x.x`, `10.x.x.x`, `172.16.x.x`~`172.31.x.x`) 또는 로컬 PC 이름으로 접속하면 같은 호스트의 `:3001` 로컬 API를 사용합니다. Vercel 배포 도메인은 같은 프로젝트의 `/api` Function을 사용합니다. 로그인은 필요하지 않습니다.
+기본 설정은 `assets/js/local-db-config.js`의 도메인 기반 API 선택을 사용합니다. `localhost`, `127.0.0.1`, 사설 IP(`192.168.x.x`, `10.x.x.x`, `172.16.x.x`~`172.31.x.x`) 또는 로컬 PC 이름으로 접속하면 같은 호스트의 `:3001` 로컬 API를 사용합니다. 로그인은 필요하지 않습니다.
 
 다른 PC에서 접속하려면 Windows 방화벽에서 호스트 PC의 TCP `8080`과 `3001` 인바운드를 허용해야 할 수 있습니다. PostgreSQL `54322`는 외부에 열 필요가 없습니다.
 
-## 배포 API 설정
-
-배포본은 브라우저 도메인에 따라 API를 선택합니다. `assets/js/local-db-config.js`의 `cloudUrl`은 기본 `/api`이며, `cinetube-gray.vercel.app` 접속 시 Vercel Python Function을 호출합니다.
-
-배포 API가 Supabase PostgreSQL을 보도록 하려면 API 서버 환경변수에 `DATABASE_URL`을 지정하거나, `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE`, `PGSSLMODE=require`를 설정합니다.
-
-## 클라우드 DB 데이터 마이그레이션
-
-로컬 DB를 먼저 실행한 뒤 아래 스크립트로 현재 Supabase 데이터를 로컬 PostgreSQL로 복사합니다.
-
-```powershell
-cd D:\workspace\cinetube
-.\scripts\migrate_supabase_to_local.ps1
-```
-
-스크립트는 Supabase REST에서 `media_assets`, `categories`, `actors`, `rating_grades`, `movies`를 읽고 `local/backups/`에 JSON/SQL 백업을 만든 뒤 로컬 DB에 적재합니다.
-
-로컬 DB/API 중지는 아래 명령을 사용합니다.
+## 로컬 DB/API 중지
 
 ```powershell
 .\scripts\stop_local_db.ps1
 ```
 
-로컬 데이터 검증이 끝난 뒤 클라우드 DB 초기화는 Supabase SQL Editor에서 `supabase/reset_cloud_after_local_migration.sql`을 실행합니다.
+이 프로젝트는 내부 서버(Gitea 자동 배포)의 로컬 PostgreSQL과 `:3001` API만 사용합니다. 외부 클라우드 DB(Supabase)는 사용하지 않습니다.
 
 ## 정적 실행
 ```powershell
@@ -102,7 +85,7 @@ cd D:\workspace\cinetube
 python -m http.server 8080 --bind 0.0.0.0
 ```
 
-설정이 비어 있으면 샘플 데이터로 화면이 동작합니다.
+로컬 API에 연결하지 못하면 샘플 데이터로 화면이 동작합니다.
 
 ## 내부망 협업 및 자동 배포 (Gitea)
 

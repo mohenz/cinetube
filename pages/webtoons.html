@@ -25,6 +25,7 @@
         <a class="nav-item" href="ratings.html"><span class="material-symbols-outlined">grade</span>평가등급</a>
         <span class="nav-divider" aria-hidden="true"></span>
         <a class="nav-item active" href="webtoons.html"><span class="material-symbols-outlined">auto_stories</span>웹툰목록</a>
+        <a class="nav-item" href="my-webtoons.html"><span class="material-symbols-outlined">collections_bookmark</span>마이웹툰</a>
         <a class="nav-item" href="gallery.html"><span class="material-symbols-outlined">photo_library</span>갤러리</a>
       </nav>
       <div class="db-status" id="dbStatus">
@@ -41,7 +42,7 @@
     </header>
     <main class="app-shell">
       <section class="content-view">
-        <div class="section-head"><div><p class="eyebrow">Webtoon Index</p><h1>웹툰목록</h1><p>등록된 Webtoon 정보를 최신순으로 확인합니다.</p></div></div>
+        <div class="section-head"><div><p class="eyebrow">Webtoon Index</p><h1>웹툰목록</h1><p>외부 등록 웹툰을 최신순으로 확인합니다.</p></div></div>
         <div class="toolbar">
           <div class="filter-pills" id="webtoonSummary"></div>
           <label class="page-size-label">페이지당
@@ -55,13 +56,11 @@
       </section>
     </main>
     <div class="drawer-backdrop" id="drawerBackdrop"></div>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="../assets/js/supabase-config.js"></script>
     <script src="../assets/js/local-db-config.js?v=lan-api"></script>
     <script src="../assets/js/shared/sample-data.js"></script>
-    <script src="../assets/js/shared/store.js?v=supabase-perf"></script>
+    <script src="../assets/js/shared/store.js?v=chapters-fix"></script>
     <script src="../assets/js/shared/ui.js?v=local-media"></script>
-    <script src="../assets/js/pages/webtoons.js?v=favorites"></script>
+    <script src="../assets/js/pages/webtoons.js?v=external-only"></script>
   </body>
 </html>
 

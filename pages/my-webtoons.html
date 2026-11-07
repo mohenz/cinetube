@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>CineTube | 마이웹툰</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@200..700,0..1&display=swap" rel="stylesheet">
+    <link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="../assets/css/styles.css?v=gallery-clean-card">
+  <script src="../assets/js/shared/theme.js?v=1"></script>
+  <link rel="stylesheet" href="../assets/css/theme.css?v=2">
+  </head>
+  <body data-page="webtoons" class="my-webtoons-page">
+    <aside class="sidebar" aria-label="주요 메뉴">
+      <a class="brand" href="../index.html"><span class="brand-mark">CT</span><span><strong>CineTube</strong><small>CineHub Database</small></span></a>
+      <nav class="side-nav">
+        <a class="nav-item" href="../index.html"><span class="material-symbols-outlined">home</span>Home</a>
+        <a class="nav-item" href="movies.html"><span class="material-symbols-outlined">movie</span>영화목록</a>
+        <a class="nav-item" href="favorites.html"><span class="material-symbols-outlined">favorite</span>관심작품</a>
+        <a class="nav-item" href="actors.html"><span class="material-symbols-outlined">movie_filter</span>주연배우</a>
+        <a class="nav-item" href="categories.html"><span class="material-symbols-outlined">category</span>카테고리</a>
+        <a class="nav-item" href="ratings.html"><span class="material-symbols-outlined">grade</span>평가등급</a>
+        <span class="nav-divider" aria-hidden="true"></span>
+        <a class="nav-item" href="webtoons.html"><span class="material-symbols-outlined">auto_stories</span>웹툰목록</a>
+        <a class="nav-item active" href="my-webtoons.html"><span class="material-symbols-outlined">collections_bookmark</span>마이웹툰</a>
+        <a class="nav-item" href="gallery.html"><span class="material-symbols-outlined">photo_library</span>갤러리</a>
+      </nav>
+      <div class="db-status" id="dbStatus">
+        <a class="db-admin-link" href="../admin/index.html"><span class="material-symbols-outlined">admin_panel_settings</span>관리</a>
+        <span class="db-status-label">Bloom Universe</span>
+      </div>
+    </aside>
+    <header class="topbar">
+      <button class="mobile-menu" type="button" id="mobileMenu" aria-label="메뉴 열기"><span class="material-symbols-outlined">menu</span></button>
+      <div class="search-box"><span class="material-symbols-outlined">search</span><input id="searchInput" type="search" placeholder="웹툰명, 작가, 장르, 태그 검색"></div>
+    </header>
+    <main class="app-shell">
+      <section class="content-view">
+        <div class="section-head"><div><p class="eyebrow">Webtoon Index</p><h1>마이웹툰</h1><p>직접 만든 웹툰을 관리하고 이어서 감상합니다.</p></div></div>
+        <div class="toolbar">
+          <div class="filter-pills" id="webtoonSummary"></div>
+          <label class="page-size-label">페이지당
+            <select class="select-control" id="pageSizeSelect">
+              <option value="20" selected>20개</option><option value="40">40개</option><option value="80">80개</option><option value="100">100개</option><option value="all">전체</option>
+            </select>
+          </label>
+        </div>
+        <section class="poster-grid" id="webtoonGrid"></section>
+        <nav class="pagination" id="pagination" aria-label="페이지"></nav>
+      </section>
+    </main>
+    <div class="drawer-backdrop" id="drawerBackdrop"></div>
+    <script src="../assets/js/local-db-config.js?v=lan-api"></script>
+    <script src="../assets/js/shared/sample-data.js"></script>
+    <script src="../assets/js/shared/store.js?v=chapters-fix"></script>
+    <script src="../assets/js/shared/ui.js?v=local-media"></script>
+    <script src="../assets/js/pages/my-webtoons.js?v=separate-my-catalog-v2"></script>
+  </body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

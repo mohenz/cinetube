@@ -28,6 +28,7 @@
         <a class="nav-item" href="webtoon-chapters.html"><span class="material-symbols-outlined">format_list_numbered</span>Webtoon Chapter</a>
         <a class="nav-item" href="gallery-images.html"><span class="material-symbols-outlined">photo_library</span>갤러리</a>
         <a class="nav-item" href="gallery-quick.html"><span class="material-symbols-outlined">bolt</span>갤러리 퀵등록</a>
+        <a class="nav-item" href="my-webtoons.html"><span class="material-symbols-outlined">collections_bookmark</span>마이웹툰 관리</a>
         <span class="nav-divider" aria-hidden="true"></span>
         <a class="nav-item" href="common-codes.html"><span class="material-symbols-outlined">tune</span>공통코드</a>
         <a class="nav-item" href="status.html"><span class="material-symbols-outlined">monitor_heart</span>시스템 상태</a>
@@ -37,7 +38,6 @@
     <header class="topbar">
       <button class="mobile-menu" type="button" id="mobileMenu" aria-label="메뉴 열기"><span class="material-symbols-outlined">menu</span></button>
       <div class="search-box"><span class="material-symbols-outlined">search</span><input id="searchInput" type="search" placeholder="Title, Artist, Genre, Tag 검색"></div>
-      <a class="primary-button" href="../pages/webtoons.html"><span class="material-symbols-outlined">visibility</span>웹툰목록 보기</a>
       <a class="ghost-button" href="webtoons.html" title="웹툰정보"><span class="material-symbols-outlined">auto_stories</span>웹툰정보</a>
       <a class="ghost-button" href="gallery-quick.html" title="갤러리 퀵등록"><span class="material-symbols-outlined">bolt</span>갤러리 퀵등록</a>
     </header>
@@ -48,13 +48,11 @@
       </section>
     </main>
     <div class="drawer-backdrop" id="drawerBackdrop"></div>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="../assets/js/supabase-config.js"></script>
     <script src="../assets/js/local-db-config.js?v=lan-api"></script>
     <script src="../assets/js/shared/sample-data.js"></script>
-    <script src="../assets/js/shared/store.js?v=supabase-perf"></script>
+    <script src="../assets/js/shared/store.js?v=chapters-fix"></script>
     <script src="../assets/js/shared/ui.js"></script>
-    <script src="../assets/js/shared/admin-page.js?v=table-refresh"></script>
+    <script src="../assets/js/shared/admin-page.js?v=my-webtoon-admin-isolation"></script>
     <script src="../assets/js/pages/admin-webtoons.js"></script>
   </body>
 </html>

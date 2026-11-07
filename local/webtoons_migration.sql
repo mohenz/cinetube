@@ -25,6 +25,9 @@ create table if not exists public.webtoon_chapters (
   chapter_url text,
   chapter_poster text,
   chapter_poster_asset_id uuid references public.media_assets(id) on delete set null,
+  chapter_title text,
+  page_image_urls text[] not null default '{}',
+  page_image_asset_ids uuid[] not null default '{}',
   regdate timestamptz not null default now(),
   created_at timestamptz not null default now()
 );

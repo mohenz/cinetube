@@ -43,17 +43,13 @@
     ],
     webtoonChapters: [
       "id", "webtoon_chapter_id", "webtoon_id", "chapter_number", "chapter_url",
-      "chapter_poster", "chapter_poster_asset_id", "created_at"
+      "chapter_poster", "chapter_poster_asset_id", "chapter_title", "page_image_urls",
+      "page_image_asset_ids", "created_at"
     ],
     mediaAssets: [
       "id", "bucket_id", "object_path", "thumb_url", "original_name", "mime_type", "size_bytes",
       "owner_table", "owner_field", "owner_id", "sort_order", "created_at"
     ]
-  };
-
-  const supabaseTableColumns = {
-    ...localTableColumns,
-    mediaAssets: [...localTableColumns.mediaAssets, "public_url"].filter((column) => column !== "thumb_url")
   };
 
   const primaryKeys = {
@@ -69,11 +65,9 @@
   };
 
   const state = {
-    client: null,
     localApiBase: "",
     mode: "sample",
     data: null,
-    mediaAssetsReady: false,
     status: { connected: false, message: "샘플 데이터 사용 중" }
   };
 
@@ -112,11 +106,6 @@
     ];
   }
 
-  function hasConfig() {
-    const config = window.CINETUBE_SUPABASE || {};
-    return Boolean(config.url && config.anonKey && window.supabase);
-  }
-
   function hasLocalApiConfig() {
     return Boolean(createLocalApiBase());
   }
@@ -127,29 +116,12 @@
     return String(url || "").replace(/\/$/, "");
   }
 
-  function createClient() {
-    if (!hasConfig()) return null;
-    const config = window.CINETUBE_SUPABASE;
-    return window.supabase.createClient(config.url, config.anonKey);
-  }
-
-  function getPublicUrl(path) {
-    const { data } = state.client.storage.from(imageBucket).getPublicUrl(path);
-    return data.publicUrl;
-  }
-
   function enrich(data) {
     const localClicks = getLocalClickCounts();
     const categoriesByCode = new Map(data.categories.map((item) => [item.category_code, item]));
     const actorsById = new Map(data.actors.map((item) => [String(item.id), item]));
     const mediaById = new Map((data.mediaAssets || []).map((item) => [String(item.id), item]));
     const ratingOrder = new Map(data.ratings.map((item) => [item.grade, Number(item.display_order || 99)]));
-    const webtoonChaptersByWebtoon = new Map();
-    (data.webtoonChapters || []).forEach((chapter) => {
-      const key = String(chapter.webtoon_id || "");
-      if (!webtoonChaptersByWebtoon.has(key)) webtoonChaptersByWebtoon.set(key, []);
-      webtoonChaptersByWebtoon.get(key).push(chapter);
-    });
     const movies = data.movies.map((movie) => {
       const category = categoriesByCode.get(movie.category_code) || {};
       const actorIds = (Array.isArray(movie.actor_ids) && movie.actor_ids.length ? movie.actor_ids : [movie.actor_id])
@@ -195,8 +167,19 @@
     }));
     const webtoonChapters = (data.webtoonChapters || []).map((chapter) => ({
       ...chapter,
-      chapter_poster_asset: mediaById.get(String(chapter.chapter_poster_asset_id)) || null
+      chapter_poster_asset: mediaById.get(String(chapter.chapter_poster_asset_id)) || null,
+      page_images: (Array.isArray(chapter.page_image_urls) ? chapter.page_image_urls : []).map((url, index) => ({
+        url: url || "",
+        asset: mediaById.get(String((chapter.page_image_asset_ids || [])[index])) || null,
+        order: index
+      })).filter((page) => page.url)
     })).sort((a, b) => Number(a.chapter_number || 0) - Number(b.chapter_number || 0));
+    const webtoonChaptersByWebtoon = new Map();
+    webtoonChapters.forEach((chapter) => {
+      const key = String(chapter.webtoon_id || "");
+      if (!webtoonChaptersByWebtoon.has(key)) webtoonChaptersByWebtoon.set(key, []);
+      webtoonChaptersByWebtoon.get(key).push(chapter);
+    });
     const webtoons = (data.webtoons || []).map((webtoon) => ({
       ...webtoon,
       poster_image_asset: mediaById.get(String(webtoon.poster_image_asset_id)) || null,
@@ -251,10 +234,6 @@
           const inserted = await insertLocal("favoriteMovies", payload);
           if (inserted) state.data.favoriteMovies.unshift(inserted);
         }
-      } else if (state.client) {
-        const { data, error } = await state.client.from(tableNames.favoriteMovies).insert(payloads).select("*");
-        if (error) throw error;
-        state.data.favoriteMovies.unshift(...(data || []));
       }
       clearLegacyFavoriteMovieCodes();
       resetData(state.data);
@@ -264,16 +243,7 @@
   }
 
   async function fetchTable(client, kind) {
-    if (state.mode === "local") return fetchLocalTable(kind);
-    const table = tableNames[kind];
-    const orderColumn = kind === "ratings" || kind === "commonCodes" ? "display_order" : "created_at";
-    const columns = (supabaseTableColumns[kind] || ["*"]).join(",");
-    let query = client.from(table).select(columns);
-    if (kind === "ratings" || kind === "commonCodes") query = query.order(orderColumn, { ascending: true });
-    if (kind !== "ratings" && kind !== "commonCodes") query = query.order(orderColumn, { ascending: false });
-    const { data, error } = await query;
-    if (error) throw error;
-    return data || [];
+    return fetchLocalTable(kind);
   }
 
   function localHeaders(extra = {}) {
@@ -288,10 +258,21 @@
   }
 
   async function requestLocal(path, options = {}) {
-    const response = await fetch(`${state.localApiBase}${path}`, {
-      ...options,
-      headers: localHeaders(options.headers || {})
-    });
+    // 조회(GET)만 네트워크 일시 오류 시 재시도한다. 쓰기는 중복 실행될 수 있어 재시도하지 않는다.
+    const attempts = (options.method || "GET") === "GET" ? 3 : 1;
+    let response;
+    for (let attempt = 1; ; attempt += 1) {
+      try {
+        response = await fetch(`${state.localApiBase}${path}`, {
+          ...options,
+          headers: localHeaders(options.headers || {})
+        });
+        break;
+      } catch (error) {
+        if (attempt >= attempts) throw error;
+        await new Promise((resolve) => setTimeout(resolve, 200 * attempt));
+      }
+    }
     if (!response.ok) {
       const message = await response.text();
       throw new Error(message || `Local DB request failed: HTTP ${response.status}`);
@@ -333,7 +314,6 @@
     state.localApiBase = createLocalApiBase();
     if (hasLocalApiConfig()) {
       state.mode = "local";
-      state.client = null;
       try {
         const includeActors = options.includeActors !== false;
         const [categories, actors, ratings, commonCodes, favoriteMovies, mediaAssets] = await Promise.all([
@@ -356,30 +336,8 @@
       }
     }
 
-    state.mode = hasConfig() ? "supabase" : "sample";
-    state.client = createClient();
-    if (!state.client) return await load();
-
-    try {
-      const includeActors = options.includeActors !== false;
-      const [categories, actors, ratings, commonCodes, favoriteMovies, mediaAssets] = await Promise.all([
-        fetchTable(state.client, "categories"),
-        includeActors ? fetchTable(state.client, "actors") : Promise.resolve([]),
-        fetchTable(state.client, "ratings"),
-        fetchOptionalTable(state.client, "commonCodes"),
-        fetchOptionalTable(state.client, "favoriteMovies"),
-        fetchOptionalTable(state.client, "mediaAssets")
-      ]);
-      state.data = enrich({ movies: [], categories, actors, ratings, commonCodes, favoriteMovies, webtoons: [], webtoonChapters: [], galleryImages: [], mediaAssets });
-      await migrateLegacyFavorites();
-      state.status = { connected: true, message: "Supabase 연결됨" };
-      return state.data;
-    } catch (error) {
-      console.error(error);
-      state.data = enrich({ ...clone(window.CineTubeSampleData), commonCodes: defaultCommonCodes(), favoriteMovies: legacyFavoriteMovieCodes().map((code, index) => ({ id: -index - 1, user_key: favoriteUserKey(), content_type: "movie", content_id: code })), webtoons: [], webtoonChapters: [], galleryImages: [], mediaAssets: [] });
-      state.status = { connected: false, message: "Supabase 오류: 샘플 데이터" };
-      return state.data;
-    }
+    state.mode = "sample";
+    return await load();
   }
 
   function listOrder(kind, requestedOrder) {
@@ -421,38 +379,6 @@
     };
   }
 
-  async function listSupabase(kind, options = {}) {
-    const table = tableNames[kind];
-    const page = Math.max(1, Number(options.page || 1));
-    const pageSize = listPageSize(options.pageSize, 20);
-    const [column, direction = "desc"] = listOrder(kind, options.order).split(".");
-    
-    const defaultSelect = kind === "movies"
-      ? "id, title, movie_code, category_code, actor_id, actor_ids, director_names, rating_grade, release_month, recommendation_score, rotten_tomatoes_score, ranking_score, click_count, is_main, created_at, poster_asset_id, capture_asset_id, snapshot_asset_id"
-      : options.includeUrls && kind === "galleryImages"
-        ? "*"
-        : (supabaseTableColumns[kind] || ["*"]).join(",");
-    const selectColumns = options.select || defaultSelect;
-    
-    let query = state.client.from(table).select(selectColumns, { count: "exact" }).order(column, { ascending: direction === "asc" });
-    Object.entries(options.filters || {}).forEach(([key, value]) => {
-      if (value !== undefined && value !== null && value !== "") query = query.eq(key, value);
-    });
-    const term = String(options.search || "").trim();
-    if (term) {
-      if (kind === "movies") query = query.or(`title.ilike.%${term}%,movie_code.ilike.%${term}%,description.ilike.%${term}%,category_code.ilike.%${term}%`);
-      if (kind === "galleryImages") query = query.or(`title.ilike.%${term}%,gallery_image_id.ilike.%${term}%,description.ilike.%${term}%,source.ilike.%${term}%`);
-      if (kind === "actors") query = query.or(`name.ilike.%${term}%,body_size.ilike.%${term}%`);
-    }
-    if (pageSize !== "all") {
-      const from = listOffset(page, pageSize);
-      query = query.range(from, from + Number(pageSize) - 1);
-    }
-    const { data, error, count } = await query;
-    if (error) throw error;
-    return { items: data || [], total: Number(count || 0), page, pageSize };
-  }
-
   function listSample(kind, options = {}) {
     const page = Math.max(1, Number(options.page || 1));
     const pageSize = listPageSize(options.pageSize, 20);
@@ -473,8 +399,6 @@
     let result;
     if (state.mode === "local") {
       result = await listLocal(kind, options);
-    } else if (state.client) {
-      result = await listSupabase(kind, options);
     } else {
       result = listSample(kind, options);
     }
@@ -530,11 +454,10 @@
   async function fetchOptionalTable(client, kind) {
     try {
       const data = await fetchTable(client, kind);
-      if (kind === "mediaAssets") state.mediaAssetsReady = true;
       return data;
     } catch (error) {
-      if (kind === "mediaAssets") state.mediaAssetsReady = false;
       console.warn(`${tableNames[kind]} 테이블을 읽지 못했습니다.`, error);
+      state.failedTables = [...(state.failedTables || []), tableNames[kind]];
       return [];
     }
   }
@@ -544,7 +467,6 @@
     state.localApiBase = createLocalApiBase();
     if (hasLocalApiConfig()) {
       state.mode = "local";
-      state.client = null;
       try {
         const [movies, categories, actors, ratings, commonCodes, favoriteMovies, webtoons, webtoonChapters, galleryImages, mediaAssets] = await Promise.all([
           fetchTable(null, "movies"),
@@ -560,7 +482,7 @@
         ]);
         state.data = enrich({ movies, categories, actors, ratings, commonCodes, favoriteMovies, webtoons, webtoonChapters, galleryImages, mediaAssets });
         await migrateLegacyFavorites();
-        state.status = { connected: true, message: "CineTube API 연결됨" };
+        state.status = { connected: true, message: state.failedTables?.length ? `일부 데이터를 읽지 못했습니다(${state.failedTables.join(", ")}). 새로고침하세요.` : "CineTube API 연결됨" };
         return state.data;
       } catch (error) {
         console.error(error);
@@ -570,38 +492,10 @@
       }
     }
 
-    state.mode = hasConfig() ? "supabase" : "sample";
-    state.client = createClient();
-    if (!state.client) {
-      state.mediaAssetsReady = true;
-      state.data = enrich({ ...clone(window.CineTubeSampleData), commonCodes: defaultCommonCodes(), favoriteMovies: legacyFavoriteMovieCodes().map((code, index) => ({ id: -index - 1, user_key: favoriteUserKey(), content_type: "movie", content_id: code })), webtoons: [], webtoonChapters: [], galleryImages: [], mediaAssets: [] });
-      state.status = { connected: false, message: "DB 미설정: 샘플 데이터" };
-      return state.data;
-    }
-
-    try {
-      const [movies, categories, actors, ratings, commonCodes, favoriteMovies, webtoons, webtoonChapters, galleryImages, mediaAssets] = await Promise.all([
-        fetchTable(state.client, "movies"),
-        fetchTable(state.client, "categories"),
-        fetchTable(state.client, "actors"),
-        fetchTable(state.client, "ratings"),
-        fetchOptionalTable(state.client, "commonCodes"),
-        fetchOptionalTable(state.client, "favoriteMovies"),
-        fetchOptionalTable(state.client, "webtoons"),
-        fetchOptionalTable(state.client, "webtoonChapters"),
-        fetchOptionalTable(state.client, "galleryImages"),
-        fetchOptionalTable(state.client, "mediaAssets")
-      ]);
-      state.data = enrich({ movies, categories, actors, ratings, commonCodes, favoriteMovies, webtoons, webtoonChapters, galleryImages, mediaAssets });
-      await migrateLegacyFavorites();
-      state.status = { connected: true, message: "Supabase 연결됨" };
-      return state.data;
-    } catch (error) {
-      console.error(error);
-      state.data = enrich({ ...clone(window.CineTubeSampleData), commonCodes: defaultCommonCodes(), favoriteMovies: legacyFavoriteMovieCodes().map((code, index) => ({ id: -index - 1, user_key: favoriteUserKey(), content_type: "movie", content_id: code })), webtoons: [], webtoonChapters: [], galleryImages: [], mediaAssets: [] });
-      state.status = { connected: false, message: "Supabase 오류: 샘플 데이터" };
-      return state.data;
-    }
+    state.mode = "sample";
+    state.data = enrich({ ...clone(window.CineTubeSampleData), commonCodes: defaultCommonCodes(), favoriteMovies: legacyFavoriteMovieCodes().map((code, index) => ({ id: -index - 1, user_key: favoriteUserKey(), content_type: "movie", content_id: code })), webtoons: [], webtoonChapters: [], galleryImages: [], mediaAssets: [] });
+    state.status = { connected: false, message: "API 미설정: 샘플 데이터" };
+    return state.data;
   }
 
   function resetData(nextData) {
@@ -631,13 +525,7 @@
 
   async function create(kind, payload) {
     await load();
-    if (state.client) {
-      const table = tableNames[kind];
-      const { data, error } = await state.client.from(table).insert(payload).select().single();
-      if (error) throw error;
-      if (!data) throw new Error(`${table} 등록 결과가 없습니다.`);
-      state.data[kind].unshift(data);
-    } else if (state.mode === "local") {
+    if (state.mode === "local") {
       const data = await insertLocal(kind, payload);
       if (!data) throw new Error(`${tableNames[kind]} 등록 결과가 없습니다.`);
       state.data[kind].unshift(data);
@@ -653,13 +541,7 @@
   async function update(kind, keyValue, payload) {
     await load();
     const primaryKey = primaryKeys[kind];
-    if (state.client) {
-      const table = tableNames[kind];
-      const { data, error } = await state.client.from(table).update(payload).eq(primaryKey, keyValue).select().single();
-      if (error) throw error;
-      if (!data) throw new Error(`${table} 수정 결과가 없습니다.`);
-      state.data[kind] = state.data[kind].map((item) => String(item[primaryKey]) === String(keyValue) ? data : item);
-    } else if (state.mode === "local") {
+    if (state.mode === "local") {
       const data = await updateLocal(kind, keyValue, payload);
       if (!data) throw new Error(`${tableNames[kind]} 수정 결과가 없습니다.`);
       state.data[kind] = state.data[kind].map((item) => String(item[primaryKey]) === String(keyValue) ? data : item);
@@ -678,14 +560,7 @@
     );
     if (!othersMain.length) return state.data;
 
-    if (state.client) {
-      const ids = othersMain.map((m) => m.id);
-      const { error } = await state.client
-        .from(tableNames.movies)
-        .update({ is_main: false })
-        .in(primaryKey, ids);
-      if (error) throw error;
-    } else if (state.mode === "local") {
+    if (state.mode === "local") {
       for (const movie of othersMain) {
         await updateLocal("movies", movie.id, { is_main: false });
       }
@@ -700,11 +575,7 @@
   async function remove(kind, keyValue) {
     await load();
     const primaryKey = primaryKeys[kind];
-    if (state.client) {
-      const table = tableNames[kind];
-      const { error } = await state.client.from(table).delete().eq(primaryKey, keyValue);
-      if (error) throw error;
-    } else if (state.mode === "local") {
+    if (state.mode === "local") {
       await removeLocal(kind, keyValue);
     }
     state.data[kind] = state.data[kind].filter((item) => String(item[primaryKey]) !== String(keyValue));
@@ -745,15 +616,6 @@
 
   async function loadGalleryImagesWithUrls() {
     await load();
-    if (state.client && state.mode !== "local") {
-      const { data, error } = await state.client
-        .from(tableNames.galleryImages)
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      resetData({ ...state.data, galleryImages: data || [] });
-      return state.data.galleryImages || [];
-    }
     if (state.mode !== "local") return state.data.galleryImages || [];
     const galleryImages = await requestLocal(`/${tableNames.galleryImages}?select=*&order=created_at.desc`) || [];
     resetData({ ...state.data, galleryImages });
@@ -764,33 +626,6 @@
     await load();
     const key = String(codeOrId || "");
     if (!key) return null;
-    if (state.client && state.mode !== "local") {
-      let query = state.client
-        .from(tableNames.movies)
-        .select("*")
-        .eq("movie_code", key)
-        .order("created_at", { ascending: false })
-        .limit(1);
-      let { data, error } = await query;
-      if (error) throw error;
-      if (!data?.length && /^\d+$/.test(key)) {
-        const fallback = await state.client
-          .from(tableNames.movies)
-          .select("*")
-          .eq("id", key)
-          .order("created_at", { ascending: false })
-          .limit(1);
-        data = fallback.data;
-        error = fallback.error;
-        if (error) throw error;
-      }
-      const movie = data?.[0] || null;
-      if (!movie) return null;
-      const movies = state.data.movies.map((item) => String(item.id) === String(movie.id) ? movie : item);
-      if (!movies.some((item) => String(item.id) === String(movie.id))) movies.unshift(movie);
-      resetData({ ...state.data, movies });
-      return state.data.movies.find((item) => String(item.id) === String(movie.id)) || null;
-    }
     if (state.mode !== "local") {
       return state.data.movies.find((item) => String(item.movie_code) === key || String(item.id) === key) || null;
     }
@@ -886,31 +721,18 @@
     setLocalClickCount(movie.movie_code, localClicks);
     movie.local_click_count = localClicks;
 
-    if ((!state.client && state.mode !== "local") || movie.click_count === undefined) {
+    if (state.mode !== "local" || movie.click_count === undefined) {
       resetData(state.data);
       return;
     }
 
     const nextClickCount = Number(movie.click_count || 0) + 1;
-    if (state.mode === "local") {
-      try {
-        await updateLocal("movies", movie.id, { click_count: nextClickCount });
-      } catch (error) {
-        console.warn("영화 클릭수 저장을 건너뜁니다.", error);
-        resetData(state.data);
-        return;
-      }
-    } else {
-      const { error } = await state.client
-        .from(tableNames.movies)
-        .update({ click_count: nextClickCount })
-        .eq(primaryKeys.movies, movie.id);
-
-      if (error) {
-        console.warn("영화 클릭수 저장을 건너뜁니다.", error);
-        resetData(state.data);
-        return;
-      }
+    try {
+      await updateLocal("movies", movie.id, { click_count: nextClickCount });
+    } catch (error) {
+      console.warn("영화 클릭수 저장을 건너뜁니다.", error);
+      resetData(state.data);
+      return;
     }
 
     setLocalClickCount(movie.movie_code, 0);
@@ -952,37 +774,12 @@
       return data;
     }
 
-    if (!state.client) {
-      return {
-        id: `local-${id}`,
-        bucket_id: imageBucket,
-        object_path: objectPath,
-        public_url: URL.createObjectURL(file),
-        original_name: file.name,
-        mime_type: file.type,
-        size_bytes: file.size,
-        owner_table: ownerTable,
-        owner_field: ownerField,
-        owner_id: ownerId,
-        sort_order: sortOrder
-      };
-    }
-
-    if (!state.mediaAssetsReady) {
-      throw new Error("이미지 메타정보 저장을 위해 media_assets 테이블과 Storage 정책을 먼저 적용해야 합니다.");
-    }
-
-    const upload = await state.client.storage.from(imageBucket).upload(objectPath, file, {
-      cacheControl: "3600",
-      contentType: file.type || "application/octet-stream",
-      upsert: false
-    });
-    if (upload.error) throw upload.error;
-
-    const assetPayload = {
+    // 로컬 API가 없을 때(샘플 모드)는 브라우저 메모리 URL만 반환한다.
+    return {
+      id: `local-${id}`,
       bucket_id: imageBucket,
       object_path: objectPath,
-      public_url: getPublicUrl(objectPath),
+      public_url: URL.createObjectURL(file),
       original_name: file.name,
       mime_type: file.type,
       size_bytes: file.size,
@@ -991,11 +788,6 @@
       owner_id: ownerId,
       sort_order: sortOrder
     };
-    const { data, error } = await state.client.from(tableNames.mediaAssets).insert(assetPayload).select().single();
-    if (error) throw error;
-    state.data.mediaAssets = [data, ...(state.data.mediaAssets || [])];
-    resetData(state.data);
-    return data;
   }
 
   async function importMediaUrl({ url, ownerTable, ownerField, ownerId = null, sortOrder = 0 }) {
@@ -1025,10 +817,7 @@
     await load();
     const ids = (assetIds || []).filter(Boolean);
     if (!ids.length) return;
-    if (state.client) {
-      const { error } = await state.client.from(tableNames.mediaAssets).update({ owner_id: String(ownerId) }).in("id", ids);
-      if (error) throw error;
-    } else if (state.mode === "local") {
+    if (state.mode === "local") {
       for (const id of ids) {
         await requestLocal(`/${tableNames.mediaAssets}?id=eq.${encodeFilterValue(id)}`, {
           method: "PATCH",
@@ -1044,14 +833,7 @@
   async function deleteMedia(asset) {
     await load();
     if (!asset || !asset.id) return;
-    if (state.client) {
-      if (asset.object_path) {
-        const remove = await state.client.storage.from(asset.bucket_id || imageBucket).remove([asset.object_path]);
-        if (remove.error) console.warn(remove.error);
-      }
-      const { error } = await state.client.from(tableNames.mediaAssets).delete().eq("id", asset.id);
-      if (error) throw error;
-    } else if (state.mode === "local") {
+    if (state.mode === "local") {
       await requestLocal(`/${tableNames.mediaAssets}?id=eq.${encodeFilterValue(asset.id)}`, {
         method: "DELETE"
       });

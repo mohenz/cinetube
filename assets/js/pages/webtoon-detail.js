@@ -1,4 +1,4 @@
-﻿(async function () {
+(async function () {
   const UI = window.CineTubeUI;
   const Store = window.CineTubeStore;
   UI.setupChrome();
@@ -79,6 +79,8 @@
           <button class="pill" type="button" data-sort-dir="desc">Read Last</button>
         </div>
       </div>
+      <div class="reader-toolbar" id="readerToolbar"></div>
+      <div class="webtoon-reader" id="webtoonReader"></div>
       <table>
         <thead><tr><th>Chapter</th><th>Poster</th><th>URL</th><th>Regdate</th></tr></thead>
         <tbody></tbody>
@@ -87,6 +89,26 @@
   UI.setupFavoriteButtons(detail, null, "webtoon");
 
   let currentSortDir = "asc";
+  let currentChapterIndex = 0;
+  let currentPageIndex = 0;
+
+  function renderReader(chapterIndex = currentChapterIndex, pageIndex = currentPageIndex) {
+    const chapters = (webtoon.chapters || []).slice().sort((a, b) => Number(a.chapter_number || 0) - Number(b.chapter_number || 0));
+    const toolbar = detail.querySelector("#readerToolbar"), reader = detail.querySelector("#webtoonReader");
+    if (!chapters.length) { toolbar.innerHTML = ""; reader.innerHTML = `<div class="empty">아직 챕터가 없습니다.</div>`; return; }
+    currentChapterIndex = Math.max(0, Math.min(chapterIndex, chapters.length - 1));
+    const chapter = chapters[currentChapterIndex];
+    const pages = chapter.page_images?.length ? chapter.page_images.map(page => page.url) : (chapter.chapter_poster ? [chapter.chapter_poster] : []);
+    currentPageIndex = Math.max(0, Math.min(pageIndex, Math.max(0, pages.length - 1)));
+    toolbar.innerHTML = `<label>챕터 <select class="select-control" id="readerChapterSelect">${chapters.map((item,index)=>`<option value="${index}" ${index===currentChapterIndex?"selected":""}>제${UI.escapeHtml(item.chapter_number)}화${item.chapter_title?` · ${UI.escapeHtml(item.chapter_title)}`:""}</option>`).join("")}</select></label><div class="reader-jump"><button class="ghost-button" type="button" data-chapter-jump="first">처음 챕터</button><button class="ghost-button" type="button" data-chapter-jump="last">마지막 챕터</button><button class="ghost-button" type="button" data-page-jump="first">첫 페이지</button><button class="ghost-button" type="button" data-page-jump="last">마지막 페이지</button></div>`;
+    reader.innerHTML = pages.length ? `<div class="reader-page-count">제${UI.escapeHtml(chapter.chapter_number)}화 · ${currentPageIndex + 1} / ${pages.length} 페이지</div><img class="reader-image" src="${UI.escapeHtml(pages[currentPageIndex])}" alt="${UI.escapeHtml(webtoon.title)} 제${UI.escapeHtml(chapter.chapter_number)}화 ${currentPageIndex + 1}페이지"><div class="reader-pagination"><button class="ghost-button" type="button" id="readerPrev" ${currentPageIndex===0?"disabled":""}>이전 페이지</button><span>${currentPageIndex + 1} / ${pages.length}</span><button class="ghost-button" type="button" id="readerNext" ${currentPageIndex>=pages.length-1?"disabled":""}>다음 페이지</button></div>` : `<div class="empty">이 챕터에는 이미지가 없습니다.</div>`;
+    toolbar.querySelector("#readerChapterSelect").addEventListener("change", event => renderReader(Number(event.target.value), 0));
+    toolbar.querySelectorAll("[data-chapter-jump]").forEach(button => button.addEventListener("click", () => renderReader(button.dataset.chapterJump === "first" ? 0 : chapters.length - 1, 0)));
+    toolbar.querySelectorAll("[data-page-jump]").forEach(button => button.addEventListener("click", () => renderReader(currentChapterIndex, button.dataset.pageJump === "first" ? 0 : pages.length - 1)));
+    reader.querySelector("#readerPrev")?.addEventListener("click", () => renderReader(currentChapterIndex, currentPageIndex - 1));
+    reader.querySelector("#readerNext")?.addEventListener("click", () => renderReader(currentChapterIndex, currentPageIndex + 1));
+  }
+  renderReader();
 
   function renderChapters(sortDir) {
     currentSortDir = sortDir;
@@ -101,12 +123,18 @@
 
     tbody.innerHTML = sortedChapters.length ? sortedChapters.map((chapter) => `
       <tr>
-        <td>${UI.escapeHtml(chapter.chapter_number)}</td>
+        <td><button class="link-button" type="button" data-read-chapter="${UI.escapeHtml(chapter.chapter_number)}">제${UI.escapeHtml(chapter.chapter_number)}화 ${UI.escapeHtml(chapter.chapter_title || "")}</button></td>
         <td>${chapter.chapter_poster ? `<img class="table-thumb" src="${UI.escapeHtml(chapter.chapter_poster)}" alt="${UI.escapeHtml(chapter.webtoon_chapter_id)}">` : `<span class="muted-text">없음</span>`}</td>
         <td>${chapter.chapter_url ? `<a class="link-button" href="${UI.escapeHtml(chapter.chapter_url)}" target="_blank" rel="noreferrer">열기</a>` : `<span class="muted-text">없음</span>`}</td>
         <td>${UI.escapeHtml(chapter.regdate ? String(chapter.regdate).slice(0, 10) : "-")}</td>
       </tr>
     `).join("") : `<tr><td colspan="4"><div class="empty">등록된 Chapter가 없습니다.</div></td></tr>`;
+    tbody.querySelectorAll("[data-read-chapter]").forEach(button => button.addEventListener("click", () => {
+      const chapters = (webtoon.chapters || []).slice().sort((a,b)=>Number(a.chapter_number)-Number(b.chapter_number));
+      const index = chapters.findIndex(item => String(item.chapter_number) === button.dataset.readChapter);
+      renderReader(index < 0 ? 0 : index, 0);
+      detail.querySelector("#webtoonReader")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }));
   }
 
   // Render chapters initially as ascending (Read First)

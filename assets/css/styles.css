@@ -885,3 +885,61 @@ body[data-admin-kind="galleryImages"] .form-title-submit .material-symbols-outli
 
 .table-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
 .table-heading h2 { margin: 0; }
+
+.creator-panel { max-width: 860px; padding: 24px; }
+.creator-panel form { display: grid; gap: 16px; }
+.creator-panel label { display: grid; gap: 8px; font-weight: 700; }
+.creator-panel .cover-picker { max-width: 320px; padding: 14px; border: 1px dashed var(--line); border-radius: var(--radius); cursor: pointer; }
+.cover-picker img { width: 180px; max-height: 260px; object-fit: cover; border-radius: 8px; }
+.cover-picker input { max-width: 260px; }
+.creator-current { padding-bottom: 18px; border-bottom: 1px solid var(--line); margin-bottom: 20px; }
+.creator-current h2 { margin: 4px 0; }
+.chapter-compose { max-width: 680px; }
+.chapter-drop { min-height: 160px; padding: 24px; place-items: center; border: 2px dashed var(--line); border-radius: var(--radius); cursor: pointer; text-align: center; background: var(--surface-2); }
+.chapter-drop .material-symbols-outlined { font-size: 36px; }
+.chapter-drop small { color: var(--muted); }
+.chapter-drop input { max-width: 280px; }
+.selected-images { display: grid; grid-template-columns: repeat(auto-fill,minmax(120px,1fr)); gap: 10px; }
+.selected-images div { overflow: hidden; border: 1px solid var(--line); border-radius: 8px; }
+.selected-images img { display: block; width: 100%; height: 120px; object-fit: cover; }
+.selected-images span { display: block; padding: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.selected-images button { margin: 0 6px 6px; }
+.creator-chapters { margin-top: 28px; }
+.creator-chapter { display: flex; justify-content: space-between; gap: 14px; padding: 12px; border-bottom: 1px solid var(--line); color: inherit; text-decoration: none; }
+.reader-toolbar { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 14px; padding: 16px 0; }
+.reader-toolbar label { display: grid; gap: 6px; min-width: 220px; }
+.reader-jump, .reader-pagination { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.webtoon-reader { display: grid; justify-items: center; gap: 12px; padding: 18px; background: var(--surface-2); border-radius: var(--radius); }
+.reader-image { display: block; max-width: min(100%, 900px); max-height: 78vh; object-fit: contain; }
+.reader-page-count { justify-self: start; color: var(--muted); }
+.reader-pagination { justify-content: center; width: 100%; }
+.reader-pagination button:disabled { opacity: .45; cursor: not-allowed; }
+.my-webtoons-page .poster-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.my-webtoons-page .poster-frame { aspect-ratio: 3 / 4; }
+.my-webtoons-page .poster-title { margin-top: 8px; font-size: 14px; }
+.my-webtoons-page .poster-meta { gap: 4px; font-size: 11px; }
+@media (max-width: 720px) { .creator-panel { padding: 16px; } .reader-toolbar { align-items: stretch; } .reader-jump { display: grid; grid-template-columns: 1fr 1fr; } .reader-image { max-height: 70vh; } }
+@media (max-width: 720px) { .my-webtoons-page .poster-grid { grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 8px; } .my-webtoons-page .poster-title { font-size: 12px; } }
+
+.creator-panel.creator-wide { max-width: 1200px; }
+.creator-split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 440px); gap: 24px; align-items: start; }
+.creator-preview { position: sticky; top: 16px; max-height: calc(100vh - 32px); overflow-y: auto; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface-2); }
+.creator-preview h3 { margin: 0 0 10px; }
+.creator-preview small { color: var(--muted); font-weight: 500; margin-left: 6px; }
+.cut-preview { display: flex; flex-direction: column; gap: 16px; }
+.cut { position: relative; margin: 0; }
+.cut img { display: block; width: 100%; height: auto; border-radius: 6px; box-shadow: 0 0 0 1px var(--line); }
+.cut figcaption { position: absolute; top: 6px; right: 6px; display: flex; gap: 4px; align-items: center; padding: 4px 6px; border-radius: 8px; background: rgba(0, 0, 0, 0.72); color: #fff; font-size: 12px; opacity: 0.9; }
+.cut figcaption button { padding: 2px 6px; border: 1px solid rgba(255, 255, 255, 0.35); border-radius: 6px; background: transparent; color: inherit; font-size: 12px; cursor: pointer; }
+.cut figcaption button:hover:not(:disabled) { background: rgba(255, 255, 255, 0.2); }
+.cut figcaption button:disabled { opacity: 0.35; cursor: default; }
+.cut figcaption button[data-cut-delete] { color: var(--danger); }
+.creator-chapter.active { background: var(--surface-2); }
+.creator-chapter .table-actions { display: flex; gap: 10px; }
+.chapter-status { color: var(--muted); }
+@media (max-width: 900px) { .creator-split { grid-template-columns: 1fr; } .creator-preview { position: static; max-height: none; } }
+.reader-stack { display: flex; flex-direction: column; align-items: center; gap: 16px; width: 100%; }
+.reader-cut { position: relative; margin: 0; width: 100%; max-width: 900px; }
+.reader-stack .reader-image { width: 100%; max-width: 100%; max-height: none; height: auto; border-radius: 6px; }
+.reader-cut .danger-action { position: absolute; top: 8px; right: 8px; opacity: .9; }
+.webtoon-reader[hidden], .reader-toolbar[hidden], #webtoonDetail .movie-detail[hidden], #webtoonDetail .webtoon-image-strip[hidden] { display: none; }

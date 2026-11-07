@@ -13,6 +13,9 @@
 
     const visibleCategories = (data.categories || []).filter((item) => item.is_visible !== false).length;
     const topGrade = (data.movies || []).filter((movie) => movie.rating_grade === "A+" || movie.rating_grade === "A").length;
+    const myWebtoonIds = new Set((data.webtoons || []).filter((item) => String(item.type || "").toLowerCase() === "original" || String(item.webtoon_id || "").startsWith("MY-")).map((item) => String(item.webtoon_id)));
+    const catalogWebtoonCount = (data.webtoons || []).filter((item) => !myWebtoonIds.has(String(item.webtoon_id))).length;
+    const catalogChapterCount = (data.webtoonChapters || []).filter((item) => !myWebtoonIds.has(String(item.webtoon_id))).length;
     let databaseInfo = null;
     if (Store.databaseMetadata) {
       try {
@@ -24,8 +27,8 @@
 
     const statItems = [
       ["영화정보", `${(data.movies || []).length}개`, "movie"],
-      ["Webtoon 정보", `${(data.webtoons || []).length}개`, "auto_stories"],
-      ["Webtoon Chapter", `${(data.webtoonChapters || []).length}개`, "format_list_numbered"],
+      ["Webtoon 정보", `${catalogWebtoonCount}개`, "auto_stories"],
+      ["Webtoon Chapter", `${catalogChapterCount}개`, "format_list_numbered"],
       ["갤러리", `${(data.galleryImages || []).length}개`, "photo_library"],
       ["전시 카테고리", `${visibleCategories}개`, "category"],
       ["주연배우", `${(data.actors || []).length}명`, "person"],

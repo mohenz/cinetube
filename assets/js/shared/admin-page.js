@@ -137,11 +137,19 @@
       return [...data.actors].sort(actorNameAsc);
     }
 
+    function isMyWebtoon(item) {
+      return String(item?.type || "").toLowerCase() === "original" || String(item?.webtoon_id || "").startsWith("MY-");
+    }
+
+    function myWebtoonIds() {
+      return new Set((data.webtoons || []).filter(isMyWebtoon).map((item) => String(item.webtoon_id)));
+    }
+
     function optionList(type) {
       if (type === "category") return data.categories.map((item) => `<option value="${UI.escapeHtml(item.category_code)}">${UI.escapeHtml(item.name)}</option>`).join("");
       if (type === "actor") return sortedActors().map((item) => `<option value="${UI.escapeHtml(item.id)}">${UI.escapeHtml(item.name)}</option>`).join("");
       if (type === "rating") return data.ratings.map((item) => `<option value="${UI.escapeHtml(item.grade)}">${UI.escapeHtml(item.grade)}</option>`).join("");
-      if (type === "webtoon") return (data.webtoons || []).map((item) => `<option value="${UI.escapeHtml(item.webtoon_id)}">${UI.escapeHtml(item.webtoon_id)} · ${UI.escapeHtml(item.title)}</option>`).join("");
+      if (type === "webtoon") return (data.webtoons || []).filter((item) => !isMyWebtoon(item)).map((item) => `<option value="${UI.escapeHtml(item.webtoon_id)}">${UI.escapeHtml(item.webtoon_id)} · ${UI.escapeHtml(item.title)}</option>`).join("");
       return "";
     }
 
@@ -1366,8 +1374,6 @@
       }
       const detailLink = kind === "movies"
         ? `<a class="link-button" href="movie-detail.html?code=${UI.escapeHtml(item.movie_code || item[primaryKey])}">상세</a>`
-        : kind === "webtoons"
-          ? `<a class="link-button" href="../pages/webtoon.html?id=${UI.escapeHtml(item.webtoon_id || item[primaryKey])}">상세</a>`
         : "";
       return `
         <div class="table-actions">
@@ -1470,6 +1476,11 @@
     function renderTable() {
       const allItems = data[kind] || [];
       let filteredItems = allItems;
+      if (kind === "webtoons") filteredItems = allItems.filter((item) => !isMyWebtoon(item));
+      if (kind === "webtoonChapters") {
+        const ownWebtoonIds = myWebtoonIds();
+        filteredItems = allItems.filter((item) => !ownWebtoonIds.has(String(item.webtoon_id)));
+      }
       
       if (kind === "movies" && searchInput && searchInput.value.trim()) {
         const term = searchInput.value.trim();
@@ -1497,7 +1508,7 @@
       }
       if ((kind === "webtoons" || kind === "webtoonChapters" || kind === "galleryImages") && searchInput && searchInput.value.trim()) {
         const term = searchInput.value.trim().toLowerCase();
-        filteredItems = allItems.filter((item) => Object.values(item).some((value) => {
+        filteredItems = filteredItems.filter((item) => Object.values(item).some((value) => {
           if (Array.isArray(value)) return value.join(" ").toLowerCase().includes(term);
           if (value && typeof value === "object") return false;
           return String(value || "").toLowerCase().includes(term);

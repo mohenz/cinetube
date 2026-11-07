@@ -46,8 +46,8 @@ TABLES = {
     },
     "webtoon_chapters": {
         "pk": "id",
-        "insert": ["webtoon_chapter_id", "webtoon_id", "chapter_number", "chapter_url", "chapter_poster", "chapter_poster_asset_id"],
-        "update": ["webtoon_chapter_id", "webtoon_id", "chapter_number", "chapter_url", "chapter_poster", "chapter_poster_asset_id"],
+        "insert": ["webtoon_chapter_id", "webtoon_id", "chapter_number", "chapter_url", "chapter_poster", "chapter_poster_asset_id", "chapter_title", "page_image_urls", "page_image_asset_ids"],
+        "update": ["webtoon_chapter_id", "webtoon_id", "chapter_number", "chapter_url", "chapter_poster", "chapter_poster_asset_id", "chapter_title", "page_image_urls", "page_image_asset_ids"],
     },
     "movies": {
         "pk": "id",

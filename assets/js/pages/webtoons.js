@@ -75,6 +75,7 @@
     const term = searchInput ? searchInput.value.trim() : "";
     const items = (data.webtoons || [])
       .slice()
+      .filter((webtoon) => String(webtoon.type || "").toLowerCase() !== "original")
       .filter((webtoon) => matches(webtoon, term))
       .sort((a, b) => new Date(b.regdate || b.created_at || 0) - new Date(a.regdate || a.created_at || 0));
 

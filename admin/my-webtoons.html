@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>CineTube Admin | 마이웹툰 관리</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@200..700,0..1&display=swap" rel="stylesheet">
+    <link rel="icon" href="../assets/img/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="../assets/css/styles.css?v=table-refresh">
+  <script src="../assets/js/shared/theme.js?v=1"></script>
+  <link rel="stylesheet" href="../assets/css/theme.css?v=2">
+  </head>
+  <body data-page="admin" data-admin-kind="myWebtoons">
+    <aside class="sidebar" aria-label="관리 메뉴">
+      <a class="brand" href="../index.html"><span class="brand-mark">CT</span><span><strong>CineAdmin</strong><small>Webtoon Control</small></span></a>
+      <nav class="side-nav">
+        <a class="nav-item" href="../index.html"><span class="material-symbols-outlined">home</span>사이트 홈</a>
+        <a class="nav-item" href="index.html"><span class="material-symbols-outlined">dashboard</span>대시보드</a>
+        <a class="nav-item" href="movies.html"><span class="material-symbols-outlined">movie</span>영화정보</a>
+        <a class="nav-item" href="categories.html"><span class="material-symbols-outlined">category</span>카테고리</a>
+        <a class="nav-item" href="actors.html"><span class="material-symbols-outlined">person</span>주연배우</a>
+        <a class="nav-item" href="ratings.html"><span class="material-symbols-outlined">grade</span>평가등급</a>
+        <span class="nav-divider" aria-hidden="true"></span>
+        <a class="nav-item" href="webtoons.html"><span class="material-symbols-outlined">auto_stories</span>Webtoon 정보</a>
+        <a class="nav-item" href="webtoon-chapters.html"><span class="material-symbols-outlined">format_list_numbered</span>Webtoon Chapter</a>
+        <a class="nav-item" href="gallery-images.html"><span class="material-symbols-outlined">photo_library</span>갤러리</a>
+        <a class="nav-item" href="gallery-quick.html"><span class="material-symbols-outlined">bolt</span>갤러리 퀵등록</a>
+        <a class="nav-item active" href="my-webtoons.html"><span class="material-symbols-outlined">collections_bookmark</span>마이웹툰 관리</a>
+        <span class="nav-divider" aria-hidden="true"></span>
+        <a class="nav-item" href="common-codes.html"><span class="material-symbols-outlined">tune</span>공통코드</a>
+        <a class="nav-item" href="status.html"><span class="material-symbols-outlined">monitor_heart</span>시스템 상태</a>
+      </nav>
+      <div class="db-status" id="dbStatus">Bloom Universe</div>
+    </aside>
+    <header class="topbar">
+      <button class="mobile-menu" type="button" id="mobileMenu" aria-label="메뉴 열기"><span class="material-symbols-outlined">menu</span></button>
+      <div class="search-box"><span class="material-symbols-outlined">search</span><input id="searchInput" type="search" placeholder="제목, 장르 검색"></div>
+      <a class="primary-button" href="webtoon-create.html"><span class="material-symbols-outlined">edit_note</span>웹툰 만들기</a>
+      <a class="ghost-button" href="../pages/my-webtoons.html"><span class="material-symbols-outlined">visibility</span>서비스 화면 보기</a>
+    </header>
+    <main class="app-shell">
+      <section class="content-view">
+        <div class="section-head"><div><p class="eyebrow">My Webtoon</p><h1>마이웹툰 관리</h1><p>직접 만든 웹툰을 만들고 수정하고 삭제합니다.</p></div></div>
+        <section class="admin-panel table-wrap" id="myWebtoonTable"></section>
+      </section>
+    </main>
+    <div class="drawer-backdrop" id="drawerBackdrop"></div>
+    <script src="../assets/js/local-db-config.js?v=lan-api"></script>
+    <script src="../assets/js/shared/sample-data.js"></script>
+    <script src="../assets/js/shared/store.js?v=chapters-fix"></script>
+    <script src="../assets/js/shared/ui.js"></script>
+    <script src="../assets/js/pages/admin-my-webtoons.js?v=admin1"></script>
+  </body>
+</html>

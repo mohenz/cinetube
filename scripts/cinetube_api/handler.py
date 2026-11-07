@@ -266,8 +266,14 @@ class Handler(BaseHTTPRequestHandler):
             self.send_error_json(exc)
 
 
+class ApiServer(ThreadingHTTPServer):
+    # 기본 접속 대기열(5)은 화면 로드 시 동시 요청 10여 개가 몰리면 ECONNREFUSED를 낸다.
+    request_queue_size = 128
+    daemon_threads = True
+
+
 def create_server(host=None, port=None, handler_class=Handler):
-    return ThreadingHTTPServer(
+    return ApiServer(
         (host or config.API_HOST, port or config.API_PORT),
         handler_class,
     )
