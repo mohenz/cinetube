@@ -140,12 +140,20 @@
     syncFromData(); selectChapter(chapter);
   }
 
+  let lastPreviewChapter = null, lastPreviewCount = 0;
   function renderPreview() {
     const { urls } = pagesOf();
     const preview = composer.querySelector("#cutPreview");
     composer.querySelector("#previewCount").textContent = chapter ? `제${chapter.chapter_number}화 · ${urls.length}컷` : "";
     composer.querySelector("#chapterStatus").textContent = chapter ? `제${chapter.chapter_number}화 편집 중 (${urls.length}컷, 자동 저장)` : "새 챕터 — 첫 컷을 붙여넣으면 챕터가 만들어집니다.";
     preview.innerHTML = urls.length ? urls.map((url, index) => `<figure class="cut"><img src="${UI.escapeHtml(url)}" alt="${index + 1}번 컷"><figcaption><span>#${index + 1}</span><button type="button" data-cut-up="${index}" ${index === 0 ? "disabled" : ""} title="위로" aria-label="위로">▲</button><button type="button" data-cut-down="${index}" ${index === urls.length - 1 ? "disabled" : ""} title="아래로" aria-label="아래로">▼</button><button type="button" data-cut-replace="${index}">교체</button><button type="button" data-cut-delete="${index}">삭제</button></figcaption></figure>`).join("") : `<div class="empty">컷 이미지를 붙여넣으면 이어 붙은 모습이 여기에 표시됩니다.</div>`;
+    const grew = chapter && String(chapter.id) === String(lastPreviewChapter) && urls.length > lastPreviewCount;
+    lastPreviewChapter = chapter ? chapter.id : null; lastPreviewCount = urls.length;
+    if (grew) {
+      const lastImage = preview.querySelector("figure.cut:last-of-type img");
+      const reveal = () => lastImage.closest("figure").scrollIntoView({ block: "end", behavior: "smooth" });
+      if (lastImage.complete) reveal(); else lastImage.addEventListener("load", reveal, { once: true });
+    }
     const list = composer.querySelector("#chapterList"); const chapters = chaptersOf();
     list.innerHTML = `<h3>만든 챕터 (${chapters.length})</h3>${chapters.length ? chapters.map((item) => `<div class="creator-chapter ${chapter && String(chapter.id) === String(item.id) ? "active" : ""}"><span>제${UI.escapeHtml(item.chapter_number)}화 ${UI.escapeHtml(item.chapter_title || "")} · ${(item.page_image_urls || []).length}컷</span><span class="table-actions"><button class="link-button" type="button" data-edit-chapter="${UI.escapeHtml(item.id)}">편집</button><a class="link-button" href="my-webtoon.html?id=${encodeURIComponent(webtoon.webtoon_id)}&chapter=${encodeURIComponent(item.chapter_number)}">보기</a><button class="link-button danger-link" type="button" data-delete-chapter="${UI.escapeHtml(item.id)}">삭제</button></span></div>`).join("") : `<p class="muted-text">아직 저장된 챕터가 없습니다.</p>`}`;
   }
