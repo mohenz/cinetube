@@ -74,6 +74,25 @@ def remove_local_media_file(relative_path):
         logger.warning("failed to roll back media file %s", relative_path)
 
 
+def delete_local_media_files(assets):
+    """삭제된 local-file 미디어 레코드의 원본과 썸네일 파일을 제거한다."""
+    deleted = set()
+    for asset in assets or []:
+        if asset.get("bucket_id") != "local-file":
+            continue
+        candidates = [asset.get("object_path"), asset.get("thumb_url")]
+        for value in candidates:
+            if not value:
+                continue
+            relative_path = urlparse(str(value)).path.lstrip("/")
+            if not relative_path or relative_path in deleted:
+                continue
+            path = resolve_media_path(relative_path)
+            if path.exists():
+                path.unlink()
+            deleted.add(relative_path)
+
+
 def thumbnail_data_url(content):
     if Image is None:
         return ""

@@ -259,7 +259,9 @@ class Handler(BaseHTTPRequestHandler):
             where = queries.filter_clause(table, query)
             if not where:
                 raise ValueError("missing primary key filter")
-            repository.delete_row_for_table(table, where)
+            deleted_rows = repository.delete_row_for_table(table, where)
+            if table == "media_assets":
+                media.delete_local_media_files(deleted_rows)
             self.send_response(204)
             self.end_headers()
         except Exception as exc:

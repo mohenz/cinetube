@@ -1,6 +1,7 @@
 """media.py 저장 경로·확장자·보상 처리 단위테스트."""
 
 import base64
+import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -59,6 +60,67 @@ class SafePathTest(unittest.TestCase):
     def test_rejects_outside_root(self):
         with self.assertRaises(ValueError):
             media.resolve_media_path("assets/js/app.js")
+
+
+class DeleteLocalMediaFilesTest(unittest.TestCase):
+    def test_deletes_files_from_local_media_directory(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_root = Path(temp_dir)
+            media_root = project_root / "local" / "media"
+            original = media_root / "gallery-images" / "image" / "a.png"
+            thumbnail = media_root / "gallery-images" / "image" / "a.thumb.webp"
+            original.parent.mkdir(parents=True)
+            original.write_bytes(b"original")
+            thumbnail.write_bytes(b"thumbnail")
+
+            with mock.patch.object(media.config, "PROJECT_ROOT", project_root), \
+                 mock.patch.object(media.config, "LOCAL_MEDIA_ROOT", media_root):
+                media.delete_local_media_files([{
+                    "bucket_id": "local-file",
+                    "object_path": "local/media/gallery-images/image/a.png",
+                    "thumb_url": "/local/media/gallery-images/image/a.thumb.webp",
+                }])
+
+            self.assertFalse(original.exists())
+            self.assertFalse(thumbnail.exists())
+
+    def test_deletes_original_and_thumbnail(self):
+        with mock.patch.object(media, "resolve_media_path") as resolve:
+            original = mock.Mock()
+            original.exists.return_value = True
+            thumbnail = mock.Mock()
+            thumbnail.exists.return_value = True
+            resolve.side_effect = [original, thumbnail]
+
+            media.delete_local_media_files([{
+                "bucket_id": "local-file",
+                "object_path": "local/media/gallery/image/a.png",
+                "thumb_url": "/local/media/gallery/image/a.thumb.webp",
+            }])
+
+        original.unlink.assert_called_once_with()
+        thumbnail.unlink.assert_called_once_with()
+
+    def test_does_not_delete_non_local_asset(self):
+        with mock.patch.object(media, "resolve_media_path") as resolve:
+            media.delete_local_media_files([{
+                "bucket_id": "cinetube-images",
+                "object_path": "gallery/image/a.png",
+                "thumb_url": "https://example.com/a.webp",
+            }])
+        resolve.assert_not_called()
+
+    def test_deduplicates_original_used_as_thumbnail(self):
+        path = mock.Mock()
+        path.exists.return_value = True
+        with mock.patch.object(media, "resolve_media_path", return_value=path) as resolve:
+            media.delete_local_media_files([{
+                "bucket_id": "local-file",
+                "object_path": "local/media/gallery/image/a.png",
+                "thumb_url": "/local/media/gallery/image/a.png",
+            }])
+        resolve.assert_called_once_with("local/media/gallery/image/a.png")
+        path.unlink.assert_called_once_with()
 
 
 class SaveLocalMediaTest(unittest.TestCase):

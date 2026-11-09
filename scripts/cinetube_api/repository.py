@@ -66,7 +66,10 @@ def update_row_for_table(table, payload, where_sql):
 
 def delete_row_for_table(table, where_sql):
     assert_known_table(table)
-    run_sql(f"delete from public.{table} where {where_sql};")
+    return queries.row_json(
+        f"delete from public.{table} where {where_sql} returning *",
+        mutable=True,
+    )
 
 
 def update_columns(table, pk_value, updates):

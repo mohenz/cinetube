@@ -54,7 +54,12 @@ class HealthAndCorsTest(ApiServerTestCase):
     def test_health(self):
         status, headers, body = self.request("/health")
         self.assertEqual(status, 200)
-        self.assertEqual(json.loads(body), {"ok": True, "service": "cinetube-api"})
+        payload = json.loads(body)
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["service"], "cinetube-api")
+        self.assertIn("server_time", payload)
+        self.assertIn("database", payload)
+        self.assertIn("jobs", payload)
         self.assertEqual(headers["Content-Type"], "application/json; charset=utf-8")
 
     def test_root_is_health(self):
@@ -233,11 +238,27 @@ class WriteTest(ApiServerTestCase):
         self.assertEqual(json.loads(body)["message"], "missing primary key filter")
 
     def test_delete_returns_204(self):
-        with mock.patch.object(handler_module.repository, "delete_row_for_table") as delete:
+        with mock.patch.object(
+            handler_module.repository,
+            "delete_row_for_table",
+            return_value=[{"id": 5}],
+        ) as delete:
             status, _, body = self.request("/movies?id=eq.5", "DELETE")
         self.assertEqual(status, 204)
         self.assertEqual(body, "")
         delete.assert_called_once_with("movies", "id = '5'")
+
+    def test_delete_media_asset_removes_local_files(self):
+        deleted_rows = [{"id": "asset-1", "bucket_id": "local-file", "object_path": "local/media/a.png"}]
+        with mock.patch.object(
+            handler_module.repository,
+            "delete_row_for_table",
+            return_value=deleted_rows,
+        ), mock.patch.object(handler_module.media, "delete_local_media_files") as delete_files:
+            status, _, body = self.request("/media_assets?id=eq.asset-1", "DELETE")
+        self.assertEqual(status, 204)
+        self.assertEqual(body, "")
+        delete_files.assert_called_once_with(deleted_rows)
 
     def test_media_upload_route(self):
         with mock.patch.object(
