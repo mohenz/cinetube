@@ -82,6 +82,16 @@
     </section>`;
   UI.setupFavoriteButtons(detail, null, "webtoon");
 
+  // 챕터를 새 창(탭)에서 열기 위한 주소: 같은 화면을 ?chapter=N 으로 연다.
+  const chapterWindowUrl = (chapterNumber) => `${window.location.pathname}?id=${encodeURIComponent(webtoon.webtoon_id)}&chapter=${encodeURIComponent(chapterNumber)}&popup=1`;
+  // 새 창으로 보기: 크기 조절이 가능한 팝업 창으로 연다. 팝업이 막히면 링크의 기본 동작(새 탭)을 따른다.
+  detail.addEventListener("click", (event) => {
+    const link = event.target.closest("a[data-popup-reader]");
+    if (!link || event.ctrlKey || event.metaKey || event.shiftKey) return;
+    const width = Math.min(900, window.screen.availWidth - 80), height = Math.min(window.screen.availHeight - 80, 1000);
+    const popup = window.open(link.href, "cinetubeReader", `popup=yes,width=${width},height=${height},left=${Math.round((window.screen.availWidth - width) / 2)},top=40,resizable=yes,scrollbars=yes`);
+    if (popup) { event.preventDefault(); popup.focus(); }
+  });
   let currentSortDir = "asc";
   let currentChapterIndex = -1;
   let currentPageIndex = 0;
@@ -108,7 +118,7 @@
     toolbar.hidden = false; reader.hidden = false;
     listParts.forEach((el) => { if (el) el.hidden = true; });
     const step = (delta) => `<button class="ghost-button" type="button" data-chapter-step="${delta}" ${currentChapterIndex + delta < 0 || currentChapterIndex + delta >= chapters.length ? "disabled" : ""}>${delta < 0 ? "이전 화" : "다음 화"}</button>`;
-    toolbar.innerHTML = `<button class="ghost-button" type="button" data-reader-close><span class="material-symbols-outlined">list</span>챕터 목록</button><label>챕터 <select class="select-control" id="readerChapterSelect">${chapters.map((item,index)=>`<option value="${index}" ${index===currentChapterIndex?"selected":""}>제${UI.escapeHtml(item.chapter_number)}화${item.chapter_title?` · ${UI.escapeHtml(item.chapter_title)}`:""}</option>`).join("")}</select></label><div class="reader-jump">${step(-1)}${step(1)}</div>`;
+    toolbar.innerHTML = `<button class="ghost-button" type="button" data-reader-close><span class="material-symbols-outlined">list</span>챕터 목록</button><label>챕터 <select class="select-control" id="readerChapterSelect">${chapters.map((item,index)=>`<option value="${index}" ${index===currentChapterIndex?"selected":""}>제${UI.escapeHtml(item.chapter_number)}화${item.chapter_title?` · ${UI.escapeHtml(item.chapter_title)}`:""}</option>`).join("")}</select></label><a class="ghost-button" data-popup-reader href="${UI.escapeHtml(chapterWindowUrl(chapter.chapter_number))}" target="_blank" rel="noopener" title="새 창으로 보기" aria-label="새 창으로 보기"><span class="material-symbols-outlined">open_in_new</span></a><div class="reader-jump">${step(-1)}${step(1)}</div>`;
     reader.innerHTML = pages.length
       ? `<div class="reader-page-count">제${UI.escapeHtml(chapter.chapter_number)}화 ${UI.escapeHtml(chapter.chapter_title || "")} · ${pages.length}컷</div><div class="reader-stack">${pages.map((url, index) => `<figure class="reader-cut"><img class="reader-image" loading="lazy" src="${UI.escapeHtml(url)}" alt="${UI.escapeHtml(webtoon.title)} 제${UI.escapeHtml(chapter.chapter_number)}화 ${index + 1}컷"></figure>`).join("")}</div><div class="reader-pagination">${step(-1)}<button class="ghost-button" type="button" data-reader-close>챕터 목록</button>${step(1)}</div>`
       : `<div class="empty">이 챕터에는 이미지가 없습니다.</div>`;
@@ -134,7 +144,7 @@
 
     tbody.innerHTML = sortedChapters.length ? sortedChapters.map((chapter) => `
       <tr>
-        <td><button class="link-button" type="button" data-read-chapter="${UI.escapeHtml(chapter.chapter_number)}">제${UI.escapeHtml(chapter.chapter_number)}화 ${UI.escapeHtml(chapter.chapter_title || "")}</button></td>
+        <td><button class="link-button" type="button" data-read-chapter="${UI.escapeHtml(chapter.chapter_number)}">제${UI.escapeHtml(chapter.chapter_number)}화 ${UI.escapeHtml(chapter.chapter_title || "")}</button> <a class="link-button" data-popup-reader href="${UI.escapeHtml(chapterWindowUrl(chapter.chapter_number))}" target="_blank" rel="noopener" title="새 창으로 보기" aria-label="새 창으로 보기"><span class="material-symbols-outlined">open_in_new</span></a></td>
         <td>${chapter.chapter_poster ? `<img class="table-thumb" src="${UI.escapeHtml(chapter.chapter_poster)}" alt="${UI.escapeHtml(chapter.webtoon_chapter_id)}">` : `<span class="muted-text">없음</span>`}</td>
         <td>${chapter.chapter_url ? `<a class="link-button" href="${UI.escapeHtml(chapter.chapter_url)}" target="_blank" rel="noreferrer">열기</a>` : `<span class="muted-text">없음</span>`}</td>
         <td>${UI.escapeHtml(chapter.regdate ? String(chapter.regdate).slice(0, 10) : "-")}</td>

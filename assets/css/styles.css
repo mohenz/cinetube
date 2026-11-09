@@ -943,3 +943,11 @@ body[data-admin-kind="galleryImages"] .form-title-submit .material-symbols-outli
 .reader-stack .reader-image { width: 100%; max-width: 100%; max-height: none; height: auto; border-radius: 6px; }
 .reader-cut .danger-action { position: absolute; top: 8px; right: 8px; opacity: .9; }
 .webtoon-reader[hidden], .reader-toolbar[hidden], #webtoonDetail .movie-detail[hidden], #webtoonDetail .webtoon-image-strip[hidden] { display: none; }
+
+/* 챕터 전용 팝업 창(?popup=1): 사이드바·상단바·목록 이동 없이 챕터만 보여 준다. */
+html.reader-window .sidebar, html.reader-window .topbar, html.reader-window .drawer-backdrop,
+html.reader-window .webtoon-chapter-panel .section-head,
+html.reader-window #readerToolbar [data-reader-close], html.reader-window #readerToolbar [data-popup-reader],
+html.reader-window .reader-pagination [data-reader-close] { display: none; }
+html.reader-window .app-shell { margin-left: 0; padding-top: 0; }
+html.reader-window .content-view { padding-top: 16px; }
