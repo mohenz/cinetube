@@ -951,3 +951,4 @@ html.reader-window #readerToolbar [data-reader-close], html.reader-window #reade
 html.reader-window .reader-pagination [data-reader-close] { display: none; }
 html.reader-window .app-shell { margin-left: 0; padding-top: 0; }
 html.reader-window .content-view { padding-top: 16px; }
+.cut-preview .cut.cut-moved { outline: 2px solid var(--primary, #e50914); outline-offset: 2px; transition: outline-color .3s; }

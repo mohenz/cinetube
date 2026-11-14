@@ -91,12 +91,23 @@
     message(`${images.length}컷 저장 중...`);
     enqueue(async () => { for (const file of images) await addCut(file); });
   }
+  // 이동한 컷이 화면 밖으로 밀려나지 않도록 가운데로 스크롤하고 잠깐 강조한다.
+  function revealCut(index, block = "center") {
+    const figure = composer.querySelectorAll("#cutPreview figure.cut")[index];
+    if (!figure) return;
+    const image = figure.querySelector("img");
+    const reveal = () => { figure.scrollIntoView({ block, behavior: "smooth" }); figure.classList.add("cut-moved"); setTimeout(() => figure.classList.remove("cut-moved"), 1200); };
+    if (image.complete) reveal(); else image.addEventListener("load", reveal, { once: true });
+  }
   function moveCut(index, delta) {
     enqueue(async () => {
       const { urls, ids } = pagesOf(); const to = index + delta;
       if (to < 0 || to >= urls.length) return;
-      [urls[index], urls[to]] = [urls[to], urls[index]]; [ids[index], ids[to]] = [ids[to], ids[index]];
+      [urls[index], urls[to]] = [urls[to], urls[index]];
+      // 자산 id가 컷 수보다 짧은 오래된 챕터에서도 배열이 어긋나지 않게 맞춘다.
+      if (ids.length === urls.length) [ids[index], ids[to]] = [ids[to], ids[index]];
       await writePages(urls, ids);
+      revealCut(to);
     });
   }
   function deleteCut(index) {
